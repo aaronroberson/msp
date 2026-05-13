@@ -1,0 +1,76 @@
+{
+  "dependencies": {
+    "fswatch": {
+      "name": "fswatch",
+      "description": "File system watcher for real-time monitoring",
+      "type": "formula",
+      "required": true,
+      "auto_install": true,
+      "install_cmd": "brew install fswatch",
+      "verify_cmd": "which fswatch"
+    },
+    "apfel": {
+      "name": "apfel",
+      "description": "Apple Intelligence from the command line",
+      "type": "formula",
+      "required": true,
+      "auto_install": true,
+      "install_cmd": "brew install apfel",
+      "verify_cmd": "which apfel",
+      "note": "Already installed"
+    },
+    "processmonitor": {
+      "name": "ProcessMonitor",
+      "description": "Monitor process creations via Endpoint Security",
+      "type": "cask",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "brew install --cask processmonitor",
+      "verify_cmd": "ls /Applications/ProcessMonitor.app",
+      "path": "/Applications/ProcessMonitor.app/Contents/MacOS/ProcessMonitor"
+    },
+    "knockknock": {
+      "name": "KnockKnock",
+      "description": "Enumerate persistently installed software",
+      "type": "cask",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "brew install --cask knockknock",
+      "verify_cmd": "ls /Applications/KnockKnock.app",
+      "path": "/Applications/KnockKnock.app/Contents/MacOS/KnockKnock"
+    },
+    "wireshark": {
+      "name": "Wireshark",
+      "description": "Network protocol analyzer (tshark CLI)",
+      "type": "formula",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "brew install wireshark",
+      "verify_cmd": "which tshark",
+      "note": "Heavy package (~100MB), install only if needed"
+    },
+    "somo": {
+      "name": "somo",
+      "description": "Human-friendly network monitor",
+      "type": "formula",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "brew install somo",
+      "verify_cmd": "which somo"
+    }
+  },
+  "system_checks": {
+    "gatekeeper": {
+      "cmd": "spctl --status",
+      "enabled_pattern": "assessments enabled"
+    },
+    "firewall": {
+      "cmd": "/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate",
+      "enabled_pattern": "enabled"
+    },
+    "filevault": {
+      "cmd": "fdesetup status",
+      "enabled_pattern": "FileVault is On"
+    }
+  }
+}

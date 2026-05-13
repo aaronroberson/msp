@@ -1,0 +1,22 @@
+#!/bin/bash
+# macos-privacy-cli wrapper script
+# Usage: ./macos-privacy or ./macos-privacy <command>
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_SCRIPT="$SCRIPT_DIR/main.py"
+
+# Check for Python 3
+if ! command -v python3 &> /dev/null; then
+    echo "Error: Python 3 is required but not found"
+    exit 1
+fi
+
+# Activate argcomplete for this shell
+if [[ -n "$BASH_VERSION" ]]; then
+    if declare -f _completion_loader > /dev/null 2>&1; then
+        eval "$(register-python-argcomplete msp 2>/dev/null || true)"
+    fi
+fi
+
+# Run the Python script with all arguments
+python3 "$PYTHON_SCRIPT" "$@"
