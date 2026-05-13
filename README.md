@@ -41,7 +41,7 @@ source ~/.zshrc
 
 ### Core
 ```bash
-msp status              # Security status overview
+msp status              # Security status (detailed firewall, scan info, snapshot watch)
 msp list                # List privacy settings
 msp list --category Firewall
 msp enable <setting>   # Enable a setting
@@ -49,6 +49,24 @@ msp disable <setting>   # Disable a setting
 msp presets list        # List presets
 msp presets apply <name>  # Apply a preset
 ```
+
+### Snapshots
+```bash
+msp snapshot capture [name]     # Save current settings to snapshot
+msp snapshot list               # List all snapshots
+msp snapshot diff <name>        # Compare current vs snapshot
+msp snapshot restore <name>     # Restore settings from snapshot
+msp snapshot restore <name> --dry-run  # Preview restore
+msp snapshot watch <name>       # Monitor snapshot drift
+msp snapshot watch <name> --auto-restore  # Auto-restore on drift
+msp snapshot delete <name>     # Delete a snapshot
+```
+
+**`msp status` shows:**
+- Firewall: enabled/disabled, stealth mode, auto-allow settings, exceptions, connection rules
+- FileVault, Gatekeeper, Bluetooth, Captive Portal Probe status
+- Last security scan time and report location
+- Active snapshot watch status and monitored snapshot name
 
 ### Network (`msp net`)
 ```bash

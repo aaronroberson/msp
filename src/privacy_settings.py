@@ -286,7 +286,8 @@ class PrivacySettingsManager:
 
     def get_firewall_status(self) -> Dict[str, Any]:
         """Get detailed firewall status."""
-        status = {"enabled": False, "stealth_mode": False, "allows_signed": False}
+        status = {"enabled": False, "stealth_mode": False, "allows_signed": False, "allows_signed_app": False, "exceptions": [], "incoming_allowed": 0, "outgoing_allowed": 0}
+
         success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate")
         if success and "enabled" in output.lower():
             status["enabled"] = True
@@ -294,6 +295,33 @@ class PrivacySettingsManager:
         success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode")
         if success and "is on" in output.lower():
             status["stealth_mode"] = True
+
+        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getallowsigned")
+        if success and "on" in output.lower():
+            status["allows_signed"] = True
+
+        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getallowsignedapp")
+        if success and "on" in output.lower():
+            status["allows_signed_app"] = True
+
+        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --listapps")
+        if success:
+            for line in output.split('\n'):
+                if 'ALLOWED' in line.upper() or 'ENABLED' in line.upper():
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        status["exceptions"].append({
+                            "name": ' '.join(parts[:-1]),
+                            "status": parts[-1] if parts[-1] in ('ON', 'OFF') else 'ON'
+                        })
+
+        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getincoming")
+        if success:
+            status["incoming_allowed"] = "deny" not in output.lower() and "allow" in output.lower()
+
+        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getoutgoing")
+        if success:
+            status["outgoing_allowed"] = "deny" not in output.lower()
 
         return status
 
@@ -330,6 +358,48 @@ class PrivacySettingsManager:
         success, output = self.run_command("defaults read /Library/Preferences/SystemConfiguration/com.apple.captive.control Active")
         if success:
             status["enabled"] = "true" in output.lower()
+        return status
+
+    def get_last_scan_info(self) -> Dict[str, Any]:
+        """Get info about last security scan."""
+        report_dir = os.path.expanduser("~/.msp/reports")
+        status = {"last_scan": None, "report_path": None, "scan_count": 0}
+
+        if os.path.exists(report_dir):
+            reports = [f for f in os.listdir(report_dir) if f.endswith('.json')]
+            status["scan_count"] = len(reports)
+            if reports:
+                reports.sort(key=lambda x: os.path.getmtime(os.path.join(report_dir, x)), reverse=True)
+                latest = reports[0]
+                status["last_scan"] = datetime.fromtimestamp(os.path.getmtime(os.path.join(report_dir, latest))).isoformat()
+                status["report_path"] = os.path.join(report_dir, latest)
+
+        return status
+
+    def get_snapshot_watch_status(self) -> Dict[str, Any]:
+        """Check if snapshot watch is active."""
+        watch_pid_file = os.path.expanduser("~/.msp/snapshot_watch.pid")
+        status = {"enabled": False, "snapshot_name": None, "auto_restore": False}
+
+        if os.path.exists(watch_pid_file):
+            try:
+                with open(watch_pid_file, 'r') as f:
+                    pid = int(f.read().strip())
+                    if os.path.exists(f"/proc/{pid}" if sys.platform == 'linux' else f"/bin/ps -p {pid} > /dev/null 2>&1"):
+                        status["enabled"] = True
+            except (ValueError, IOError):
+                pass
+
+            try:
+                config_path = os.path.expanduser("~/.msp/snapshot_watch_config.json")
+                if os.path.exists(config_path):
+                    with open(config_path, 'r') as f:
+                        config = json.load(f)
+                        status["snapshot_name"] = config.get("snapshot_name")
+                        status["auto_restore"] = config.get("auto_restore", False)
+            except (json.JSONDecodeError, IOError):
+                pass
+
         return status
 
     def get_launchd_services(self) -> List[Dict[str, str]]:
@@ -477,6 +547,8 @@ class PrivacySettingsManager:
             "gatekeeper": self.get_gatekeeper_status(),
             "bluetooth": self.get_bluetooth_status(),
             "captive_portal": self.get_captive_portal_status(),
+            "last_scan": self.get_last_scan_info(),
+            "snapshot_watch": self.get_snapshot_watch_status(),
         }
 
         if json_output:
@@ -487,6 +559,19 @@ class PrivacySettingsManager:
             fw = status["firewall"]
             console.print(f"[cyan]Firewall:[/cyan] {'Enabled' if fw.get('enabled') else 'Disabled'}")
             console.print(f"  Stealth Mode: {'Enabled' if fw.get('stealth_mode') else 'Disabled'}")
+            console.print(f"  Auto-allow signed: {'Yes' if fw.get('allows_signed') else 'No'}")
+            console.print(f"  Auto-allow downloaded: {'Yes' if fw.get('allows_signed_app') else 'No'}")
+            console.print(f"  Incoming connections: {'Allowed' if fw.get('incoming_allowed') else 'Blocked'}")
+            console.print(f"  Outgoing connections: {'Allowed' if fw.get('outgoing_allowed') else 'Blocked'}")
+            exceptions = fw.get('exceptions', [])
+            if exceptions:
+                console.print(f"  Exceptions: {len(exceptions)} app(s)")
+                for exc in exceptions[:5]:
+                    console.print(f"    - {exc.get('name', 'Unknown')} ({exc.get('status', 'ON')})")
+                if len(exceptions) > 5:
+                    console.print(f"    ... and {len(exceptions) - 5} more")
+            else:
+                console.print(f"  Exceptions: None")
 
             fv = status["filevault"]
             console.print(f"[cyan]FileVault:[/cyan] {'Enabled' if fv.get('enabled') else 'Disabled'}")
@@ -499,14 +584,49 @@ class PrivacySettingsManager:
 
             cp = status["captive_portal"]
             console.print(f"[cyan]Captive Portal Probe:[/cyan] {'Enabled' if cp.get('enabled') else 'Disabled'}")
+
+            scan = status["last_scan"]
+            console.print(f"\n[cyan]Last Security Scan:[/cyan]")
+            if scan.get("last_scan"):
+                from datetime import datetime
+                scan_time = datetime.fromisoformat(scan["last_scan"])
+                console.print(f"  Time: {scan_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                console.print(f"  Report: {scan.get('report_path', 'N/A')}")
+                console.print(f"  Total scans: {scan.get('scan_count', 0)}")
+            else:
+                console.print(f"  No scans performed yet")
+
+            watch = status["snapshot_watch"]
+            console.print(f"[cyan]Snapshot Watch:[/cyan] {'Active' if watch.get('enabled') else 'Inactive'}")
+            if watch.get("snapshot_name"):
+                console.print(f"  Monitoring: {watch['snapshot_name']}")
+                console.print(f"  Auto-restore: {'Enabled' if watch.get('auto_restore') else 'Disabled'}")
             console.print()
         else:
             print("=== macOS Privacy & Security Status ===\n")
-            print(f"Firewall: {status['firewall']}")
-            print(f"FileVault: {status['filevault']}")
-            print(f"Gatekeeper: {status['gatekeeper']}")
-            print(f"Bluetooth: {status['bluetooth']}")
-            print(f"Captive Portal: {status['captive_portal']}")
+            fw = status['firewall']
+            print(f"Firewall: {'Enabled' if fw.get('enabled') else 'Disabled'}")
+            print(f"  Stealth Mode: {'Enabled' if fw.get('stealth_mode') else 'Disabled'}")
+            print(f"  Auto-allow signed: {'Yes' if fw.get('allows_signed') else 'No'}")
+            print(f"  Auto-allow downloaded: {'Yes' if fw.get('allows_signed_app') else 'No'}")
+            print(f"  Incoming: {'Allowed' if fw.get('incoming_allowed') else 'Blocked'}")
+            print(f"  Outgoing: {'Allowed' if fw.get('outgoing_allowed') else 'Blocked'}")
+            exceptions = fw.get('exceptions', [])
+            print(f"  Exceptions: {len(exceptions)} app(s)" if exceptions else f"  Exceptions: None")
+            print(f"FileVault: {'Enabled' if status['filevault'].get('enabled') else 'Disabled'}")
+            print(f"Gatekeeper: {'Enabled' if status['gatekeeper'].get('enabled') else 'Disabled'}")
+            print(f"Bluetooth: {'Enabled' if status['bluetooth'].get('enabled') else 'Disabled'}")
+            print(f"Captive Portal: {'Enabled' if status['captive_portal'].get('enabled') else 'Disabled'}")
+            scan = status["last_scan"]
+            if scan.get("last_scan"):
+                print(f"\nLast Scan: {scan['last_scan']}")
+                print(f"Report: {scan.get('report_path', 'N/A')}")
+            else:
+                print(f"\nLast Scan: No scans performed yet")
+            watch = status["snapshot_watch"]
+            print(f"Snapshot Watch: {'Active' if watch.get('enabled') else 'Inactive'}")
+            if watch.get("snapshot_name"):
+                print(f"  Monitoring: {watch['snapshot_name']}, Auto-restore: {'On' if watch.get('auto_restore') else 'Off'}")
 
 
 class PresetManager:

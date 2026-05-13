@@ -376,6 +376,20 @@ class SnapshotManager:
         if not snapshot:
             return
 
+        watch_pid_file = os.path.expanduser("~/.msp/snapshot_watch.pid")
+        watch_config_file = os.path.expanduser("~/.msp/snapshot_watch_config.json")
+
+        with open(watch_pid_file, 'w') as f:
+            f.write(str(os.getpid()))
+
+        with open(watch_config_file, 'w') as f:
+            json.dump({
+                "snapshot_name": name,
+                "auto_restore": auto_restore,
+                "interval": interval,
+                "started_at": datetime.now().isoformat()
+            }, f)
+
         print(f"Watching snapshot: {name}")
         print(f"Checking every {interval} seconds")
         print(f"Auto-restore: {'enabled' if auto_restore else 'disabled'}")
@@ -401,6 +415,10 @@ class SnapshotManager:
 
         except KeyboardInterrupt:
             print("\n\nStopped watching.")
+        finally:
+            for f in [watch_pid_file, watch_config_file]:
+                if os.path.exists(f):
+                    os.remove(f)
 
     def delete(self, name: str) -> bool:
         """Delete a snapshot."""
