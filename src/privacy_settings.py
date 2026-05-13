@@ -402,6 +402,81 @@ class PrivacySettingsManager:
 
         return status
 
+    def get_listening_services(self) -> List[Dict[str, Any]]:
+        """Get services with listening ports and established connections."""
+        services = []
+        seen = set()
+
+        success, output = self.run_command("lsof -iTCP -sTCP:LISTEN -nP 2>/dev/null")
+        if success and output.strip():
+            for line in output.strip().split('\n')[1:]:
+                parts = line.split()
+                if len(parts) >= 9:
+                    try:
+                        proc = parts[0]
+                        pid = int(parts[1])
+                        host_port = parts[8]
+
+                        if ':' in host_port:
+                            port = host_port.split(':')[-1]
+
+                            if pid not in seen:
+                                seen.add(pid)
+                                services.append({
+                                    "process": proc,
+                                    "pid": pid,
+                                    "port": port,
+                                    "type": "listening",
+                                    "risk": self._assess_risk(proc, port, "listening")
+                                })
+                    except (ValueError, IndexError):
+                        pass
+
+        success, output = self.run_command("lsof -iTCP -sTCP:ESTABLISHED -nP 2>/dev/null")
+        if success and output.strip():
+            for line in output.strip().split('\n')[1:]:
+                parts = line.split()
+                if len(parts) >= 9:
+                    try:
+                        proc = parts[0]
+                        pid = int(parts[1])
+                        host_port = parts[8]
+
+                        if ':' in host_port:
+                            port = host_port.split(':')[-1]
+                            remote = parts[9] if len(parts) > 9 else ""
+
+                            if pid not in seen:
+                                seen.add(pid)
+                                services.append({
+                                    "process": proc,
+                                    "pid": pid,
+                                    "port": port,
+                                    "type": "established",
+                                    "remote": remote,
+                                    "risk": self._assess_risk(proc, port, "established")
+                                })
+                    except (ValueError, IndexError):
+                        pass
+
+        return services
+
+    def _assess_risk(self, process: str, port: str, conn_type: str) -> str:
+        """Assess risk level of a service."""
+        high_risk = ["apache", "httpd", "nginx", "mysql", "postgres", "redis", "mongodb", "ftp", "telnet", "rsh", "rlogin"]
+        medium_risk = ["ssh", "vnc", "rdp", "samba", "nfs"]
+        low_risk = ["localhost", "127.0.0.1"]
+
+        proc_lower = process.lower()
+
+        if proc_lower in high_risk:
+            return "HIGH"
+        if proc_lower in medium_risk:
+            return "MEDIUM"
+        if conn_type == "listening" and port not in ("22", "443", "993", "995", "465", "587"):
+            return "REVIEW"
+        return "LOW"
+
     def get_launchd_services(self) -> List[Dict[str, str]]:
         """Get list of launchd services and their status."""
         services = []
@@ -549,84 +624,182 @@ class PrivacySettingsManager:
             "captive_portal": self.get_captive_portal_status(),
             "last_scan": self.get_last_scan_info(),
             "snapshot_watch": self.get_snapshot_watch_status(),
+            "listening_services": self.get_listening_services(),
+            "sharing": self.get_sharing_status(),
+            "security": self.get_security_settings(),
         }
 
         if json_output:
             print(json.dumps(status, indent=2))
-        elif RICH_AVAILABLE and console:
-            console.print("\n[bold]macOS Privacy & Security Status[/bold]\n")
+            return
 
-            fw = status["firewall"]
-            console.print(f"[cyan]Firewall:[/cyan] {'Enabled' if fw.get('enabled') else 'Disabled'}")
-            console.print(f"  Stealth Mode: {'Enabled' if fw.get('stealth_mode') else 'Disabled'}")
-            console.print(f"  Auto-allow signed: {'Yes' if fw.get('allows_signed') else 'No'}")
-            console.print(f"  Auto-allow downloaded: {'Yes' if fw.get('allows_signed_app') else 'No'}")
-            console.print(f"  Incoming connections: {'Allowed' if fw.get('incoming_allowed') else 'Blocked'}")
-            console.print(f"  Outgoing connections: {'Allowed' if fw.get('outgoing_allowed') else 'Blocked'}")
-            exceptions = fw.get('exceptions', [])
-            if exceptions:
-                console.print(f"  Exceptions: {len(exceptions)} app(s)")
-                for exc in exceptions[:5]:
-                    console.print(f"    - {exc.get('name', 'Unknown')} ({exc.get('status', 'ON')})")
-                if len(exceptions) > 5:
-                    console.print(f"    ... and {len(exceptions) - 5} more")
-            else:
-                console.print(f"  Exceptions: None")
+        if not RICH_AVAILABLE or not console:
+            self._print_status_text(status)
+            return
 
-            fv = status["filevault"]
-            console.print(f"[cyan]FileVault:[/cyan] {'Enabled' if fv.get('enabled') else 'Disabled'}")
+        console.print("\n[bold cyan]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold cyan]")
+        console.print("[bold]macOS Privacy & Security Status[/bold]")
+        console.print("[bold cyan]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold cyan]\n")
 
-            gk = status["gatekeeper"]
-            console.print(f"[cyan]Gatekeeper:[/cyan] {'Enabled' if gk.get('enabled') else 'Disabled'}")
+        fw = status["firewall"]
+        console.print("[bold yellow]FIREWALL[/bold yellow]")
+        console.print(f"  Firewall: {'[green]Enabled[/green]' if fw.get('enabled') else '[red]Disabled[/red]'}")
+        console.print(f"  Stealth Mode: {'[green]Enabled[/green]' if fw.get('stealth_mode') else '[red]Disabled[/red]'}")
+        console.print(f"  Auto-allow signed: {'Yes' if fw.get('allows_signed') else 'No'}")
+        console.print(f"  Auto-allow downloaded: {'Yes' if fw.get('allows_signed_app') else 'No'}")
+        console.print(f"  Incoming: {'[red]Allowed[/red]' if fw.get('incoming_allowed') else '[green]Blocked[/green]'}")
+        console.print(f"  Outgoing: {'[red]Allowed[/red]' if fw.get('outgoing_allowed') else '[green]Blocked[/green]'}")
+        exceptions = fw.get('exceptions', [])
+        console.print(f"  Exceptions: {len(exceptions)} app(s)" if exceptions else f"  Exceptions: [green]None[/green]")
 
-            bt = status["bluetooth"]
-            console.print(f"[cyan]Bluetooth:[/cyan] {'Enabled' if bt.get('enabled') else 'Disabled'}")
+        fv = status["filevault"]
+        console.print(f"\n[bold yellow]ENCRYPTION[/bold yellow]")
+        console.print(f"  FileVault: {'[green]Enabled[/green]' if fv.get('enabled') else '[red]Disabled[/red]'}")
 
-            cp = status["captive_portal"]
-            console.print(f"[cyan]Captive Portal Probe:[/cyan] {'Enabled' if cp.get('enabled') else 'Disabled'}")
+        gk = status["gatekeeper"]
+        console.print(f"\n[bold yellow]APP SECURITY[/bold yellow]")
+        console.print(f"  Gatekeeper: {'[green]Enabled[/green]' if gk.get('enabled') else '[red]Disabled[/red]'}")
 
-            scan = status["last_scan"]
-            console.print(f"\n[cyan]Last Security Scan:[/cyan]")
-            if scan.get("last_scan"):
-                from datetime import datetime
-                scan_time = datetime.fromisoformat(scan["last_scan"])
-                console.print(f"  Time: {scan_time.strftime('%Y-%m-%d %H:%M:%S')}")
-                console.print(f"  Report: {scan.get('report_path', 'N/A')}")
-                console.print(f"  Total scans: {scan.get('scan_count', 0)}")
-            else:
-                console.print(f"  No scans performed yet")
+        bt = status["bluetooth"]
+        console.print(f"\n[bold yellow]WIRELESS[/bold yellow]")
+        console.print(f"  Bluetooth: {'[yellow]Enabled[/yellow]' if bt.get('enabled') else '[green]Disabled[/green]'}")
 
-            watch = status["snapshot_watch"]
-            console.print(f"[cyan]Snapshot Watch:[/cyan] {'Active' if watch.get('enabled') else 'Inactive'}")
-            if watch.get("snapshot_name"):
-                console.print(f"  Monitoring: {watch['snapshot_name']}")
-                console.print(f"  Auto-restore: {'Enabled' if watch.get('auto_restore') else 'Disabled'}")
-            console.print()
+        cp = status["captive_portal"]
+        console.print(f"  Captive Portal Probe: {'[red]Enabled[/red] (risk)' if cp.get('enabled') else '[green]Disabled[/green]'}")
+
+        sharing = status["sharing"]
+        console.print(f"\n[bold yellow]SHARING[/bold yellow]")
+        console.print(f"  Sharing daemon: {'[yellow]Running[/yellow]' if sharing.get('sharing_enabled') else '[green]Stopped[/green]'}")
+        shares = sharing.get('share_points', [])
+        if shares:
+            console.print(f"  Share points: [yellow]{len(shares)}[/yellow]")
+            for share in shares:
+                guest = "[red]GUEST[/red]" if share.get("guest_access") == "1" else ""
+                console.print(f"    - {share.get('name', 'Unknown')} {guest}")
         else:
-            print("=== macOS Privacy & Security Status ===\n")
-            fw = status['firewall']
-            print(f"Firewall: {'Enabled' if fw.get('enabled') else 'Disabled'}")
-            print(f"  Stealth Mode: {'Enabled' if fw.get('stealth_mode') else 'Disabled'}")
-            print(f"  Auto-allow signed: {'Yes' if fw.get('allows_signed') else 'No'}")
-            print(f"  Auto-allow downloaded: {'Yes' if fw.get('allows_signed_app') else 'No'}")
-            print(f"  Incoming: {'Allowed' if fw.get('incoming_allowed') else 'Blocked'}")
-            print(f"  Outgoing: {'Allowed' if fw.get('outgoing_allowed') else 'Blocked'}")
-            exceptions = fw.get('exceptions', [])
-            print(f"  Exceptions: {len(exceptions)} app(s)" if exceptions else f"  Exceptions: None")
-            print(f"FileVault: {'Enabled' if status['filevault'].get('enabled') else 'Disabled'}")
-            print(f"Gatekeeper: {'Enabled' if status['gatekeeper'].get('enabled') else 'Disabled'}")
-            print(f"Bluetooth: {'Enabled' if status['bluetooth'].get('enabled') else 'Disabled'}")
-            print(f"Captive Portal: {'Enabled' if status['captive_portal'].get('enabled') else 'Disabled'}")
-            scan = status["last_scan"]
-            if scan.get("last_scan"):
-                print(f"\nLast Scan: {scan['last_scan']}")
-                print(f"Report: {scan.get('report_path', 'N/A')}")
-            else:
-                print(f"\nLast Scan: No scans performed yet")
-            watch = status["snapshot_watch"]
-            print(f"Snapshot Watch: {'Active' if watch.get('enabled') else 'Inactive'}")
-            if watch.get("snapshot_name"):
-                print(f"  Monitoring: {watch['snapshot_name']}, Auto-restore: {'On' if watch.get('auto_restore') else 'Off'}")
+            console.print(f"  Share points: [green]None[/green]")
+
+        services = status["listening_services"]
+        console.print(f"\n[bold yellow]NETWORK SERVICES (WITH CONNECTIONS)[/bold yellow]")
+        if services:
+            high_risk = [s for s in services if s.get('risk') == 'HIGH']
+            med_risk = [s for s in services if s.get('risk') == 'MEDIUM']
+            other = [s for s in services if s.get('risk') not in ('HIGH', 'MEDIUM')]
+
+            if high_risk:
+                console.print(f"  [bold red]HIGH RISK:[/bold red]")
+                for s in high_risk[:10]:
+                    console.print(f"    - {s['process']} (PID {s['pid']}) port {s['port']} [{s['type']}]")
+                if len(high_risk) > 10:
+                    console.print(f"    ... and {len(high_risk) - 10} more")
+
+            if med_risk:
+                console.print(f"  [bold yellow]MEDIUM RISK:[/bold yellow]")
+                for s in med_risk[:10]:
+                    console.print(f"    - {s['process']} (PID {s['pid']}) port {s['port']} [{s['type']}]")
+                if len(med_risk) > 10:
+                    console.print(f"    ... and {len(med_risk) - 10} more")
+
+            if other:
+                console.print(f"  [green]Low risk:[/green] {len(other)} service(s)")
+        else:
+            console.print(f"  [green]No listening services[/green]")
+
+        sec = status["security"]
+        console.print(f"\n[bold yellow]SCREEN LOCK[/bold yellow]")
+        idle = sec.get('idle_time', 0)
+        idle_min = int(idle) // 60 if str(idle).isdigit() else 0
+        console.print(f"  Lock after: {idle_min} min")
+        console.print(f"  Password required: {'[green]Yes[/green]' if sec.get('password_required') else '[red]No[/red]'}")
+
+        scan = status["last_scan"]
+        console.print(f"\n[bold yellow]SECURITY SCAN[/bold yellow]")
+        if scan.get("last_scan"):
+            from datetime import datetime
+            scan_time = datetime.fromisoformat(scan["last_scan"])
+            console.print(f"  Last scan: {scan_time.strftime('%Y-%m-%d %H:%M')}")
+            console.print(f"  Reports: {scan.get('scan_count', 0)}")
+        else:
+            console.print(f"  Last scan: [yellow]Never[/yellow]")
+
+        watch = status["snapshot_watch"]
+        console.print(f"\n[bold yellow]SNAPSHOT WATCH[/bold yellow]")
+        console.print(f"  Status: {'[green]Active[/green]' if watch.get('enabled') else '[dim]Inactive[/dim]'}")
+        if watch.get("snapshot_name"):
+            console.print(f"  Monitoring: {watch['snapshot_name']}")
+            console.print(f"  Auto-restore: {'On' if watch.get('auto_restore') else 'Off'}")
+
+        console.print()
+
+    def _print_status_text(self, status: dict) -> None:
+        """Plain text status output."""
+        print("=== macOS Privacy & Security Status ===\n")
+
+        fw = status['firewall']
+        print(f"FIREWALL")
+        print(f"  Enabled: {fw.get('enabled')}, Stealth: {fw.get('stealth_mode')}")
+        print(f"  Exceptions: {len(fw.get('exceptions', []))}")
+
+        print(f"\nENCRYPTION")
+        print(f"  FileVault: {status['filevault'].get('enabled')}")
+
+        print(f"\nSHARING")
+        print(f"  Daemon: {'running' if status['sharing'].get('sharing_enabled') else 'stopped'}")
+        print(f"  Share points: {len(status['sharing'].get('share_points', []))}")
+
+        services = status['listening_services']
+        high = [s for s in services if s.get('risk') == 'HIGH']
+        print(f"\nNETWORK SERVICES")
+        print(f"  High risk: {len(high)}")
+        for s in high[:5]:
+            print(f"    - {s['process']} port {s['port']}")
+
+        sec = status['security']
+        print(f"\nSCREEN LOCK")
+        print(f"  Idle time: {int(sec.get('idle_time', 0)) // 60} min")
+        print(f"  Password required: {sec.get('password_required')}")
+
+        scan = status['last_scan']
+        print(f"\nLAST SCAN: {scan.get('last_scan') or 'Never'}")
+
+    def get_sharing_status(self) -> Dict[str, Any]:
+        """Get sharing status."""
+        status = {"sharing_enabled": False, "share_points": []}
+        success, output = self.run_command("launchctl list | grep -i sharing")
+        if success and output.strip():
+            status["sharing_enabled"] = True
+
+        success, output = self.run_command("sharing -l")
+        if success and output:
+            shares = []
+            current = {}
+            for line in output.split('\n'):
+                line = line.strip()
+                if ':' in line:
+                    key, val = line.split(':', 1)
+                    current[key.strip().lower()] = val.strip()
+                elif not line and current:
+                    shares.append(current)
+                    current = {}
+            if current:
+                shares.append(current)
+            status["share_points"] = shares
+
+        return status
+
+    def get_security_settings(self) -> Dict[str, Any]:
+        """Get security settings (screen lock, etc)."""
+        settings = {"idle_time": 0, "password_required": False}
+
+        success, output = self.run_command("defaults -currentHost read com.apple.screensaver idleTime 2>/dev/null")
+        if success:
+            settings["idle_time"] = output.strip()
+
+        success, output = self.run_command("defaults -currentHost read com.apple.screensaver askForPassword 2>/dev/null")
+        if success:
+            settings["password_required"] = output.strip() == "1"
+
+        return settings
 
 
 class PresetManager:

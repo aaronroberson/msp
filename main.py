@@ -194,6 +194,42 @@ Examples:
             print(f"Error: {e}")
         return
 
+    # Handle sharing command
+    if command == "sharing":
+        from src.sharing import SharingManager
+        sm = SharingManager(verbose=args.verbose)
+        action = args.args[0] if args.args else "status"
+
+        if action == "status" or action == "list":
+            sm.show_status(json_output=args.json)
+        elif action == "disable" and len(args.args) > 1:
+            sm.disable_share(args.args[1])
+        elif action == "disable-guest":
+            sm.disable_guest_access(args.args[1] if len(args.args) > 1 else None)
+        elif action == "stop-all":
+            sm.disable_all_sharing()
+        elif action == "enable" and len(args.args) > 1:
+            sm.enable_share(args.args[1])
+        return
+
+    # Handle security command (sleep, lock, screen settings)
+    if command == "security":
+        from src.security import SecuritySettings
+        ss = SecuritySettings(verbose=args.verbose)
+        action = args.args[0] if args.args else "status"
+
+        if action == "status":
+            ss.show_status(json_output=args.json)
+        elif action == "lock":
+            ss.lock_screen()
+        elif action == "sleep":
+            ss.sleep_display()
+        elif action == "set" and len(args.args) > 1:
+            key = args.args[1]
+            value = args.args[2] if len(args.args) > 2 else None
+            ss.set_setting(key, value)
+        return
+
     # Snapshot commands - handle before argparse processes flags
     if command == "snapshot":
         from src.snapshot import SnapshotManager

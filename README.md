@@ -41,14 +41,25 @@ source ~/.zshrc
 
 ### Core
 ```bash
-msp status              # Security status (detailed firewall, scan info, snapshot watch)
+msp status              # Full security dashboard (firewall, encryption, sharing, services, lock)
 msp list                # List privacy settings
 msp list --category Firewall
-msp enable <setting>   # Enable a setting
+msp enable <setting>    # Enable a setting
 msp disable <setting>   # Disable a setting
 msp presets list        # List presets
 msp presets apply <name>  # Apply a preset
 ```
+
+**`msp status` includes:**
+- Firewall: enabled, stealth mode, auto-allow settings, exceptions
+- Encryption: FileVault status
+- App Security: Gatekeeper
+- Wireless: Bluetooth, Captive Portal Probe
+- Sharing: daemon status, share points with guest access
+- Network Services: HIGH/MEDIUM risk services with ports and connection types
+- Screen Lock: idle time, password requirement
+- Last scan time and report location
+- Active snapshot watch status
 
 ### Snapshots
 ```bash
