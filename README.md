@@ -95,8 +95,10 @@ msp startup agents      # User agents only
 msp startup daemons     # System daemons
 msp startup cron        # Cron jobs
 msp startup disable <label>  # Disable item
-msp startup audit       # Check for suspicious items
+msp startup audit       # Audit for HIGH/MEDIUM risk items
 ```
+
+**Audit filters out:** Apple services, common apps (Spotify, Slack, VSCode, etc.), known-good prefixes. Only flags actual concerns with risk level (HIGH/MEDIUM/REVIEW).
 
 ### File Monitoring (`msp fswatch`)
 ```bash

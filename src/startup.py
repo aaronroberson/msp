@@ -69,9 +69,84 @@ class StartupManager:
             pass
         return os.path.basename(plist_path).replace(".plist", "")
 
+    def _collect_agents(self) -> List[StartupItem]:
+        """Collect user agents without printing."""
+        items = []
+        user_paths = [
+            os.path.expanduser("~/Library/LaunchAgents"),
+            "/Library/LaunchAgents"
+        ]
+        for path in user_paths:
+            if os.path.exists(path):
+                for f in os.listdir(path):
+                    if f.endswith('.plist'):
+                        plist_path = os.path.join(path, f)
+                        label = self._read_plist_label(plist_path)
+                        item = StartupItem(
+                            name=f.replace('.plist', ''),
+                            label=label or f.replace('.plist', ''),
+                            path=plist_path,
+                            type="agent",
+                            status="unknown"
+                        )
+                        items.append(item)
+        return items
+
+    def _collect_daemons(self) -> List[StartupItem]:
+        """Collect system daemons without printing."""
+        items = []
+        for path in self.LAUNCH_DAEMON_PATHS:
+            if os.path.exists(path):
+                for f in os.listdir(path):
+                    if f.endswith('.plist'):
+                        plist_path = os.path.join(path, f)
+                        label = self._read_plist_label(plist_path)
+                        item = StartupItem(
+                            name=f.replace('.plist', ''),
+                            label=label or f.replace('.plist', ''),
+                            path=plist_path,
+                            type="daemon",
+                            status="unknown"
+                        )
+                        items.append(item)
+        return items
+
+    def _collect_launchd_items(self) -> List[StartupItem]:
+        """Collect launchd items without printing."""
+        items = []
+        success, output = self._run_cmd("launchctl list 2>/dev/null")
+        if success and output.strip():
+            for line in output.strip().split('\n')[1:]:
+                parts = line.split(None, 2)
+                if len(parts) >= 3:
+                    try:
+                        pid = int(parts[0]) if parts[0] != "-" else None
+                        status = parts[1]
+                        label = parts[2]
+                        item = StartupItem(
+                            name=label.split(".")[-1] if "." in label else label,
+                            label=label,
+                            path="",
+                            type="launchd",
+                            status=status,
+                            pid=pid
+                        )
+                        items.append(item)
+                    except (ValueError, IndexError):
+                        continue
+        return items
+
+    def _get_all_items(self) -> List[StartupItem]:
+        """Get all startup items without printing."""
+        items = []
+        items.extend(self._collect_agents())
+        items.extend(self._collect_daemons())
+        items.extend(self._collect_launchd_items())
+        return items
+
     def list_all(self, json_output: bool = False) -> List[StartupItem]:
         """List all startup items."""
-        items = []
+        items = self._get_all_items()
 
         success, output = self._run_cmd("launchctl list 2>/dev/null")
         if success and output.strip():
@@ -254,75 +329,155 @@ class StartupManager:
         print(f"Could not enable: {label}")
         return False
 
-    def audit(self, json_output: bool = False) -> List[Dict[str, Any]]:
+    def audit(self, json_output: bool = False, level: str = "all") -> List[Dict[str, Any]]:
         """Audit startup items for suspicious entries."""
-        items = self.list_all()
-        suspicious = []
+        items = self._get_all_items()
+        results = []
 
-        SUSPICIOUS_PATTERNS = [
-            "update", "helper", "agent", "daemon", "service",
-            "monitor", "scanner", "sync", "backup", "cloud"
+        SUSPICIOUS_PATTERNS = {
+            "HIGH": [
+                "keylogger", "keystroke", "clipboard", "screenrec",
+                "cryptominer", "crypto", "miner", "botnet",
+                "rat", "trojan", "backdoor", "rootkit", "keylog",
+            ],
+            "MEDIUM": [
+                "telemetry", "analytics", "tracking", "phonehome",
+                "remote", "control", "admin", "vnc", "rdp",
+                "screenshot", "webcam", "camera", "microphone",
+            ],
+            "LOW": [
+                "updater", "update_check", "autoupdate", "crashreporter",
+                "feedback", "diagnostic", "usage",
+            ]
+        }
+
+        KNOWN_GOOD_PREFIXES = [
+            "com.apple.", "com.apple.softwareupdate.",
+            "com.google.", "com.google.Chrome.", "com.google.GoogleUpdater.",
+            "com.microsoft.", "com.microsoft.teams.", "com.microsoft.OneDrive.",
+            "com.adobe.", "com.adobe.acc.", "com.adobe.Creative-Cloud.",
+            "com.1password.", "com.agilebits.",
+            "com.slack.", "com.zoom.", "com.docker.",
+            "com.spotify.", "com.valvesoftware.", "com.riotgames.",
+            "com.sublimetext.", "com.jetbrains.", "com.vscode.",
+            "com.docker.", "com.visualstudio.", "com.nodejs.",
+            "com.github.", "com.slackhq.", "com.figma.",
+            "org.freedesktop.", "org.gnome.", "org.kde.",
+            "io.bottle.", "io.flask.", "io.pypi.",
+            "com.amazon.", "com.netflix.", "com.facebook.",
+            "com.twitter.", "com.discord.", "com.telegram.",
+            "com.wireguard.", "com MullvadVPN.",
+            "homebrew.mxcl.", "io.munki.",
         ]
 
-        KNOWN_GOOD = [
-            "com.apple.", "org.freedesktop.", "com.google.",
-            "com.microsoft.", "com.adobe.", "com.1password.",
+        KNOWN_GOOD_NAMES = [
+            "Spotify", "Slack", "Teams", "Zoom", "Chrome", "Firefox",
+            "Docker", "Visual Studio", "VSCode", "1Password", "Figma",
+            "Dropbox", "OneDrive", "iTerm", "Rectangle", "Raycast",
+            "Hammerspoon", "BetterTouchTool", "KeyboardMaestro",
         ]
 
         for item in items:
-            is_suspicious = False
+            risk_level = "LOW"
             reasons = []
 
             label_lower = item.label.lower()
 
-            if not any(item.label.startswith(good) for good in KNOWN_GOOD):
-                if any(pat in label_lower for pat in SUSPICIOUS_PATTERNS):
-                    is_suspicious = True
-                    reasons.append("Contains suspicious keyword")
+            for pat in SUSPICIOUS_PATTERNS["HIGH"]:
+                if pat in label_lower:
+                    risk_level = "HIGH"
+                    reasons.append(f"Contains '{pat}'")
+                    break
 
-            if not item.path and item.type == "launchd":
-                success, _ = self._run_cmd(f"launchctl print {item.label} 2>/dev/null")
-                if not success:
-                    is_suspicious = True
-                    reasons.append("Cannot retrieve path")
+            if risk_level != "HIGH":
+                for pat in SUSPICIOUS_PATTERNS["MEDIUM"]:
+                    if pat in label_lower:
+                        risk_level = "MEDIUM"
+                        reasons.append(f"Contains '{pat}'")
+                        break
+
+            for good in KNOWN_GOOD_PREFIXES:
+                if item.label.startswith(good):
+                    risk_level = "OK"
+                    break
+
+            for name in KNOWN_GOOD_NAMES:
+                if name.lower() in label_lower:
+                    risk_level = "OK"
+                    break
 
             if item.pid and item.pid > 0:
-                success, output = self._run_cmd(f"codesign -dvvv -p {item.pid} 2>/dev/null")
+                success, output = self._run_cmd(f"codesign -dvvv '{item.path}' 2>/dev/null")
                 if success and "not signed" in output.lower():
-                    is_suspicious = True
+                    if risk_level == "OK":
+                        risk_level = "REVIEW"
                     reasons.append("Unsigned binary")
 
-            if is_suspicious:
-                suspicious.append({
+            if item.path and os.path.exists(item.path):
+                if os.access(item.path, os.X_OK):
+                    if not os.stat(item.path).st_mode & 0o111:
+                        if risk_level not in ("OK", "REVIEW"):
+                            reasons.append("Not executable")
+
+            if risk_level != "OK" and risk_level != "LOW" and reasons:
+                results.append({
                     "item": item.label,
+                    "risk": risk_level,
                     "reasons": reasons,
                     "pid": item.pid,
-                    "status": item.status
+                    "status": item.status,
+                    "path": item.path
                 })
 
+        results.sort(key=lambda x: {"HIGH": 0, "MEDIUM": 1, "REVIEW": 2, "LOW": 3, "OK": 4}[x.get("risk", "LOW")])
+
         if json_output:
-            print(json.dumps(suspicious, indent=2))
-            return suspicious
+            print(json.dumps(results, indent=2))
+            return results
 
-        if suspicious:
-            if RICH_AVAILABLE and console:
-                table = Table(title="Suspicious Startup Items")
-                table.add_column("Label", style="red")
-                table.add_column("PID", style="yellow")
-                table.add_column("Reasons", style="magenta")
-                for item in suspicious:
-                    table.add_row(item["item"], str(item["pid"]) or "-", ", ".join(item["reasons"]))
-                console.print(table)
-            else:
-                print("Suspicious startup items found:")
-                for item in suspicious:
-                    print(f"  - {item['item']} (PID: {item['pid']})")
-                    for r in item["reasons"]:
-                        print(f"    * {r}")
+        if not results:
+            print("✓ No concerning startup items found.")
+            return results
+
+        if RICH_AVAILABLE and console:
+            console.print("\n[bold]Startup Items Audit[/bold]\n")
+
+            high = [r for r in results if r.get("risk") == "HIGH"]
+            med = [r for r in results if r.get("risk") == "MEDIUM"]
+            review = [r for r in results if r.get("risk") == "REVIEW"]
+
+            if high:
+                console.print("[bold red]⚠ HIGH RISK:[/bold red]")
+                for r in high:
+                    console.print(f"  • {r['item']}")
+                    for reason in r['reasons']:
+                        console.print(f"    └ {reason}")
+                    if r.get('path'):
+                        console.print(f"    └ {r['path'][:60]}...")
+
+            if med:
+                console.print("\n[bold yellow]⚡ MEDIUM RISK:[/bold yellow]")
+                for r in med:
+                    console.print(f"  • {r['item']}")
+                    for reason in r['reasons']:
+                        console.print(f"    └ {reason}")
+
+            if review:
+                console.print("\n[bold cyan]🔍 REVIEW:[/bold cyan]")
+                for r in review:
+                    console.print(f"  • {r['item']}")
+                    for reason in r['reasons']:
+                        console.print(f"    └ {reason}")
+
+            console.print(f"\n[dim]Run 'msp startup audit --json' for full details[/dim]")
         else:
-            print("No suspicious startup items found.")
+            print("=== Startup Items Audit ===\n")
+            for r in results:
+                print(f"[{r.get('risk')}] {r['item']}")
+                for reason in r.get('reasons', []):
+                    print(f"  - {reason}")
 
-        return suspicious
+        return results
 
 
 def main():
