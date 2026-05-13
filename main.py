@@ -50,6 +50,46 @@ def run_command(module_name: str, command: str, args: list):
 
 
 def main():
+    # Pre-parse to intercept snapshot commands before argparse consumes flags
+    if len(sys.argv) >= 2 and sys.argv[1] == "snapshot":
+        from src.snapshot import SnapshotManager
+        sm = SnapshotManager(verbose="-v" in sys.argv or "--verbose" in sys.argv)
+
+        # Parse snapshot command manually
+        raw_args = sys.argv[2:]
+        action = raw_args[0] if raw_args else None
+
+        if action == "capture":
+            name = raw_args[1] if len(raw_args) > 1 else None
+            sm.capture(name=name)
+        elif action == "list":
+            sm.list_snapshots(json_output="--json" in sys.argv)
+        elif action == "diff":
+            name = raw_args[1] if len(raw_args) > 1 else None
+            if name:
+                sm.diff(name, json_output="--json" in sys.argv)
+            else:
+                print("Usage: msp snapshot diff <name>")
+        elif action == "restore":
+            name = raw_args[1] if len(raw_args) > 1 else None
+            dry_run = "--dry-run" in raw_args
+            if name:
+                sm.restore(name, dry_run=dry_run)
+            else:
+                print("Usage: msp snapshot restore <name> [--dry-run]")
+        elif action == "watch":
+            name = raw_args[1] if len(raw_args) > 1 else "default"
+            sm.watch(name, interval=300, auto_restore="--auto-restore" in raw_args)
+        elif action == "delete":
+            name = raw_args[1] if len(raw_args) > 1 else None
+            if name:
+                sm.delete(name)
+            else:
+                print("Usage: msp snapshot delete <name>")
+        else:
+            print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
+        return
+
     parser = argparse.ArgumentParser(
         description="msp - macOS Security & Privacy CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -154,12 +194,52 @@ Examples:
             print(f"Error: {e}")
         return
 
+    # Snapshot commands - handle before argparse processes flags
+    if command == "snapshot":
+        from src.snapshot import SnapshotManager
+        sm = SnapshotManager(verbose=args.verbose)
+
+        # Manually parse snapshot args to avoid argparse flag issues
+        raw_args = sys.argv[2:] if len(sys.argv) > 2 else []
+        action = raw_args[0] if raw_args else None
+
+        # Filter out global flags before passing to snapshot module
+        filtered_args = [a for a in raw_args[1:] if not a.startswith("--")]
+
+        if action == "capture":
+            name = filtered_args[0] if filtered_args else None
+            include_network = "--json" in raw_args
+            sm.capture(name=name, include_network=include_network)
+        elif action == "list":
+            sm.list_snapshots(json_output=args.json)
+        elif action == "diff":
+            name = filtered_args[0] if filtered_args else None
+            if name:
+                sm.diff(name, json_output=args.json)
+            else:
+                print("Usage: msp snapshot diff <name>")
+        elif action == "restore":
+            name = filtered_args[0] if filtered_args else None
+            dry_run = "--dry-run" in raw_args
+            if name:
+                sm.restore(name, dry_run=dry_run)
+            else:
+                print("Usage: msp snapshot restore <name> [--dry-run]")
+        elif action == "watch":
+            name = filtered_args[0] if filtered_args else "default"
+            auto_restore = "--auto-restore" in raw_args
+            sm.watch(name, interval=300, auto_restore=auto_restore)
+        elif action == "delete":
+            name = filtered_args[0] if filtered_args else None
+            if name:
+                sm.delete(name)
+            else:
+                print("Usage: msp snapshot delete <name>")
+        else:
+            print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
+        return
+
     command_map = {
-        "status": "privacy_settings",
-        "list": "privacy_settings",
-        "enable": "privacy_settings",
-        "disable": "privacy_settings",
-        "services": "privacy_settings",
         "net": "network",
         "startup": "startup",
         "fswatch": "fswatch",
