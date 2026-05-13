@@ -483,7 +483,7 @@ class StartupManager:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Startup Manager")
-    parser.add_argument("action", choices=["list", "agents", "daemons", "cron", "disable", "enable", "audit"])
+    parser.add_argument("action", choices=["list", "agents", "daemons", "cron", "disable", "enable", "audit", "summary", "search"])
     parser.add_argument("label", nargs="?", help="Label to enable/disable")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--json", action="store_true", help="JSON output")
@@ -511,7 +511,71 @@ def main():
             sys.exit(1)
         manager.enable(args.label)
     elif args.action == "audit":
-        manager.audit(json_output=args.json)
+        interactive = "--interactive" in sys.argv or "-i" in sys.argv
+
+        results = manager.audit(json_output=args.json)
+
+        if results and not args.json:
+            print(f"\nFound {len(results)} item(s) to review.")
+            if interactive:
+                print("\n[bold]Interactive mode - review each item?[/bold]")
+                for r in results:
+                    console.print(f"\n[{r['risk']}] {r['item']}")
+                    for reason in r.get('reasons', []):
+                        console.print(f"  └ {reason}")
+                    if r.get('path'):
+                        console.print(f"  Path: {r['path']}")
+
+                    action = input("  Action? [d]isable, [s]kip, [q]uit: ").strip().lower()
+                    if action == 'd':
+                        manager.disable(r['item'], force=True)
+                    elif action == 'q':
+                        break
+
+    elif args.action == "summary":
+        results = manager.audit(json_output=True)
+
+        high = [r for r in results if r.get("risk") == "HIGH"]
+        med = [r for r in results if r.get("risk") == "MEDIUM"]
+        review = [r for r in results if r.get("risk") == "REVIEW"]
+
+        console.print("\n[bold]Startup Items Summary[/bold]\n")
+        console.print(f"[red]HIGH risk:[/red] {len(high)}")
+        if high:
+            for r in high[:5]:
+                console.print(f"  • {r['item']}")
+            if len(high) > 5:
+                console.print(f"  ... and {len(high)-5} more")
+
+        console.print(f"\n[yellow]MEDIUM risk:[/yellow] {len(med)}")
+        if med:
+            for r in med[:5]:
+                console.print(f"  • {r['item']}")
+            if len(med) > 5:
+                console.print(f"  ... and {len(med)-5} more")
+
+        console.print(f"\n[cyan]REVIEW:[/cyan] {len(review)}")
+        if review:
+            for r in review[:5]:
+                console.print(f"  • {r['item']}")
+            if len(review) > 5:
+                console.print(f"  ... and {len(review)-5} more")
+
+        console.print(f"\n[dim]Total: {len(results)} items need attention[/dim]")
+        console.print("[dim]Run 'msp startup audit --interactive' to review and disable[/dim]")
+
+    elif args.action == "search":
+        if not args.label:
+            print("Usage: msp startup search <term>")
+            sys.exit(1)
+        search_term = args.label.lower()
+        items = manager._get_all_items()
+        matches = [i for i in items if search_term in i.label.lower() or search_term in i.name.lower()]
+        console.print(f"\n[bold]Found {len(matches)} items matching '{args.label}'[/bold]\n")
+        for item in matches:
+            console.print(f"  • {item.label}")
+            console.print(f"    Name: {item.name}, PID: {item.pid or '-'}, Status: {item.status}")
+        console.print("\n[dim]Use 'msp startup disable <label>' to disable[/dim]")
 
 
 if __name__ == "__main__":

@@ -96,6 +96,9 @@ msp startup daemons     # System daemons
 msp startup cron        # Cron jobs
 msp startup disable <label>  # Disable item
 msp startup audit       # Audit for HIGH/MEDIUM risk items
+msp startup audit --interactive  # Review and disable each item
+msp startup summary     # Quick count of items by risk level
+msp startup search <term>  # Find items by name/label
 ```
 
 **Audit filters out:** Apple services, common apps (Spotify, Slack, VSCode, etc.), known-good prefixes. Only flags actual concerns with risk level (HIGH/MEDIUM/REVIEW).
