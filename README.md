@@ -118,10 +118,13 @@ msp scan report         # Generate report
 ### AI Integration (`msp ask`)
 ```bash
 msp ask "what's suspicious in my processes?"           # Direct query
-msp ask "analyze this" --data file.json                # With data
+msp ask "analyze my connections"                      # Auto-includes network data
+msp ask "explain firewall settings"                    # Explain specific settings
 msp ask watch               # Interactive monitoring mode
 msp ask suggest             # Hardening suggestions
 ```
+
+Note: `msp ask` automatically includes network context (established connections, listening ports) for network-related questions.
 
 ### Method Chaining (`msp chain`)
 ```bash

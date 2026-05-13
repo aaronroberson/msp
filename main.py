@@ -239,13 +239,58 @@ Examples:
             print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
         return
 
+    # Handle ask command specially - pass quoted prompt directly
+    if command == "ask" and args.args:
+        from src.ai import AIAnalyzer
+        from src.network import NetworkMonitor
+
+        analyzer = AIAnalyzer(verbose=args.verbose)
+        prompt = " ".join(args.args)
+
+        # Auto-include network data for network-related questions
+        network_keywords = ["network", "connection", "connections", "port", "listen", "outbound", "inbound", "traffic", "firewall"]
+        if any(kw in prompt.lower() for kw in network_keywords):
+            nm = NetworkMonitor()
+            established = nm.list_established()
+            listening = nm.list_listening()
+
+            context = "\n\n## Current Network Data:\n\n### Established Connections (first 50):\n"
+            if established:
+                for c in established[:50]:
+                    local = getattr(c, 'local', getattr(c, 'host', '*')) or '*'
+                    remote = getattr(c, 'remote', getattr(c, 'peer', '')) or ''
+                    proc = getattr(c, 'process', getattr(c, 'name', '')) or ''
+                    context += f"- {local} -> {remote} | {proc}\n"
+            else:
+                context += "None\n"
+
+            context += "\n### Listening Ports (first 30):\n"
+            if listening:
+                for c in listening[:30]:
+                    port = getattr(c, 'port', '?') or '?'
+                    proc = getattr(c, 'process', getattr(c, 'name', '')) or ''
+                    context += f"- *:{port} | {proc}\n"
+            else:
+                context += "None\n"
+
+            prompt = f"{prompt}\n\n{context}"
+
+        data = None
+        if "--data" in args.args:
+            idx = args.args.index("--data")
+            if idx + 1 < len(args.args):
+                with open(args.args[idx + 1]) as f:
+                    data = f.read()
+
+        analyzer.ask(prompt, data=data, json_output=args.json)
+        return
+
     command_map = {
         "net": "network",
         "startup": "startup",
         "fswatch": "fswatch",
         "traffic": "traffic",
         "scan": "scanner",
-        "ask": "ai",
         "chain": "chain",
         "doctor": "deps",
         "deps": "deps",

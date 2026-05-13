@@ -229,30 +229,51 @@ from datetime import datetime
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp AI Analyzer")
-    parser.add_argument("action", choices=["ask", "analyze", "watch", "explain", "compare", "suggest"])
-    parser.add_argument("prompt", nargs="?", help="Question or prompt")
-    parser.add_argument("--data", help="File to attach as data context")
-    parser.add_argument("--interval", type=int, default=60, help="Watch interval in seconds")
-    parser.add_argument("--modules", nargs="+", help="Modules to run in watch mode")
-    parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--json", action="store_true", help="JSON output")
+    parser.add_argument("--data", help="File to attach as data context")
+
+    subparsers = parser.add_subparsers(dest="action", help="Commands")
+
+    ask_parser = subparsers.add_parser("ask", help="Ask AI a question")
+    ask_parser.add_argument("prompt", nargs="*", help="Question or prompt")
+    ask_parser.add_argument("--text", help="Prompt text (alternative)")
+
+    analyze_parser = subparsers.add_parser("analyze", help="Analyze data")
+    analyze_parser.add_argument("file", nargs="?", help="Data file to analyze")
+
+    watch_parser = subparsers.add_parser("watch", help="Interactive monitoring")
+    watch_parser.add_argument("--interval", type=int, default=60)
+    watch_parser.add_argument("--modules", nargs="+")
+
+    explain_parser = subparsers.add_parser("explain", help="Explain a setting")
+    explain_parser.add_argument("setting", help="Setting name to explain")
+
+    compare_parser = subparsers.add_parser("compare", help="Compare presets")
+    compare_parser.add_argument("preset1")
+    compare_parser.add_argument("preset2")
+
+    suggest_parser = subparsers.add_parser("suggest", help="Security suggestions")
+
     args = parser.parse_args()
 
     analyzer = AIAnalyzer(verbose=args.verbose)
 
     if args.action == "ask":
-        if not args.prompt:
+        prompt = " ".join(args.prompt) if args.prompt else args.text
+        if not prompt:
             print("Error: prompt required")
             sys.exit(1)
         data = None
         if args.data:
             with open(args.data) as f:
                 data = f.read()
-        analyzer.ask(args.prompt, data=data, json_output=args.json)
+        analyzer.ask(prompt, data=data, json_output=args.json)
 
     elif args.action == "analyze":
-        if args.data:
-            with open(args.data) as f:
+        data = None
+        if args.file:
+            with open(args.file) as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
@@ -266,30 +287,19 @@ def main():
         analyzer.analyze_results(data, json_output=args.json)
 
     elif args.action == "watch":
-        analyzer.interactive_watch(
-            interval=args.interval,
-            modules=args.modules
-        )
+        analyzer.interactive_watch(interval=args.interval, modules=args.modules)
 
     elif args.action == "explain":
-        if not args.prompt:
-            print("Error: setting name required")
-            sys.exit(1)
-        analyzer.explain_setting(args.prompt)
+        analyzer.explain_setting(args.setting)
 
     elif args.action == "compare":
-        if not args.prompt:
-            print("Error: provide two preset names")
-            sys.exit(1)
-        parts = args.prompt.split()
-        if len(parts) >= 2:
-            analyzer.compare_presets(parts[0], parts[1])
-        else:
-            print("Error: need two preset names separated by space")
-            sys.exit(1)
+        analyzer.compare_presets(args.preset1, args.preset2)
 
     elif args.action == "suggest":
         analyzer.suggest_hardening(json_output=args.json)
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
