@@ -226,41 +226,107 @@ Be concise and practical."""
 from datetime import datetime
 
 
+def interactive_menu(analyzer: AIAnalyzer, json_output: bool = False):
+    """Interactive menu for AI analyzer."""
+    actions = [
+        ("1", "ask", "Ask AI a question"),
+        ("2", "analyze", "Analyze current system data"),
+        ("3", "watch", "Interactive monitoring mode"),
+        ("4", "explain", "Explain a security setting"),
+        ("5", "compare", "Compare two presets"),
+        ("6", "suggest", "Security hardening suggestions"),
+        ("q", "quit", "Exit"),
+    ]
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       AI Analyzer - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-6, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        action_map = {
+            "1": "ask",
+            "2": "analyze",
+            "3": "watch",
+            "4": "explain",
+            "5": "compare",
+            "6": "suggest",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "ask":
+            prompt = input("Your question: ").strip()
+            if prompt:
+                analyzer.ask(prompt, json_output=json_output)
+            else:
+                print("Prompt required")
+        elif action == "analyze":
+            analyzer.analyze_results({}, json_output=json_output)
+        elif action == "watch":
+            interval = input("Interval seconds [60]: ").strip()
+            interval = int(interval) if interval.isdigit() else 60
+            modules = input("Modules (comma-separated, optional): ").strip()
+            modules_list = [m.strip() for m in modules.split(",")] if modules else None
+            analyzer.interactive_watch(interval=interval, modules=modules_list)
+        elif action == "explain":
+            setting = input("Setting name: ").strip()
+            if setting:
+                analyzer.explain_setting(setting)
+            else:
+                print("Setting name required")
+        elif action == "compare":
+            p1 = input("Preset 1: ").strip()
+            p2 = input("Preset 2: ").strip()
+            if p1 and p2:
+                analyzer.compare_presets(p1, p2)
+            else:
+                print("Both preset names required")
+        elif action == "suggest":
+            analyzer.suggest_hardening(json_output=json_output)
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp AI Analyzer")
+    parser.add_argument("action", nargs="?", choices=["ask", "analyze", "watch", "explain", "compare", "suggest"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--data", help="File to attach as data context")
-
-    subparsers = parser.add_subparsers(dest="action", help="Commands")
-
-    ask_parser = subparsers.add_parser("ask", help="Ask AI a question")
-    ask_parser.add_argument("prompt", nargs="*", help="Question or prompt")
-    ask_parser.add_argument("--text", help="Prompt text (alternative)")
-
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze data")
-    analyze_parser.add_argument("file", nargs="?", help="Data file to analyze")
-
-    watch_parser = subparsers.add_parser("watch", help="Interactive monitoring")
-    watch_parser.add_argument("--interval", type=int, default=60)
-    watch_parser.add_argument("--modules", nargs="+")
-
-    explain_parser = subparsers.add_parser("explain", help="Explain a setting")
-    explain_parser.add_argument("setting", help="Setting name to explain")
-
-    compare_parser = subparsers.add_parser("compare", help="Compare presets")
-    compare_parser.add_argument("preset1")
-    compare_parser.add_argument("preset2")
-
-    suggest_parser = subparsers.add_parser("suggest", help="Security suggestions")
-
+    parser.add_argument("--text", help="Prompt text (for ask)")
+    parser.add_argument("--file", help="Data file to analyze")
+    parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--modules", nargs="+")
+    parser.add_argument("--setting", help="Setting name to explain")
+    parser.add_argument("--preset1", help="First preset to compare")
+    parser.add_argument("--preset2", help="Second preset to compare")
+    parser.add_argument("--sort", choices=[""], help="Sort not applicable for AI commands")
     args = parser.parse_args()
 
     analyzer = AIAnalyzer(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(analyzer, args.json)
+        return
+
     if args.action == "ask":
-        prompt = " ".join(args.prompt) if args.prompt else args.text
+        prompt = args.text or input("Your question: ").strip()
         if not prompt:
             print("Error: prompt required")
             sys.exit(1)
@@ -290,9 +356,15 @@ def main():
         analyzer.interactive_watch(interval=args.interval, modules=args.modules)
 
     elif args.action == "explain":
+        if not args.setting:
+            print("Error: --setting required")
+            sys.exit(1)
         analyzer.explain_setting(args.setting)
 
     elif args.action == "compare":
+        if not args.preset1 or not args.preset2:
+            print("Error: --preset1 and --preset2 required")
+            sys.exit(1)
         analyzer.compare_presets(args.preset1, args.preset2)
 
     elif args.action == "suggest":

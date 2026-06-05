@@ -332,11 +332,22 @@ Examples:
         return
 
     # Handle ask command specially - pass quoted prompt directly
-    if command == "ask" and args.args:
+    if command == "ask":
         from src.ai import AIAnalyzer
         from src.network import NetworkMonitor
 
         analyzer = AIAnalyzer(verbose=args.verbose)
+
+        if not args.args:
+            # No args - run interactive mode
+            json_output = args.json
+            module = __import__("src.ai", fromlist=["main"])
+            sys.argv = ["ask"]
+            if json_output:
+                sys.argv.append("--json")
+            module.main()
+            return
+
         prompt = " ".join(args.args)
 
         # Auto-include network data for network-related questions
