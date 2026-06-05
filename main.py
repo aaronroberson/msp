@@ -69,9 +69,16 @@ def main():
 
         if action == "capture":
             name = raw_args[1] if len(raw_args) > 1 else None
-            sm.capture(name=name)
+            include_net = "--include-network" in raw_args
+            include_startup = "--include-startup" in raw_args
+            sm.capture(name=name, include_network=include_net, include_startup=include_startup)
         elif action == "list":
-            sm.list_snapshots(json_output="--json" in sys.argv)
+            sort_by = None
+            if "--sort" in raw_args:
+                idx = raw_args.index("--sort")
+                if idx + 1 < len(raw_args):
+                    sort_by = raw_args[idx + 1]
+            sm.list_snapshots(json_output="--json" in sys.argv, sort_by=sort_by or "timestamp")
         elif action == "diff":
             name = raw_args[1] if len(raw_args) > 1 else None
             if name:
@@ -87,7 +94,16 @@ def main():
                 print("Usage: msp snapshot restore <name> [--dry-run]")
         elif action == "watch":
             name = raw_args[1] if len(raw_args) > 1 else "default"
-            sm.watch(name, interval=300, auto_restore="--auto-restore" in raw_args)
+            interval = 300
+            if "--interval" in raw_args:
+                idx = raw_args.index("--interval")
+                if idx + 1 < len(raw_args):
+                    try:
+                        interval = int(raw_args[idx + 1])
+                    except ValueError:
+                        pass
+            auto_restore = "--auto-restore" in raw_args
+            sm.watch(name, interval=interval, auto_restore=auto_restore)
         elif action == "delete":
             name = raw_args[1] if len(raw_args) > 1 else None
             if name:
@@ -95,7 +111,27 @@ def main():
             else:
                 print("Usage: msp snapshot delete <name>")
         else:
-            print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
+            # No action specified - run interactive mode
+            json_output = "--json" in sys.argv
+            sort_by = None
+            if "--sort" in sys.argv:
+                idx = sys.argv.index("--sort")
+                if idx + 1 < len(sys.argv):
+                    sort_by = sys.argv[idx + 1]
+            # Simulate calling the module's main with no action
+            # We'll just show the interactive menu directly
+            if hasattr(SnapshotManager, '_sort_snapshots'):  # Check if enhanced version
+                # We need to run the module's interactive mode
+                module = __import__("src.snapshot", fromlist=["main"])
+                # Set up args for interactive mode
+                sys.argv = ["snapshot"]
+                if json_output:
+                    sys.argv.append("--json")
+                if sort_by:
+                    sys.argv.extend(["--sort", sort_by])
+                module.main()
+            else:
+                print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
         return
 
     parser = argparse.ArgumentParser(

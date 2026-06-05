@@ -183,7 +183,17 @@ class SnapshotManager:
                 pass
         return {}
 
-    def list_snapshots(self, json_output: bool = False) -> List[Dict[str, Any]]:
+    def _sort_snapshots(self, snapshots: List[Dict[str, Any]], sort_by: str) -> List[Dict[str, Any]]:
+        """Sort snapshots by the specified key."""
+        if sort_by == "name":
+            return sorted(snapshots, key=lambda x: x["name"].lower())
+        elif sort_by == "timestamp":
+            return sorted(snapshots, key=lambda x: x["timestamp"], reverse=True)
+        elif sort_by == "hostname":
+            return sorted(snapshots, key=lambda x: x["hostname"].lower())
+        return snapshots
+
+    def list_snapshots(self, json_output: bool = False, sort_by: str = "timestamp") -> List[Dict[str, Any]]:
         """List all available snapshots."""
         snapshots = []
 
@@ -203,7 +213,7 @@ class SnapshotManager:
                     except json.JSONDecodeError:
                         pass
 
-        snapshots.sort(key=lambda x: x["timestamp"], reverse=True)
+        snapshots = self._sort_snapshots(snapshots, sort_by)
 
         if json_output:
             print(json.dumps(snapshots, indent=2))
@@ -432,10 +442,124 @@ class SnapshotManager:
         return True
 
 
+def interactive_menu(manager: SnapshotManager, json_output: bool = False):
+    """Interactive menu for snapshot manager."""
+    actions = [
+        ("1", "capture", "Capture current system state"),
+        ("2", "list", "List all snapshots"),
+        ("3", "diff", "Compare current state to snapshot"),
+        ("4", "restore", "Restore settings from snapshot"),
+        ("5", "watch", "Watch snapshot for drift"),
+        ("6", "delete", "Delete a snapshot"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = {
+        "list": ["name", "timestamp", "hostname"],
+    }
+    current_sort = {"list": "timestamp"}
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Snapshot Manager - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-6, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSelect command to change sort for:")
+            sortable_actions = [a for a in actions if a[1] in sort_options]
+            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
+                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
+            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
+            try:
+                cmd_idx = int(cmd_choice) - 1
+                if 0 <= cmd_idx < len(sortable_actions):
+                    cmd = sortable_actions[cmd_idx][1]
+                    opts = sort_options[cmd]
+                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
+                    for i, opt in enumerate(opts, 1):
+                        marker = " *" if opt == current_sort[cmd] else ""
+                        print(f"  {i}. {opt}{marker}")
+                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
+                    idx = int(sort_choice) - 1
+                    if 0 <= idx < len(opts):
+                        current_sort[cmd] = opts[idx]
+                        print(f"Sort set to: {current_sort[cmd]}")
+                    else:
+                        print("Invalid choice")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "capture",
+            "2": "list",
+            "3": "diff",
+            "4": "restore",
+            "5": "watch",
+            "6": "delete",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "capture":
+            name = input("Snapshot name (default: timestamp): ").strip()
+            name = name or datetime.now().strftime("%Y%m%d_%H%M%S")
+            include_net = input("Include network state? [y/N]: ").strip().lower() == 'y'
+            include_startup = input("Include startup items? [y/N]: ").strip().lower() == 'y'
+            manager.capture(name=name, include_network=include_net, include_startup=include_startup)
+        elif action == "list":
+            manager.list_snapshots(json_output=json_output, sort_by=current_sort["list"])
+        elif action == "diff":
+            name = input("Snapshot name: ").strip()
+            if name:
+                manager.diff(name, json_output=json_output)
+            else:
+                print("Snapshot name required")
+        elif action == "restore":
+            name = input("Snapshot name: ").strip()
+            if name:
+                dry_run = input("Dry run? [y/N]: ").strip().lower() == 'y'
+                manager.restore(name, dry_run=dry_run)
+            else:
+                print("Snapshot name required")
+        elif action == "watch":
+            name = input("Snapshot name [default]: ").strip() or "default"
+            interval = input("Interval seconds [300]: ").strip()
+            interval = int(interval) if interval.isdigit() else 300
+            auto_restore = input("Auto-restore on drift? [y/N]: ").strip().lower() == 'y'
+            manager.watch(name, interval=interval, auto_restore=auto_restore)
+        elif action == "delete":
+            name = input("Snapshot name: ").strip()
+            if name:
+                manager.delete(name)
+            else:
+                print("Snapshot name required")
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Snapshot Manager")
-    parser.add_argument("action", choices=["capture", "list", "diff", "restore", "watch", "delete"])
+    parser.add_argument("action", nargs="?", choices=["capture", "list", "diff", "restore", "watch", "delete"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("name", nargs="?", help="Snapshot name")
     parser.add_argument("--interval", type=int, default=300, help="Watch interval in seconds")
     parser.add_argument("--auto-restore", action="store_true", help="Auto-restore on drift")
@@ -445,9 +569,14 @@ def main():
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["name", "timestamp", "hostname"], help="Sort by: name, timestamp, hostname")
     args = parser.parse_args()
 
     manager = SnapshotManager(verbose=args.verbose)
+
+    if not args.action:
+        interactive_menu(manager, args.json)
+        return
 
     if args.action == "capture":
         name = args.name or datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -458,7 +587,7 @@ def main():
         )
 
     elif args.action == "list":
-        manager.list_snapshots(json_output=args.json)
+        manager.list_snapshots(json_output=args.json, sort_by=args.sort or "timestamp")
 
     elif args.action == "diff":
         if not args.name:
