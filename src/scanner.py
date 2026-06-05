@@ -60,7 +60,7 @@ class SecurityScanner:
             return True
         return False
 
-    def scan_quick(self, json_output: bool = False) -> List[Finding]:
+    def scan_quick(self, json_output: bool = False, sort_by: str = "severity") -> List[Finding]:
         """Quick 30-second scan."""
         self.findings = []
         print("Running quick security scan...")
@@ -69,9 +69,9 @@ class SecurityScanner:
         self._check_established_connections()
         self._check_system_updates()
 
-        return self._display_findings(json_output)
+        return self._display_findings(json_output, sort_by)
 
-    def scan_deep(self, json_output: bool = False) -> List[Finding]:
+    def scan_deep(self, json_output: bool = False, sort_by: str = "severity") -> List[Finding]:
         """Deep 5-minute comprehensive scan."""
         self.findings = []
         print("Running deep security scan...")
@@ -85,9 +85,9 @@ class SecurityScanner:
         self._check_recent_files()
         self._check_telemetry()
 
-        return self._display_findings(json_output)
+        return self._display_findings(json_output, sort_by)
 
-    def scan_suspicious(self, json_output: bool = False) -> List[Finding]:
+    def scan_suspicious(self, json_output: bool = False, sort_by: str = "severity") -> List[Finding]:
         """Heuristic suspicious activity detection."""
         self.findings = []
         print("Scanning for suspicious activity...")
@@ -97,7 +97,7 @@ class SecurityScanner:
         self._check_new_persistence()
         self._check_suspicious_process_names()
 
-        return self._display_findings(json_output)
+        return self._display_findings(json_output, sort_by)
 
     def _check_listening_ports(self) -> None:
         success, output = self._run_cmd("lsof -iTCP -sTCP:LISTEN -nP 2>/dev/null")
@@ -328,7 +328,7 @@ class SecurityScanner:
                 print(f"Output: {output}")
             return False
 
-    def signature_info(self, app_path: str) -> Dict[str, str]:
+    def signature_info(self, app_path: str, json_output: bool = False) -> Dict[str, str]:
         """Get code signature information for an app."""
         if not os.path.exists(app_path):
             app_path = f"/Applications/{app_path}.app" if not app_path.endswith(".app") else app_path
@@ -355,7 +355,20 @@ class SecurityScanner:
 
         return info
 
-    def _display_findings(self, json_output: bool = False) -> List[Finding]:
+    def _sort_findings(self, findings: List[Finding], sort_by: str) -> List[Finding]:
+        """Sort findings by the specified key."""
+        if sort_by == "severity":
+            severity_order = {"high": 0, "medium": 1, "low": 2}
+            return sorted(findings, key=lambda x: severity_order.get(x.severity, 3))
+        elif sort_by == "category":
+            return sorted(findings, key=lambda x: x.category.lower())
+        elif sort_by == "item":
+            return sorted(findings, key=lambda x: x.item.lower())
+        return findings
+
+    def _display_findings(self, json_output: bool = False, sort_by: str = "severity") -> List[Finding]:
+        findings = self._sort_findings(self.findings, sort_by)
+
         if json_output:
             output = [{
                 "severity": f.severity,
@@ -363,11 +376,11 @@ class SecurityScanner:
                 "item": f.item,
                 "description": f.description,
                 "recommendation": f.recommendation
-            } for f in self.findings]
+            } for f in findings]
             print(json.dumps(output, indent=2))
             return self.findings
 
-        if not self.findings:
+        if not findings:
             print("No security issues found.")
             return self.findings
 
@@ -384,7 +397,7 @@ class SecurityScanner:
             table.add_column("Item", style="yellow")
             table.add_column("Description")
 
-            for f in self.findings:
+            for f in findings:
                 color = severity_colors.get(f.severity, "white")
                 table.add_row(
                     f"[{color}]{f.severity.upper()}[/{color}]",
@@ -395,11 +408,11 @@ class SecurityScanner:
             console.print(table)
 
             print("\nRecommendations:")
-            for f in self.findings:
+            for f in findings:
                 print(f"  • {f.item}: {f.recommendation}")
         else:
-            print(f"\nFound {len(self.findings)} security issue(s):\n")
-            for f in self.findings:
+            print(f"\nFound {len(findings)} security issue(s):\n")
+            for f in findings:
                 print(f"[{f.severity.upper()}] {f.category}: {f.item}")
                 print(f"  {f.description}")
                 print(f"  → {f.recommendation}\n")
@@ -432,24 +445,134 @@ class SecurityScanner:
         return json.dumps(report, indent=2)
 
 
+def interactive_menu(scanner: SecurityScanner, json_output: bool = False):
+    """Interactive menu for security scanner."""
+    actions = [
+        ("1", "quick", "Quick 30-second scan"),
+        ("2", "deep", "Deep 5-minute comprehensive scan"),
+        ("3", "suspicious", "Heuristic suspicious activity detection"),
+        ("4", "verify", "Verify app with Gatekeeper"),
+        ("5", "signature", "Get code signature info"),
+        ("6", "report", "Generate comprehensive report"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = {
+        "quick": ["severity", "category", "item"],
+        "deep": ["severity", "category", "item"],
+        "suspicious": ["severity", "category", "item"],
+    }
+    current_sort = {"quick": "severity", "deep": "severity", "suspicious": "severity"}
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Security Scanner - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-6, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSelect command to change sort for:")
+            sortable_actions = [a for a in actions if a[1] in sort_options]
+            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
+                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
+            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
+            try:
+                cmd_idx = int(cmd_choice) - 1
+                if 0 <= cmd_idx < len(sortable_actions):
+                    cmd = sortable_actions[cmd_idx][1]
+                    opts = sort_options[cmd]
+                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
+                    for i, opt in enumerate(opts, 1):
+                        marker = " *" if opt == current_sort[cmd] else ""
+                        print(f"  {i}. {opt}{marker}")
+                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
+                    idx = int(sort_choice) - 1
+                    if 0 <= idx < len(opts):
+                        current_sort[cmd] = opts[idx]
+                        print(f"Sort set to: {current_sort[cmd]}")
+                    else:
+                        print("Invalid choice")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "quick",
+            "2": "deep",
+            "3": "suspicious",
+            "4": "verify",
+            "5": "signature",
+            "6": "report",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "quick":
+            scanner.scan_quick(json_output=json_output, sort_by=current_sort["quick"])
+        elif action == "deep":
+            scanner.scan_deep(json_output=json_output, sort_by=current_sort["deep"])
+        elif action == "suspicious":
+            scanner.scan_suspicious(json_output=json_output, sort_by=current_sort["suspicious"])
+        elif action == "verify":
+            path = input("App path to verify: ").strip()
+            if path:
+                scanner.verify_app(path)
+            else:
+                print("Path required")
+        elif action == "signature":
+            path = input("App path for signature info: ").strip()
+            if path:
+                scanner.signature_info(path, json_output=json_output)
+            else:
+                print("Path required")
+        elif action == "report":
+            output = input("Output file [~/.msp/reports/scan_report.json]: ").strip()
+            output = output or os.path.expanduser("~/.msp/reports/scan_report.json")
+            scanner.generate_report(output)
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Security Scanner")
-    parser.add_argument("action", choices=["quick", "deep", "suspicious", "verify", "signature", "report"])
+    parser.add_argument("action", nargs="?", choices=["quick", "deep", "suspicious", "verify", "signature", "report"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("path", nargs="?", help="Path to verify/signature check")
     parser.add_argument("--output", help="Output file for report")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["severity", "category", "item"], help="Sort by: severity, category, item")
     args = parser.parse_args()
 
     scanner = SecurityScanner(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(scanner, args.json)
+        return
+
     if args.action == "quick":
-        scanner.scan_quick(json_output=args.json)
+        scanner.scan_quick(json_output=args.json, sort_by=args.sort or "severity")
     elif args.action == "deep":
-        scanner.scan_deep(json_output=args.json)
+        scanner.scan_deep(json_output=args.json, sort_by=args.sort or "severity")
     elif args.action == "suspicious":
-        scanner.scan_suspicious(json_output=args.json)
+        scanner.scan_suspicious(json_output=args.json, sort_by=args.sort or "severity")
     elif args.action == "verify":
         if not args.path:
             print("Error: path required")
@@ -459,7 +582,7 @@ def main():
         if not args.path:
             print("Error: path required")
             sys.exit(1)
-        scanner.signature_info(args.path)
+        scanner.signature_info(args.path, json_output=args.json)
     elif args.action == "report":
         output = args.output or os.path.expanduser("~/.msp/reports/scan_report.json")
         scanner.generate_report(output)
