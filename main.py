@@ -179,15 +179,21 @@ Examples:
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
-    parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination")
+    parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination", "state"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination, state")
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
 
     args = parser.parse_args()
 
     if not args.command:
-        parser.print_help()
-        print("\nRun 'msp <command> --help' for command-specific help.")
+        # Interactive mode via privacy_settings module
+        sys.argv = ["msp"]
+        if args.json:
+            sys.argv.append("--json")
+        if args.verbose:
+            sys.argv.append("--verbose")
+        from src.privacy_settings import interactive_menu
+        interactive_menu()
         return
 
     command = args.command.lower()
@@ -198,6 +204,7 @@ Examples:
             from src.privacy_settings import PrivacySettingsManager, PresetManager
             manager = PrivacySettingsManager(verbose=args.verbose)
             preset_manager = PresetManager(manager)
+            sort_by = args.sort or "name"
 
             if command == "status":
                 manager.get_status(json_output=args.json)
@@ -206,7 +213,7 @@ Examples:
                 category = None
                 if args.args and args.args[0] == "--category":
                     category = args.args[1] if len(args.args) > 1 else None
-                manager.list_settings(category=category, json_output=args.json)
+                manager.list_settings(category=category, json_output=args.json, sort_by=sort_by)
 
             elif command in ("enable", "disable"):
                 setting_name = args.args[0] if args.args else None

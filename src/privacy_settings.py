@@ -550,7 +550,17 @@ class PrivacySettingsManager:
             return success
         return False
 
-    def list_settings(self, category: Optional[str] = None, json_output: bool = False) -> None:
+    def _sort_settings(self, settings: List["PrivacySetting"], sort_by: str) -> List["PrivacySetting"]:
+        """Sort settings by the specified key."""
+        if sort_by == "name":
+            return sorted(settings, key=lambda x: x.name.lower())
+        elif sort_by == "category":
+            return sorted(settings, key=lambda x: (x.category.value, x.name.lower()))
+        elif sort_by == "state":
+            return sorted(settings, key=lambda x: (self.get_current_state(x).value, x.name.lower()))
+        return settings
+
+    def list_settings(self, category: Optional[str] = None, json_output: bool = False, sort_by: str = "name") -> None:
         """List all available settings."""
         settings = self.SETTINGS
 
@@ -558,6 +568,8 @@ class PrivacySettingsManager:
             cat = next((c for c in SettingCategory if c.value.lower() == category.lower()), None)
             if cat:
                 settings = [s for s in settings if s.category == cat]
+
+        settings = self._sort_settings(settings, sort_by)
 
         if json_output:
             output = []
@@ -595,9 +607,19 @@ class PrivacySettingsManager:
                 print(f"{state_str} {s.name} ({s.category.value})")
                 print(f"    {s.description}")
 
-    def list_services(self, json_output: bool = False) -> None:
+    def _sort_services(self, services: List[Dict[str, str]], sort_by: str) -> List[Dict[str, str]]:
+        """Sort services by the specified key."""
+        if sort_by == "name":
+            return sorted(services, key=lambda x: x.get("name", "").lower())
+        elif sort_by == "status":
+            return sorted(services, key=lambda x: x.get("status", ""))
+        elif sort_by == "pid":
+            return sorted(services, key=lambda x: int(x.get("pid", 0)) if x.get("pid", "").lstrip("-").isdigit() else 0)
+        return services
+
+    def list_services(self, json_output: bool = False, sort_by: str = "name") -> None:
         """List running services."""
-        services = self.get_launchd_services()
+        services = self._sort_services(self.get_launchd_services(), sort_by)
 
         if json_output:
             print(json.dumps(services, indent=2))
@@ -854,7 +876,7 @@ class PresetManager:
     def __init__(self, settings_manager: PrivacySettingsManager):
         self.manager = settings_manager
 
-    def list_presets(self, json_output: bool = False) -> None:
+    def list_presets(self, json_output: bool = False, sort_by: str = "name") -> None:
         """List available presets."""
         if json_output:
             print(json.dumps(self.PRESETS, indent=2, default=str))
@@ -939,6 +961,117 @@ class PresetManager:
         return False
 
 
+def interactive_menu():
+    """Interactive menu for privacy/security settings."""
+    manager = PrivacySettingsManager(verbose="-v" in sys.argv or "--verbose" in sys.argv)
+    preset_manager = PresetManager(manager)
+    sort_by = "name"
+    json_output = "--json" in sys.argv
+
+    actions = [
+        ("1", "list", "List all privacy/security settings"),
+        ("2", "status", "Show comprehensive security status"),
+        ("3", "enable", "Enable a privacy/security setting"),
+        ("4", "disable", "Disable a privacy/security setting"),
+        ("5", "preset-list", "List available presets"),
+        ("6", "preset-apply", "Apply a preset configuration"),
+        ("7", "services", "List running services"),
+        ("q", "quit", "Exit"),
+    ]
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       macOS Privacy & Security - Interactive Mode")
+        print("=" * 60)
+        print(f"  Sort: [{'name' if sort_by == 'name' else sort_by}]  (press 's' to change)")
+        print("-" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<16} - {desc}")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-7, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s":
+            sort_keys = ["name", "category", "state"]
+            print(f"\nCurrent sort: {sort_by}")
+            for i, k in enumerate(sort_keys, 1):
+                marker = " *" if k == sort_by else ""
+                print(f"  {i}. {k}{marker}")
+            s_choice = input(f"\nSelect sort [1-{len(sort_keys)}]: ").strip()
+            if s_choice.isdigit() and 1 <= int(s_choice) <= len(sort_keys):
+                sort_by = sort_keys[int(s_choice) - 1]
+            continue
+
+        action_map = {
+            "1": "list",
+            "2": "status",
+            "3": "enable",
+            "4": "disable",
+            "5": "preset-list",
+            "6": "preset-apply",
+            "7": "services",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "list":
+            manager.list_settings(json_output=json_output, sort_by=sort_by)
+        elif action == "status":
+            manager.get_status(json_output=json_output)
+        elif action == "enable":
+            print("\nAvailable settings:")
+            for i, s in enumerate(manager.SETTINGS, 1):
+                print(f"  {i}. {s.name}")
+            setting_idx = input("\nSetting number: ").strip()
+            if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
+                setting = manager.SETTINGS[int(setting_idx) - 1]
+                if manager.enable_setting(setting):
+                    print(f"Enabled: {setting.name}")
+                else:
+                    print(f"Failed to enable: {setting.name}")
+            else:
+                print("Invalid selection")
+        elif action == "disable":
+            print("\nAvailable settings:")
+            for i, s in enumerate(manager.SETTINGS, 1):
+                print(f"  {i}. {s.name}")
+            setting_idx = input("\nSetting number: ").strip()
+            if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
+                setting = manager.SETTINGS[int(setting_idx) - 1]
+                if manager.disable_setting(setting):
+                    print(f"Disabled: {setting.name}")
+                else:
+                    print(f"Failed to disable: {setting.name}")
+            else:
+                print("Invalid selection")
+        elif action == "preset-list":
+            preset_manager.list_presets(json_output=json_output)
+        elif action == "preset-apply":
+            print("\nAvailable presets:")
+            for pid, p in preset_manager.PRESETS.items():
+                print(f"  {pid} - {p['name']}")
+            pid = input("\nPreset ID: ").strip()
+            dry_run = input("Dry run? (y/N): ").strip().lower() == "y"
+            if pid:
+                preset_manager.apply_preset(pid, dry_run=dry_run)
+            else:
+                print("No preset specified")
+        elif action == "services":
+            manager.list_services(json_output=json_output, sort_by=sort_by)
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="macOS Privacy & Security CLI",
@@ -964,6 +1097,7 @@ Presets:
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
+    parser.add_argument("--sort", choices=["name", "category", "state"], help="Sort by: name, category, state")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -1008,9 +1142,14 @@ Presets:
 
     manager = PrivacySettingsManager(verbose=args.verbose)
     preset_manager = PresetManager(manager)
+    sort_by = args.sort or "name"
+
+    if not args.command:
+        interactive_menu()
+        return
 
     if args.command == "list":
-        manager.list_settings(category=args.category, json_output=args.json)
+        manager.list_settings(category=args.category, json_output=args.json, sort_by=sort_by)
     elif args.command == "status":
         manager.get_status(json_output=args.json)
     elif args.command == "enable":

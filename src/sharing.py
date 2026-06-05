@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sharing management module for msp CLI."""
 
+import json
 import subprocess
 import os
 import sys
@@ -155,13 +156,27 @@ class SharingManager:
             print(f"Failed: {output}")
             return False
 
-    def show_status(self, json_output: bool = False) -> None:
+    def _sort_shares(self, shares: List[Dict[str, Any]], sort_by: str) -> List[Dict[str, Any]]:
+        """Sort shares by the specified key."""
+        if sort_by == "name":
+            return sorted(shares, key=lambda x: x.get("name", "").lower())
+        elif sort_by == "path":
+            return sorted(shares, key=lambda x: x.get("path", "").lower())
+        elif sort_by == "guest":
+            return sorted(shares, key=lambda x: x.get("guest_access", "0"), reverse=True)
+        elif sort_by == "readonly":
+            return sorted(shares, key=lambda x: x.get("read_only", "0"), reverse=True)
+        return shares
+
+    def show_status(self, json_output: bool = False, sort_by: str = "name") -> None:
         """Display sharing status."""
         status = self.get_sharing_status()
 
         if json_output:
             print(status)
             return
+
+        shares = self._sort_shares(status.get('share_points', []), sort_by)
 
         if RICH_AVAILABLE and console:
             console.print("\n[bold]macOS Sharing Status[/bold]\n")
@@ -173,7 +188,6 @@ class SharingManager:
                 state = "[green]Running[/green]" if active else "[red]Stopped[/red]"
                 console.print(f"  {svc}: {state}")
 
-            shares = status.get('share_points', [])
             console.print(f"\n[cyan]Share Points ({len(shares)}):[/cyan]")
 
             if shares:
@@ -208,19 +222,128 @@ class SharingManager:
                 print(f"  - {share.get('name')}: {share.get('path')} ({guest})")
 
 
+def interactive_menu(manager: SharingManager, json_output: bool = False):
+    """Interactive menu for sharing manager."""
+    actions = [
+        ("1", "list", "List share points and status"),
+        ("2", "disable", "Disable a share"),
+        ("3", "disable-guest", "Disable guest access"),
+        ("4", "enable", "Enable sharing for a path"),
+        ("5", "stop-all", "Disable all sharing services"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = {
+        "list": ["name", "path", "guest", "readonly"],
+    }
+    current_sort = {"list": "name"}
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Sharing Manager - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-5, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSelect command to change sort for:")
+            sortable_actions = [a for a in actions if a[1] in sort_options]
+            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
+                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
+            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
+            try:
+                cmd_idx = int(cmd_choice) - 1
+                if 0 <= cmd_idx < len(sortable_actions):
+                    cmd = sortable_actions[cmd_idx][1]
+                    opts = sort_options[cmd]
+                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
+                    for i, opt in enumerate(opts, 1):
+                        marker = " *" if opt == current_sort[cmd] else ""
+                        print(f"  {i}. {opt}{marker}")
+                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
+                    idx = int(sort_choice) - 1
+                    if 0 <= idx < len(opts):
+                        current_sort[cmd] = opts[idx]
+                        print(f"Sort set to: {current_sort[cmd]}")
+                    else:
+                        print("Invalid choice")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "list",
+            "2": "disable",
+            "3": "disable-guest",
+            "4": "enable",
+            "5": "stop-all",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "list":
+            manager.show_status(json_output=json_output, sort_by=current_sort["list"])
+        elif action == "disable":
+            name = input("Share name to disable: ").strip()
+            if name:
+                manager.disable_share(name)
+            else:
+                print("Share name required")
+        elif action == "disable-guest":
+            name = input("Share name (optional, Enter for all): ").strip() or None
+            manager.disable_guest_access(name)
+        elif action == "enable":
+            path = input("Path to share: ").strip()
+            if path:
+                name = input("Share name (optional): ").strip() or None
+                guest = input("Allow guest access? [y/N]: ").strip().lower() == 'y'
+                manager.enable_share(path, name=name, guest=guest)
+            else:
+                print("Path required")
+        elif action == "stop-all":
+            confirm = input("Disable ALL sharing services? [y/N]: ").strip().lower()
+            if confirm == 'y':
+                manager.disable_all_sharing()
+            else:
+                print("Cancelled")
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Sharing Manager")
-    parser.add_argument("action", choices=["list", "status", "disable", "disable-guest", "enable", "stop-all"])
+    parser.add_argument("action", nargs="?", choices=["list", "status", "disable", "disable-guest", "enable", "stop-all"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("name", nargs="?", help="Share name or path")
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("-v", "--verbose")
-
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["name", "path", "guest", "readonly"], help="Sort by: name, path, guest, readonly")
     args = parser.parse_args()
+
     manager = SharingManager(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(manager, args.json)
+        return
+
     if args.action in ("list", "status"):
-        manager.show_status(json_output=args.json)
+        manager.show_status(json_output=args.json, sort_by=args.sort or "name")
 
     elif args.action == "disable":
         if not args.name:
