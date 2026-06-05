@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Security settings module for msp CLI - lock, sleep, screen saver."""
 
+import json
 import subprocess
 import os
 import sys
+from typing import Dict, Any
 
 try:
     from rich.console import Console
@@ -128,11 +130,21 @@ class SecuritySettings:
 
         return info
 
-    def show_status(self, json_output: bool = False) -> None:
+    def _sort_settings(self, settings: Dict[str, Any], sort_by: str) -> Dict[str, Any]:
+        """Sort settings by key (for consistent output)."""
+        if sort_by == "key":
+            return dict(sorted(settings.items()))
+        return settings
+
+    def show_status(self, json_output: bool = False, sort_by: str = "key") -> None:
         """Display security settings status."""
         display = self.get_display_settings()
         energy = self.get_energy_settings()
         fw = self.get_firewall_connection_info()
+
+        display = self._sort_settings(display, sort_by)
+        energy = self._sort_settings(energy, sort_by)
+        fw = self._sort_settings(fw, sort_by)
 
         if json_output:
             import json
@@ -192,24 +204,102 @@ class SecuritySettings:
         return False
 
 
+def interactive_menu(ss: SecuritySettings, json_output: bool = False):
+    """Interactive menu for security settings."""
+    actions = [
+        ("1", "status", "Show current security settings"),
+        ("2", "lock", "Lock screen immediately"),
+        ("3", "sleep", "Put display to sleep"),
+        ("4", "computer-sleep", "Put computer to sleep"),
+        ("5", "set", "Set a security setting"),
+        ("q", "quit", "Exit"),
+    ]
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Security Settings - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<16} - {desc}")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-5, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        action_map = {
+            "1": "status",
+            "2": "lock",
+            "3": "sleep",
+            "4": "computer-sleep",
+            "5": "set",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "status":
+            ss.show_status(json_output=json_output)
+        elif action == "lock":
+            ss.lock_screen()
+            print("Screen locked")
+        elif action == "sleep":
+            ss.sleep_display()
+            print("Display sleeping")
+        elif action == "computer-sleep":
+            ss.sleep_computer()
+            print("Computer sleeping")
+        elif action == "set":
+            print("\nAvailable settings:")
+            print("  lock-time <minutes>        - Screen lock timeout")
+            print("  password-delay <seconds>   - Password delay after sleep")
+            print("  password-enable            - Require password after sleep")
+            print("  password-disable           - Don't require password")
+            print("  display-sleep <minutes>    - Display sleep timeout")
+            key = input("\nSetting key: ").strip()
+            if key in ("lock-time", "password-delay", "display-sleep"):
+                value = input("Value: ").strip()
+                ss.set_setting(key, value)
+            elif key in ("password-enable", "password-disable"):
+                ss.set_setting(key, "")
+            else:
+                print("Unknown setting")
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Security Settings")
-    parser.add_argument("action", choices=["status", "lock", "sleep", "set"])
+    parser.add_argument("action", nargs="?", choices=["status", "lock", "sleep", "set", "computer-sleep"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("key", nargs="?", help="Setting key")
     parser.add_argument("value", nargs="?", help="Setting value")
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("-v", "--verbose")
-
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["key"], help="Sort by: key")
     args = parser.parse_args()
+
     ss = SecuritySettings(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(ss, args.json)
+        return
+
     if args.action == "status":
-        ss.show_status(json_output=args.json)
+        ss.show_status(json_output=args.json, sort_by=args.sort or "key")
     elif args.action == "lock":
         ss.lock_screen()
     elif args.action == "sleep":
         ss.sleep_display()
+    elif args.action == "computer-sleep":
+        ss.sleep_computer()
     elif args.action == "set":
         if args.key:
             ss.set_setting(args.key, args.value)

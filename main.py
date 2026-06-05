@@ -261,18 +261,29 @@ Examples:
     if command == "security":
         from src.security import SecuritySettings
         ss = SecuritySettings(verbose=args.verbose)
-        action = args.args[0] if args.args else "status"
+        action = args.args[0] if args.args else None
 
         if action == "status":
-            ss.show_status(json_output=args.json)
+            ss.show_status(json_output=args.json, sort_by=args.sort or "key")
         elif action == "lock":
             ss.lock_screen()
         elif action == "sleep":
             ss.sleep_display()
+        elif action == "computer-sleep":
+            ss.sleep_computer()
         elif action == "set" and len(args.args) > 1:
             key = args.args[1]
             value = args.args[2] if len(args.args) > 2 else None
             ss.set_setting(key, value)
+        elif action is None:
+            # No action specified - run interactive mode
+            json_output = "--json" in sys.argv
+            # We need to run the module's interactive mode
+            module = __import__("src.security", fromlist=["main"])
+            sys.argv = ["security"]
+            if json_output:
+                sys.argv.append("--json")
+            module.main()
         return
 
     # Snapshot commands - handle before argparse processes flags
