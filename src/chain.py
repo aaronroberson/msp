@@ -130,9 +130,19 @@ class ChainManager:
         except Exception as e:
             return False, str(e)
 
-    def list_chains(self, json_output: bool = False) -> List[Chain]:
+    def _sort_chains(self, chains: List[Chain], sort_by: str) -> List[Chain]:
+        """Sort chains by the specified key."""
+        if sort_by == "name":
+            return sorted(chains, key=lambda x: x.name.lower())
+        elif sort_by == "type":
+            return sorted(chains, key=lambda x: (0 if x.name in self.DEFAULT_CHAINS else 1, x.name.lower()))
+        elif sort_by == "steps":
+            return sorted(chains, key=lambda x: len(x.steps))
+        return chains
+
+    def list_chains(self, json_output: bool = False, sort_by: str = "name") -> List[Chain]:
         """List all available chains."""
-        chains = list(self.chains.values())
+        chains = self._sort_chains(list(self.chains.values()), sort_by)
 
         if json_output:
             output = {
@@ -154,15 +164,15 @@ class ChainManager:
             table.add_column("Steps", style="yellow")
             table.add_column("Type", style="magenta")
 
-            for name, chain in self.chains.items():
+            for chain in chains:
                 step_str = " → ".join(f"{s.module} {s.command}" for s in chain.steps)
-                chain_type = "Built-in" if name in self.DEFAULT_CHAINS else "Custom"
-                table.add_row(name, chain.description or "-", step_str[:50], chain_type)
+                chain_type = "Built-in" if chain.name in self.DEFAULT_CHAINS else "Custom"
+                table.add_row(chain.name, chain.description or "-", step_str[:50], chain_type)
             console.print(table)
         else:
             print("Available chains:")
-            for name, chain in self.chains.items():
-                print(f"\n[{name}] {chain.description}")
+            for chain in chains:
+                print(f"\n[{chain.name}] {chain.description}")
                 for s in chain.steps:
                     print(f"  → {s.module} {s.command}")
 
@@ -378,10 +388,140 @@ class ChainManager:
             return False
 
 
+def interactive_menu(manager: ChainManager, json_output: bool = False):
+    """Interactive menu for chain manager."""
+    actions = [
+        ("1", "list", "List all chains"),
+        ("2", "run", "Run a chain"),
+        ("3", "define", "Define a new chain"),
+        ("4", "delete", "Delete a custom chain"),
+        ("5", "watch", "Watch a chain repeatedly"),
+        ("6", "export", "Export a chain to file"),
+        ("7", "import", "Import a chain from file"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = {
+        "list": ["name", "type", "steps"],
+    }
+    current_sort = {"list": "name"}
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Chain Manager - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-7, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSelect command to change sort for:")
+            sortable_actions = [a for a in actions if a[1] in sort_options]
+            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
+                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
+            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
+            try:
+                cmd_idx = int(cmd_choice) - 1
+                if 0 <= cmd_idx < len(sortable_actions):
+                    cmd = sortable_actions[cmd_idx][1]
+                    opts = sort_options[cmd]
+                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
+                    for i, opt in enumerate(opts, 1):
+                        marker = " *" if opt == current_sort[cmd] else ""
+                        print(f"  {i}. {opt}{marker}")
+                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
+                    idx = int(sort_choice) - 1
+                    if 0 <= idx < len(opts):
+                        current_sort[cmd] = opts[idx]
+                        print(f"Sort set to: {current_sort[cmd]}")
+                    else:
+                        print("Invalid choice")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "list",
+            "2": "run",
+            "3": "define",
+            "4": "delete",
+            "5": "watch",
+            "6": "export",
+            "7": "import",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "list":
+            manager.list_chains(json_output=json_output, sort_by=current_sort["list"])
+        elif action == "run":
+            name = input("Chain name: ").strip()
+            if name:
+                prompt = input("AI prompt (optional): ").strip() or None
+                manager.run_chain(name, prompt=prompt, json_output=json_output)
+            else:
+                print("Chain name required")
+        elif action == "define":
+            name = input("Chain name: ").strip()
+            steps = input("Steps (e.g., 'net list | startup audit | scan quick'): ").strip()
+            if name and steps:
+                desc = input("Description (optional): ").strip()
+                manager.define_chain(name, steps, desc)
+            else:
+                print("Name and steps required")
+        elif action == "delete":
+            name = input("Chain name to delete: ").strip()
+            if name:
+                manager.delete_chain(name)
+            else:
+                print("Chain name required")
+        elif action == "watch":
+            name = input("Chain name: ").strip()
+            if name:
+                interval = input("Interval seconds [60]: ").strip()
+                interval = int(interval) if interval.isdigit() else 60
+                prompt = input("AI prompt (optional): ").strip() or None
+                max_iter = input("Max iterations (optional): ").strip()
+                max_iter = int(max_iter) if max_iter.isdigit() else None
+                manager.watch_chain(name, interval=interval, prompt=prompt, max_iterations=max_iter)
+            else:
+                print("Chain name required")
+        elif action == "export":
+            name = input("Chain name: ").strip()
+            file_path = input("Output file path: ").strip()
+            if name and file_path:
+                manager.export_chain(name, file_path)
+            else:
+                print("Name and file path required")
+        elif action == "import":
+            file_path = input("File path to import: ").strip()
+            if file_path:
+                manager.import_chain(file_path)
+            else:
+                print("File path required")
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Chain Manager")
-    parser.add_argument("action", choices=["list", "run", "define", "delete", "watch", "export", "import"])
+    parser.add_argument("action", nargs="?", choices=["list", "run", "define", "delete", "watch", "export", "import"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("name", nargs="?", help="Chain name")
     parser.add_argument("--steps", help="Steps definition (for define)")
     parser.add_argument("--description", help="Chain description")
@@ -391,12 +531,17 @@ def main():
     parser.add_argument("--file", help="File for export/import")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["name", "type", "steps"], help="Sort by: name, type, steps")
     args = parser.parse_args()
 
     manager = ChainManager(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(manager, args.json)
+        return
+
     if args.action == "list":
-        manager.list_chains(json_output=args.json)
+        manager.list_chains(json_output=args.json, sort_by=args.sort or "name")
 
     elif args.action == "run":
         if not args.name:
