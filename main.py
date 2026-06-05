@@ -33,11 +33,19 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-def run_command(module_name: str, command: str, args: list):
+def run_command(module_name: str, command: str, args: list, global_args: dict = None):
     """Import and run a command from a module."""
     try:
         module = __import__(f"src.{module_name}", fromlist=["main"])
-        sys.argv = [command] + args
+        new_argv = [command] + args
+        if global_args:
+            if global_args.get("json"):
+                new_argv.append("--json")
+            if global_args.get("verbose"):
+                new_argv.append("--verbose")
+            if global_args.get("sort"):
+                new_argv.extend(["--sort", global_args.get("sort")])
+        sys.argv = new_argv
         module.main()
     except SystemExit:
         raise
@@ -130,6 +138,7 @@ Examples:
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
+    parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status"], help="Sort by: name, label, pid, type, path, status")
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
 
@@ -333,7 +342,7 @@ Examples:
     }
 
     if command in command_map:
-        run_command(command_map[command], command, args.args)
+        run_command(command_map[command], command, args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
     else:
         print(f"Unknown command: {command}")
         print("Run 'msp --help' for available commands.")
