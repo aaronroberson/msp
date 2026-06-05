@@ -143,9 +143,21 @@ class DependencyManager:
                 results.append((name, success, msg))
         return results
 
-    def status_table(self, json_output: bool = False) -> None:
+    def _sort_results(self, results: Dict[str, DepStatus], sort_by: str) -> Dict[str, DepStatus]:
+        """Sort results by the specified key."""
+        if sort_by == "name":
+            return dict(sorted(results.items(), key=lambda x: x[0].lower()))
+        elif sort_by == "status":
+            status_order = {"installed": 0, "missing": 1, "broken": 2, "unknown": 3}
+            return dict(sorted(results.items(), key=lambda x: (status_order.get(x[1].value, 4), x[0].lower())))
+        elif sort_by == "required":
+            return dict(sorted(results.items(), key=lambda x: (0 if self.deps.get(x[0], {}).get("required") else 1, x[0].lower())))
+        return results
+
+    def status_table(self, json_output: bool = False, sort_by: str = "name") -> None:
         """Show dependency status table."""
         results = self.check_all()
+        results = self._sort_results(results, sort_by)
 
         if json_output:
             output = {}
@@ -224,16 +236,111 @@ class DependencyManager:
         return all_success
 
 
+def interactive_menu(manager: DependencyManager, json_output: bool = False):
+    """Interactive menu for dependency manager."""
+    actions = [
+        ("1", "status", "Show all dependency status"),
+        ("2", "check", "Check a specific package"),
+        ("3", "install", "Install a package"),
+        ("4", "fix", "Install missing required deps"),
+        ("5", "install-all", "Install all missing packages"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = ["name", "status", "required"]
+    current_sort = "name"
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Dependency Manager - Interactive Mode")
+        print(f"       Current sort: {current_sort}")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<14} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-5, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSort options:")
+            for i, opt in enumerate(sort_options, 1):
+                marker = " *" if opt == current_sort else ""
+                print(f"  {i}. {opt}{marker}")
+            sort_choice = input(f"\nSelect sort [1-{len(sort_options)}]: ").strip()
+            try:
+                idx = int(sort_choice) - 1
+                if 0 <= idx < len(sort_options):
+                    current_sort = sort_options[idx]
+                    print(f"Sort set to: {current_sort}")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "status",
+            "2": "check",
+            "3": "install",
+            "4": "fix",
+            "5": "install-all",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "status":
+            manager.status_table(json_output=json_output, sort_by=current_sort)
+        elif action == "check":
+            name = input("Package name: ").strip()
+            if name:
+                status = manager.check_dep(name)
+                print(f"{name}: {status.value}")
+            else:
+                print("Package name required")
+        elif action == "install":
+            name = input("Package name: ").strip()
+            if name:
+                success, msg = manager.install_dep(name)
+                print(msg)
+            else:
+                print("Package name required")
+        elif action == "fix":
+            manager.fix()
+        elif action == "install-all":
+            results = manager.install_all()
+            for name, success, msg in results:
+                print(f"{'✓' if success else '✗'} {name}: {msg}")
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Dependency Manager")
+    parser.add_argument("action", nargs="?", choices=["status", "check", "install", "fix", "install-all", ""], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--fix", action="store_true", help="Auto-fix issues")
     parser.add_argument("--install", metavar="PKG", help="Install specific package")
     parser.add_argument("--check", metavar="PKG", help="Check specific package")
+    parser.add_argument("--sort", choices=["name", "status", "required"], help="Sort by: name, status, required")
     args = parser.parse_args()
 
     manager = DependencyManager()
+
+    if not args.action or args.action == "":
+        interactive_menu(manager, args.json)
+        return
 
     if args.check:
         status = manager.check_dep(args.check)
@@ -248,7 +355,7 @@ def main():
     if args.fix:
         manager.fix()
     else:
-        manager.status_table(json_output=args.json)
+        manager.status_table(json_output=args.json, sort_by=args.sort or "name")
 
 
 if __name__ == "__main__":

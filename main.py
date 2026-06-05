@@ -37,7 +37,8 @@ def run_command(module_name: str, command: str, args: list, global_args: dict = 
     """Import and run a command from a module."""
     try:
         module = __import__(f"src.{module_name}", fromlist=["main"])
-        new_argv = [command] + args
+        # Use a dummy script name so argparse sees args starting from index 1
+        new_argv = ["msp-" + module_name, command] + args
         if global_args:
             if global_args.get("json"):
                 new_argv.append("--json")
@@ -400,7 +401,17 @@ Examples:
     }
 
     if command in command_map:
-        run_command(command_map[command], command, args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
+        module_name = command_map[command]
+        # For deps, use "status" as default action when called as "doctor" with args
+        # but run interactive mode when no args provided
+        if module_name == "deps":
+            if args.args:
+                run_command(module_name, "status", args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
+            else:
+                # No args - run interactive mode
+                run_command(module_name, "", [], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
+        else:
+            run_command(module_name, command, args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
     else:
         print(f"Unknown command: {command}")
         print("Run 'msp --help' for available commands.")
