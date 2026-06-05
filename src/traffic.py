@@ -2,6 +2,7 @@
 """Traffic analyzer module for msp CLI."""
 
 import os
+import json
 import subprocess
 import sys
 from typing import List, Dict, Any, Optional
@@ -48,7 +49,19 @@ class TrafficAnalyzer:
         except Exception as e:
             return False, str(e)
 
-    def summary(self, limit: int = 10, json_output: bool = False) -> List[Dict[str, Any]]:
+    def _sort_processes(self, processes: List[Dict[str, Any]], sort_by: str) -> List[Dict[str, Any]]:
+        """Sort processes by the specified key."""
+        if sort_by == "total":
+            return sorted(processes, key=lambda x: x["total"], reverse=True)
+        elif sort_by == "in":
+            return sorted(processes, key=lambda x: x["bytes_in"], reverse=True)
+        elif sort_by == "out":
+            return sorted(processes, key=lambda x: x["bytes_out"], reverse=True)
+        elif sort_by == "process":
+            return sorted(processes, key=lambda x: x["process"].lower())
+        return processes
+
+    def summary(self, limit: int = 10, json_output: bool = False, sort_by: str = "total") -> List[Dict[str, Any]]:
         """Show top bandwidth consumers."""
         success, output = self._run_cmd("nettop -J process_name,bytes_in,bytes_out -L 1 2>/dev/null")
 
@@ -71,7 +84,7 @@ class TrafficAnalyzer:
                     except (ValueError, IndexError):
                         continue
 
-        processes.sort(key=lambda x: x["total"], reverse=True)
+        processes = self._sort_processes(processes, sort_by)
         processes = processes[:limit]
 
         if json_output:
@@ -143,7 +156,7 @@ class TrafficAnalyzer:
 
         return queries
 
-    def http(self, count: int = 50, json_output: bool = False) -> List[Dict[str, str]]:
+    def http(self, count: int = 50, json_output: bool = False, sort_by: str = "host") -> List[Dict[str, str]]:
         """Capture HTTP/HTTPS traffic summary."""
         print(f"Capturing HTTP/HTTPS traffic ({count} packets)...\n")
 
@@ -171,6 +184,13 @@ class TrafficAnalyzer:
                         "destination": mask_sensitive(dst),
                         "host": mask_sensitive(domain)
                     })
+
+        if sort_by == "host":
+            requests.sort(key=lambda x: x["host"].lower())
+        elif sort_by == "source":
+            requests.sort(key=lambda x: x["source"].lower())
+        elif sort_by == "destination":
+            requests.sort(key=lambda x: x["destination"].lower())
 
         if json_output:
             print(json.dumps(requests, indent=2))
@@ -295,26 +315,131 @@ class TrafficAnalyzer:
             print(f"Stream error: {e}")
 
 
+def interactive_menu(analyzer: TrafficAnalyzer, json_output: bool = False):
+    """Interactive menu for traffic analyzer."""
+    actions = [
+        ("1", "summary", "Show top bandwidth consumers"),
+        ("2", "dns", "Capture DNS queries"),
+        ("3", "http", "Capture HTTP/HTTPS traffic"),
+        ("4", "capture", "Capture packets to file"),
+        ("5", "stream", "Stream live traffic"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = {
+        "summary": ["total", "in", "out", "process"],
+        "http": ["host", "source", "destination"],
+    }
+    current_sort = {"summary": "total", "http": "host"}
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Traffic Analyzer - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-5, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSelect command to change sort for:")
+            sortable_actions = [a for a in actions if a[1] in sort_options]
+            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
+                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
+            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
+            try:
+                cmd_idx = int(cmd_choice) - 1
+                if 0 <= cmd_idx < len(sortable_actions):
+                    cmd = sortable_actions[cmd_idx][1]
+                    opts = sort_options[cmd]
+                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
+                    for i, opt in enumerate(opts, 1):
+                        marker = " *" if opt == current_sort[cmd] else ""
+                        print(f"  {i}. {opt}{marker}")
+                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
+                    idx = int(sort_choice) - 1
+                    if 0 <= idx < len(opts):
+                        current_sort[cmd] = opts[idx]
+                        print(f"Sort set to: {current_sort[cmd]}")
+                    else:
+                        print("Invalid choice")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "summary",
+            "2": "dns",
+            "3": "http",
+            "4": "capture",
+            "5": "stream",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "summary":
+            analyzer.summary(json_output=json_output, sort_by=current_sort["summary"])
+        elif action == "dns":
+            count = input("Packet count [20]: ").strip()
+            count = int(count) if count.isdigit() else 20
+            analyzer.dns(count=count, json_output=json_output)
+        elif action == "http":
+            count = input("Packet count [50]: ").strip()
+            count = int(count) if count.isdigit() else 50
+            analyzer.http(count=count, json_output=json_output, sort_by=current_sort["http"])
+        elif action == "capture":
+            count = input("Packet count [100]: ").strip()
+            count = int(count) if count.isdigit() else 100
+            output = input("Output file [/tmp/msp_capture.pcap]: ").strip() or "/tmp/msp_capture.pcap"
+            analyzer.capture(count=count, output_file=output, json_output=json_output)
+        elif action == "stream":
+            duration = input("Duration seconds [30]: ").strip()
+            duration = int(duration) if duration.isdigit() else 30
+            filter_expr = input("BPF filter (optional): ").strip()
+            analyzer.stream(duration=duration, filter_expr=filter_expr)
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Traffic Analyzer")
-    parser.add_argument("action", choices=["summary", "dns", "http", "capture", "stream"])
+    parser.add_argument("action", nargs="?", choices=["summary", "dns", "http", "capture", "stream"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--count", type=int, default=100, help="Packet count")
     parser.add_argument("--output", default="/tmp/msp_capture.pcap", help="Output file")
     parser.add_argument("--duration", type=int, default=30, help="Duration in seconds")
     parser.add_argument("--filter", default="", help="BPF filter expression")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["total", "in", "out", "process", "host", "source", "destination"], help="Sort by: total, in, out, process, host, source, destination")
     args = parser.parse_args()
 
     analyzer = TrafficAnalyzer(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(analyzer, args.json)
+        return
+
     if args.action == "summary":
-        analyzer.summary(json_output=args.json)
+        analyzer.summary(json_output=args.json, sort_by=args.sort or "total")
     elif args.action == "dns":
         analyzer.dns(count=args.count, json_output=args.json)
     elif args.action == "http":
-        analyzer.http(count=args.count, json_output=args.json)
+        analyzer.http(count=args.count, json_output=args.json, sort_by=args.sort or "host")
     elif args.action == "capture":
         analyzer.capture(count=args.count, output_file=args.output, json_output=args.json)
     elif args.action == "stream":
