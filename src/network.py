@@ -2,6 +2,7 @@
 """Network monitoring module for msp CLI."""
 
 import os
+import json
 import re
 import subprocess
 import sys
@@ -67,7 +68,27 @@ class NetworkMonitor:
         except Exception as e:
             return False, str(e)
 
-    def list_listening(self, json_output: bool = False) -> List[NetworkConnection]:
+    def _sort_connections(self, connections: List, sort_by: str, is_listening: bool = True) -> List:
+        """Sort connections by the specified key."""
+        if sort_by == "port" and is_listening:
+            return sorted(connections, key=lambda x: int(x.local_addr.split(":")[-1]) if ":" in x.local_addr and x.local_addr.split(":")[-1].isdigit() else 0)
+        elif sort_by == "port":
+            return sorted(connections, key=lambda x: int(x["local"].split(":")[-1]) if ":" in x["local"] and x["local"].split(":")[-1].isdigit() else 0)
+        elif sort_by == "process":
+            return sorted(connections, key=lambda x: x.process.lower() if hasattr(x, 'process') else x["process"].lower())
+        elif sort_by == "pid":
+            return sorted(connections, key=lambda x: x.pid if hasattr(x, 'pid') else int(x["pid"]))
+        elif sort_by == "user":
+            return sorted(connections, key=lambda x: x.user.lower() if hasattr(x, 'user') else x["user"].lower())
+        elif sort_by == "protocol":
+            return sorted(connections, key=lambda x: x.protocol if hasattr(x, 'protocol') else "")
+        elif sort_by == "local":
+            return sorted(connections, key=lambda x: x.local_addr.lower() if hasattr(x, 'local_addr') else x["local"].lower())
+        elif sort_by == "remote":
+            return sorted(connections, key=lambda x: x.remote_addr.lower() if hasattr(x, 'remote_addr') else x.get("remote", "").lower())
+        return connections
+
+    def list_listening(self, json_output: bool = False, sort_by: str = "port") -> List[NetworkConnection]:
         """List all listening ports with process info."""
         success, output = self._run_cmd(
             "lsof -iTCP -sTCP:LISTEN -nP 2>/dev/null | tail -n +2"
@@ -92,6 +113,8 @@ class NetworkMonitor:
                         connections.append(conn)
                     except (ValueError, IndexError):
                         continue
+
+        connections = self._sort_connections(connections, sort_by, is_listening=True)
 
         if json_output:
             print(json.dumps([{
@@ -125,7 +148,7 @@ class NetworkMonitor:
 
         return connections
 
-    def list_established(self, json_output: bool = False) -> List[Dict[str, str]]:
+    def list_established(self, json_output: bool = False, sort_by: str = "process") -> List[Dict[str, str]]:
         """List all established connections."""
         success, output = self._run_cmd(
             "lsof -i -sTCP:ESTABLISHED -nP 2>/dev/null | tail -n +2"
@@ -148,6 +171,8 @@ class NetworkMonitor:
                         })
                     except (ValueError, IndexError):
                         continue
+
+        connections = self._sort_connections(connections, sort_by, is_listening=False)
 
         if json_output:
             print(json.dumps(connections, indent=2))
@@ -174,7 +199,7 @@ class NetworkMonitor:
 
         return connections
 
-    def bandwidth_top(self, limit: int = 10, json_output: bool = False) -> List[Dict[str, Any]]:
+    def bandwidth_top(self, limit: int = 10, json_output: bool = False, sort_by: str = "total") -> List[Dict[str, Any]]:
         """Show top bandwidth consumers."""
         success, output = self._run_cmd(
             "nettop -J process_name,bytes_in,bytes_out -L 1 -x 2>/dev/null | tail -n +2"
@@ -199,7 +224,15 @@ class NetworkMonitor:
                     except (ValueError, IndexError):
                         continue
 
-        processes.sort(key=lambda x: x["total"], reverse=True)
+        if sort_by == "total":
+            processes.sort(key=lambda x: x["total"], reverse=True)
+        elif sort_by == "in":
+            processes.sort(key=lambda x: x["bytes_in"], reverse=True)
+        elif sort_by == "out":
+            processes.sort(key=lambda x: x["bytes_out"], reverse=True)
+        elif sort_by == "process":
+            processes.sort(key=lambda x: x["process"].lower())
+
         processes = processes[:limit]
 
         if json_output:
@@ -268,26 +301,130 @@ class NetworkMonitor:
             return []
 
 
+def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
+    """Interactive menu for network management."""
+    actions = [
+        ("1", "list", "List listening ports"),
+        ("2", "established", "List established connections"),
+        ("3", "top", "Show top bandwidth consumers"),
+        ("4", "kill", "Kill a process by PID"),
+        ("5", "lookup", "DNS lookup"),
+        ("q", "quit", "Exit"),
+    ]
+
+    sort_options = {
+        "list": ["port", "process", "pid", "user", "protocol"],
+        "established": ["process", "pid", "user", "local", "remote"],
+        "top": ["total", "in", "out", "process"],
+    }
+    current_sort = {"list": "port", "established": "process", "top": "total"}
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Network Monitor - Interactive Mode")
+        print("=" * 60)
+        for key, action, desc in actions:
+            print(f"  {key:>2}. {action:<12} - {desc}")
+        print("  s. sort      - Change sort order")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-5, s, q]: ").strip().lower()
+
+        if choice == "q" or choice == "quit":
+            print("Goodbye!")
+            break
+
+        if choice == "s" or choice == "sort":
+            print("\nSelect command to change sort for:")
+            sortable_actions = [a for a in actions if a[1] in sort_options]
+            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
+                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
+            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
+            try:
+                cmd_idx = int(cmd_choice) - 1
+                if 0 <= cmd_idx < len(sortable_actions):
+                    cmd = sortable_actions[cmd_idx][1]
+                    opts = sort_options[cmd]
+                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
+                    for i, opt in enumerate(opts, 1):
+                        marker = " *" if opt == current_sort[cmd] else ""
+                        print(f"  {i}. {opt}{marker}")
+                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
+                    idx = int(sort_choice) - 1
+                    if 0 <= idx < len(opts):
+                        current_sort[cmd] = opts[idx]
+                        print(f"Sort set to: {current_sort[cmd]}")
+                    else:
+                        print("Invalid choice")
+                else:
+                    print("Invalid choice")
+            except ValueError:
+                print("Invalid choice")
+            continue
+
+        action_map = {
+            "1": "list",
+            "2": "established",
+            "3": "top",
+            "4": "kill",
+            "5": "lookup",
+        }
+
+        if choice in action_map:
+            action = action_map[choice]
+        elif choice in [a[1] for a in actions]:
+            action = choice
+        else:
+            print(f"Invalid choice: {choice}")
+            continue
+
+        if action == "list":
+            monitor.list_listening(json_output=json_output, sort_by=current_sort["list"])
+        elif action == "established":
+            monitor.list_established(json_output=json_output, sort_by=current_sort["established"])
+        elif action == "top":
+            monitor.bandwidth_top(json_output=json_output, sort_by=current_sort["top"])
+        elif action == "kill":
+            pid = input("PID to kill: ").strip()
+            if pid.isdigit():
+                monitor.kill_process(int(pid))
+            else:
+                print("Invalid PID")
+        elif action == "lookup":
+            host = input("Host to lookup: ").strip()
+            if host:
+                monitor.lookup(host)
+            else:
+                print("Host required")
+
+        input("\nPress Enter to continue...")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Network Monitor")
-    parser.add_argument("action", choices=["list", "established", "top", "kill", "lookup"])
+    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "lookup"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--pid", type=int, help="PID for kill command")
     parser.add_argument("--host", help="Host for lookup command")
     parser.add_argument("--limit", type=int, default=10, help="Limit for top command")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--sort", choices=["port", "process", "pid", "user", "protocol", "local", "remote", "total", "in", "out"], help="Sort by: port, process, pid, user, protocol, local, remote, total, in, out")
     args = parser.parse_args()
 
     monitor = NetworkMonitor(verbose=args.verbose)
 
+    if not args.action:
+        interactive_menu(monitor, args.json)
+        return
+
     if args.action == "list":
-        monitor.list_listening(json_output=args.json)
+        monitor.list_listening(json_output=args.json, sort_by=args.sort or "port")
     elif args.action == "established":
-        monitor.list_established(json_output=args.json)
+        monitor.list_established(json_output=args.json, sort_by=args.sort or "process")
     elif args.action == "top":
-        monitor.bandwidth_top(limit=args.limit, json_output=args.json)
+        monitor.bandwidth_top(limit=args.limit, json_output=args.json, sort_by=args.sort or "total")
     elif args.action == "kill":
         if not args.pid:
             print("Error: --pid required for kill")

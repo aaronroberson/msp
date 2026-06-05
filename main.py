@@ -138,7 +138,7 @@ Examples:
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
-    parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status"], help="Sort by: name, label, pid, type, path, status")
+    parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out")
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
 
