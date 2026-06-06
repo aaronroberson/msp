@@ -19,6 +19,8 @@ Commands:
     fswatch            File system watching
     traffic            Traffic analysis
     scan               Security scanning
+    tcc                App privacy permissions
+    audit              Rule-based security audit
 
     ask                AI-powered analysis
     chain              Method chaining
@@ -31,6 +33,24 @@ import sys
 import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+COMMAND_MODULES = {
+    "net": "network",
+    "startup": "startup",
+    "fswatch": "fswatch",
+    "traffic": "traffic",
+    "scan": "scanner",
+    "tcc": "tcc",
+    "audit": "rules",
+    "rules": "rules",
+    "snapshot": "snapshot",
+    "sharing": "sharing",
+    "security": "security",
+    "chain": "chain",
+    "doctor": "deps",
+    "deps": "deps",
+}
 
 
 def run_command(module_name: str, command: str, args: list, global_args: dict = None):
@@ -51,7 +71,9 @@ def run_command(module_name: str, command: str, args: list, global_args: dict = 
             if global_args.get("sort"):
                 new_argv.extend(["--sort", global_args.get("sort")])
         sys.argv = new_argv
-        module.main()
+        result = module.main()
+        if isinstance(result, int):
+            sys.exit(result)
     except SystemExit:
         raise
     except ImportError as e:
@@ -63,6 +85,12 @@ def run_command(module_name: str, command: str, args: list, global_args: dict = 
 
 
 def main():
+    if len(sys.argv) >= 3 and sys.argv[1].lower() in COMMAND_MODULES and any(
+        arg in ("-h", "--help") for arg in sys.argv[2:]
+    ):
+        run_command(COMMAND_MODULES[sys.argv[1].lower()], "", ["--help"], None)
+        return
+
     # Pre-parse to intercept snapshot commands before argparse consumes flags
     if len(sys.argv) >= 2 and sys.argv[1] == "snapshot":
         from src.snapshot import SnapshotManager
@@ -146,7 +174,7 @@ def main():
 Commands:
   status, list, enable, disable - Privacy settings
   net, startup, fswatch, traffic - Monitoring
-  scan, ask, chain, doctor - Security & AI
+  scan, tcc, audit, ask, chain, doctor - Security & AI
 
 Examples:
   msp status                       Show security status
@@ -183,7 +211,8 @@ Examples:
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
 
-    args = parser.parse_args()
+    args, unknown_args = parser.parse_known_args()
+    args.args.extend(unknown_args)
 
     if not args.command:
         # Interactive mode via privacy_settings module
@@ -312,8 +341,15 @@ Examples:
 
         if action == "capture":
             name = filtered_args[0] if filtered_args else None
-            include_network = "--json" in raw_args
-            sm.capture(name=name, include_network=include_network)
+            include_network = "--include-network" in raw_args
+            include_startup = "--include-startup" in raw_args
+            include_custom = "--no-custom" not in raw_args
+            sm.capture(
+                name=name,
+                include_network=include_network,
+                include_startup=include_startup,
+                include_custom=include_custom,
+            )
         elif action == "list":
             sm.list_snapshots(json_output=args.json)
         elif action == "diff":
@@ -400,16 +436,7 @@ Examples:
         analyzer.ask(prompt, data=data, json_output=args.json)
         return
 
-    command_map = {
-        "net": "network",
-        "startup": "startup",
-        "fswatch": "fswatch",
-        "traffic": "traffic",
-        "scan": "scanner",
-        "chain": "chain",
-        "doctor": "deps",
-        "deps": "deps",
-    }
+    command_map = COMMAND_MODULES
 
     if command in command_map:
         module_name = command_map[command]
@@ -417,6 +444,8 @@ Examples:
         if not args.args:
             # No args - run interactive mode
             run_command(module_name, "", [], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
+        elif module_name == "rules":
+            run_command(module_name, "", args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
         elif module_name == "deps":
             # For deps, use "status" as default action
             run_command(module_name, "status", args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})

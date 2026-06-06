@@ -3,6 +3,8 @@
 
 import json
 import os
+import plistlib
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -28,6 +30,7 @@ class StartupItem:
     status: str
     pid: Optional[int] = None
     user: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class StartupManager:
@@ -69,6 +72,93 @@ class StartupManager:
             pass
         return os.path.basename(plist_path).replace(".plist", "")
 
+    def _safe_listdir(self, path: str) -> List[str]:
+        """Return directory entries without raising on missing or protected paths."""
+        try:
+            return sorted(os.listdir(path)) if os.path.isdir(path) else []
+        except Exception:
+            return []
+
+    def _command_exists(self, command: str) -> bool:
+        success, _ = self._run_cmd(f"command -v {shlex.quote(command)} >/dev/null 2>&1")
+        return success
+
+    def _file_record(self, path: str, item_type: str, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Build a compact, JSON-safe file inventory record."""
+        record = {
+            "type": item_type,
+            "path": path,
+            "exists": os.path.exists(path),
+        }
+        try:
+            stat = os.stat(path)
+            record.update({
+                "mode": oct(stat.st_mode & 0o7777),
+                "uid": stat.st_uid,
+                "gid": stat.st_gid,
+                "size": stat.st_size,
+                "modified": int(stat.st_mtime),
+                "executable": bool(stat.st_mode & 0o111),
+            })
+        except Exception:
+            pass
+        if extra:
+            record.update(extra)
+        return record
+
+    def _read_plist_metadata(self, plist_path: str) -> Dict[str, Any]:
+        """Read launchd plist metadata used for startup inventory."""
+        metadata: Dict[str, Any] = {
+            "label": os.path.basename(plist_path).replace(".plist", ""),
+            "program": None,
+            "program_arguments": [],
+            "run_at_load": None,
+            "keep_alive": None,
+            "disabled": None,
+        }
+        try:
+            with open(plist_path, "rb") as plist_file:
+                data = plistlib.load(plist_file)
+            metadata.update({
+                "label": data.get("Label") or metadata["label"],
+                "program": data.get("Program"),
+                "program_arguments": data.get("ProgramArguments") or [],
+                "run_at_load": data.get("RunAtLoad"),
+                "keep_alive": data.get("KeepAlive"),
+                "disabled": data.get("Disabled"),
+                "working_directory": data.get("WorkingDirectory"),
+                "start_interval": data.get("StartInterval"),
+                "start_calendar_interval": data.get("StartCalendarInterval"),
+                "mach_services": sorted((data.get("MachServices") or {}).keys()),
+                "sockets": sorted((data.get("Sockets") or {}).keys()),
+                "watch_paths": data.get("WatchPaths") or [],
+                "queue_directories": data.get("QueueDirectories") or [],
+                "standard_out_path": data.get("StandardOutPath"),
+                "standard_error_path": data.get("StandardErrorPath"),
+            })
+        except Exception as e:
+            metadata["read_error"] = str(e)
+        return metadata
+
+    def _collect_launch_plist_inventory(self) -> List[Dict[str, Any]]:
+        """Collect LaunchAgent/LaunchDaemon plist metadata across known locations."""
+        inventory = []
+        path_types = [
+            *(("launch_agent", path) for path in self.LAUNCH_AGENT_PATHS),
+            *(("launch_daemon", path) for path in self.LAUNCH_DAEMON_PATHS),
+        ]
+        for item_type, directory in path_types:
+            for filename in self._safe_listdir(directory):
+                if not filename.endswith(".plist"):
+                    continue
+                path = os.path.join(directory, filename)
+                metadata = self._read_plist_metadata(path)
+                record = self._file_record(path, item_type, metadata)
+                record["name"] = filename.replace(".plist", "")
+                record["location"] = directory
+                inventory.append(record)
+        return inventory
+
     def _collect_agents(self) -> List[StartupItem]:
         """Collect user agents without printing."""
         items = []
@@ -81,13 +171,15 @@ class StartupManager:
                 for f in os.listdir(path):
                     if f.endswith('.plist'):
                         plist_path = os.path.join(path, f)
-                        label = self._read_plist_label(plist_path)
+                        metadata = self._read_plist_metadata(plist_path)
+                        label = metadata.get("label") or self._read_plist_label(plist_path)
                         item = StartupItem(
                             name=f.replace('.plist', ''),
                             label=label or f.replace('.plist', ''),
                             path=plist_path,
                             type="agent",
-                            status="unknown"
+                            status="unknown",
+                            metadata=metadata
                         )
                         items.append(item)
         return items
@@ -100,13 +192,15 @@ class StartupManager:
                 for f in os.listdir(path):
                     if f.endswith('.plist'):
                         plist_path = os.path.join(path, f)
-                        label = self._read_plist_label(plist_path)
+                        metadata = self._read_plist_metadata(plist_path)
+                        label = metadata.get("label") or self._read_plist_label(plist_path)
                         item = StartupItem(
                             name=f.replace('.plist', ''),
                             label=label or f.replace('.plist', ''),
                             path=plist_path,
                             type="daemon",
-                            status="unknown"
+                            status="unknown",
+                            metadata=metadata
                         )
                         items.append(item)
         return items
@@ -321,6 +415,399 @@ class StartupManager:
                 print(f"  {job['entry']}")
 
         return jobs
+
+    def collect_login_items(self) -> List[Dict[str, Any]]:
+        """Collect user login items through System Events when osascript is available."""
+        if not self._command_exists("osascript"):
+            return []
+
+        script = "\n".join([
+            'tell application "System Events"',
+            "set rows to {}",
+            "repeat with loginItem in login items",
+            "set itemName to name of loginItem",
+            'set itemPath to ""',
+            "try",
+            "set itemPath to path of loginItem",
+            "end try",
+            "set itemHidden to hidden of loginItem",
+            "set end of rows to itemName & tab & itemPath & tab & itemHidden",
+            "end repeat",
+            "set AppleScript's text item delimiters to linefeed",
+            "return rows as text",
+            "end tell",
+        ])
+        success, output = self._run_cmd(f"osascript -e {shlex.quote(script)} 2>/dev/null")
+        items = []
+        if not success or not output.strip():
+            return items
+
+        for line in output.strip().splitlines():
+            parts = line.split("\t")
+            if not parts or not parts[0]:
+                continue
+            items.append({
+                "type": "login_item",
+                "name": parts[0],
+                "path": parts[1] if len(parts) > 1 else "",
+                "hidden": (parts[2].lower() == "true") if len(parts) > 2 else None,
+                "source": "System Events",
+            })
+        return items
+
+    def collect_cron_inventory(self) -> List[Dict[str, Any]]:
+        """Collect user and system cron-style startup entries."""
+        inventory: List[Dict[str, Any]] = []
+
+        success, output = self._run_cmd("crontab -l 2>/dev/null")
+        if success and output.strip():
+            for line_no, line in enumerate(output.splitlines(), 1):
+                entry = line.strip()
+                if entry and not entry.startswith("#"):
+                    inventory.append({
+                        "type": "user_crontab",
+                        "path": "crontab",
+                        "line": line_no,
+                        "entry": entry,
+                    })
+
+        cron_files = ["/etc/crontab"]
+        cron_dirs = ["/etc/cron.d"]
+        for directory in cron_dirs:
+            for filename in self._safe_listdir(directory):
+                cron_files.append(os.path.join(directory, filename))
+
+        for path in cron_files:
+            if not os.path.exists(path):
+                continue
+            record = self._file_record(path, "cron_file")
+            entries = []
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as cron_file:
+                    for line_no, line in enumerate(cron_file, 1):
+                        entry = line.strip()
+                        if entry and not entry.startswith("#"):
+                            entries.append({"line": line_no, "entry": entry})
+            except Exception as e:
+                record["read_error"] = str(e)
+            record["entries"] = entries
+            inventory.append(record)
+
+        return inventory
+
+    def collect_periodic_inventory(self) -> List[Dict[str, Any]]:
+        """Collect periodic scripts used by periodic(8)."""
+        inventory = []
+        roots = [
+            "/etc/periodic",
+            "/usr/local/etc/periodic",
+            "/opt/homebrew/etc/periodic",
+        ]
+        for root in roots:
+            for cadence in ("daily", "weekly", "monthly"):
+                directory = os.path.join(root, cadence)
+                for filename in self._safe_listdir(directory):
+                    path = os.path.join(directory, filename)
+                    if os.path.isfile(path):
+                        inventory.append(self._file_record(path, "periodic_script", {
+                            "name": filename,
+                            "cadence": cadence,
+                            "location": directory,
+                        }))
+        return inventory
+
+    def collect_shell_profile_inventory(self) -> List[Dict[str, Any]]:
+        """Collect shell startup profile files that can launch commands at login/shell start."""
+        home = str(Path.home())
+        paths = [
+            os.path.join(home, ".zprofile"),
+            os.path.join(home, ".zshrc"),
+            os.path.join(home, ".zlogin"),
+            os.path.join(home, ".zshenv"),
+            os.path.join(home, ".bash_profile"),
+            os.path.join(home, ".bashrc"),
+            os.path.join(home, ".profile"),
+            os.path.join(home, ".config/fish/config.fish"),
+            "/etc/profile",
+            "/etc/bashrc",
+            "/etc/zprofile",
+            "/etc/zshrc",
+            "/etc/zshenv",
+            "/etc/fish/config.fish",
+        ]
+        inventory = []
+        suspicious_tokens = ("launchctl", "osascript", "curl ", "wget ", "nc ", "python ", "python3 ")
+        for path in paths:
+            if not os.path.exists(path):
+                continue
+            record = self._file_record(path, "shell_profile")
+            matches = []
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as profile:
+                    for line_no, line in enumerate(profile, 1):
+                        stripped = line.strip()
+                        if not stripped or stripped.startswith("#"):
+                            continue
+                        lower = stripped.lower()
+                        if any(token in lower for token in suspicious_tokens):
+                            matches.append({"line": line_no, "entry": stripped[:300]})
+            except Exception as e:
+                record["read_error"] = str(e)
+            record["notable_entries"] = matches
+            inventory.append(record)
+        return inventory
+
+    def collect_privileged_helper_inventory(self) -> List[Dict[str, Any]]:
+        """Collect privileged helper tools installed outside launchd plist directories."""
+        inventory = []
+        for directory in ["/Library/PrivilegedHelperTools", "/System/Library/PrivilegedHelperTools"]:
+            for filename in self._safe_listdir(directory):
+                path = os.path.join(directory, filename)
+                if os.path.isfile(path):
+                    inventory.append(self._file_record(path, "privileged_helper", {
+                        "name": filename,
+                        "location": directory,
+                    }))
+        return inventory
+
+    def collect_system_extension_inventory(self) -> List[Dict[str, Any]]:
+        """Collect system extensions when systemextensionsctl is available."""
+        if not self._command_exists("systemextensionsctl"):
+            return []
+        success, output = self._run_cmd("systemextensionsctl list 2>/dev/null")
+        if not success or not output.strip():
+            return []
+
+        inventory = []
+        current_team = None
+        for raw_line in output.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith(("systemextensionsctl", "---")):
+                continue
+            if line.endswith(":") and "[" not in line:
+                current_team = line.rstrip(":")
+                continue
+            if "[" in line and "]" in line:
+                state = line[line.find("[") + 1:line.find("]")]
+                remainder = line[line.find("]") + 1:].strip()
+                parts = remainder.split()
+                bundle_id = parts[0] if parts else ""
+                version = parts[1].strip("()") if len(parts) > 1 and parts[1].startswith("(") else ""
+                inventory.append({
+                    "type": "system_extension",
+                    "team": current_team,
+                    "state": state,
+                    "bundle_id": bundle_id,
+                    "version": version,
+                    "raw": line,
+                })
+            else:
+                inventory.append({"type": "system_extension", "team": current_team, "raw": line})
+        return inventory
+
+    def collect_kernel_extension_inventory(self) -> List[Dict[str, Any]]:
+        """Collect loaded kernel extensions through kmutil or kextstat when available."""
+        if self._command_exists("kmutil"):
+            success, output = self._run_cmd("kmutil showloaded 2>/dev/null")
+            source = "kmutil showloaded"
+        elif self._command_exists("kextstat"):
+            success, output = self._run_cmd("kextstat 2>/dev/null")
+            source = "kextstat"
+        else:
+            return []
+
+        if not success or not output.strip():
+            return []
+
+        inventory = []
+        for raw_line in output.splitlines():
+            line = raw_line.strip()
+            if not line or line.lower().startswith(("index", "no variant")):
+                continue
+            bundle_id = ""
+            for token in line.split():
+                if "." in token and not token.replace(".", "").isdigit():
+                    bundle_id = token.strip("<>()")
+                    break
+            inventory.append({
+                "type": "kernel_extension",
+                "bundle_id": bundle_id,
+                "source": source,
+                "raw": line,
+            })
+        return inventory
+
+    def collect_background_item_inventory(self) -> List[Dict[str, Any]]:
+        """Collect background items when macOS exposes them through sfltool."""
+        if not self._command_exists("sfltool"):
+            return []
+
+        commands = [
+            ("sfltool dumpbtm 2>/dev/null", "sfltool dumpbtm"),
+            ("sfltool dumpbtm -j 2>/dev/null", "sfltool dumpbtm -j"),
+        ]
+        for command, source in commands:
+            success, output = self._run_cmd(command)
+            if not success or not output.strip():
+                continue
+            try:
+                parsed = json.loads(output)
+                return [{"type": "background_items", "source": source, "items": parsed}]
+            except Exception:
+                return [
+                    {"type": "background_item", "source": source, "raw": line.strip()}
+                    for line in output.splitlines()
+                    if line.strip()
+                ]
+        return []
+
+    def comprehensive_inventory(self, json_output: bool = False) -> Dict[str, Any]:
+        """Collect a broad startup/persistence inventory without changing system state."""
+        inventory = {
+            "launch_plists": self._collect_launch_plist_inventory(),
+            "login_items": self.collect_login_items(),
+            "cron": self.collect_cron_inventory(),
+            "periodic": self.collect_periodic_inventory(),
+            "shell_profiles": self.collect_shell_profile_inventory(),
+            "privileged_helpers": self.collect_privileged_helper_inventory(),
+            "system_extensions": self.collect_system_extension_inventory(),
+            "kernel_extensions": self.collect_kernel_extension_inventory(),
+            "background_items": self.collect_background_item_inventory(),
+        }
+
+        if json_output:
+            print(json.dumps(inventory, indent=2))
+        return inventory
+
+    def comprehensive_audit(self, json_output: bool = False) -> List[Dict[str, Any]]:
+        """Audit expanded startup/persistence inventory for review-worthy entries."""
+        inventory = self.comprehensive_inventory(json_output=False)
+        findings: List[Dict[str, Any]] = []
+        writable_locations = ("/tmp/", "/private/tmp/", "/var/tmp/", "/Users/Shared/")
+        network_tokens = ("curl ", "wget ", "nc ", "ncat ", "socat ", "osascript", "python ", "python3 ")
+
+        for item in inventory["launch_plists"]:
+            reasons = []
+            label = item.get("label") or item.get("name") or ""
+            path = item.get("path") or ""
+            is_apple_system_item = label.startswith("com.apple.") or path.startswith("/System/")
+            program = item.get("program") or ""
+            program_args = " ".join(str(arg) for arg in item.get("program_arguments") or [])
+            command_text = f"{program} {program_args}".strip()
+            if not is_apple_system_item and any(command_text.startswith(location) or location in command_text for location in writable_locations):
+                reasons.append("Launch plist references a user-writable or temporary location")
+            if not is_apple_system_item and item.get("run_at_load") is True and item.get("keep_alive"):
+                reasons.append("Runs at load and is configured to stay alive")
+            if not is_apple_system_item and any(token in command_text.lower() for token in network_tokens):
+                reasons.append("Launch plist command includes network/script execution tooling")
+            if not is_apple_system_item and item.get("read_error"):
+                reasons.append("Could not parse plist")
+            if reasons:
+                findings.append({
+                    "risk": "REVIEW",
+                    "section": "launch_plists",
+                    "item": label or path,
+                    "path": path,
+                    "reasons": reasons,
+                })
+
+        for item in inventory["cron"]:
+            entries = item.get("entries") or [{"entry": item.get("entry", "")}]
+            for entry in entries:
+                text = entry.get("entry", "").lower()
+                reasons = []
+                if any(token in text for token in network_tokens):
+                    reasons.append("Cron entry includes network/script execution tooling")
+                if any(location in text for location in writable_locations):
+                    reasons.append("Cron entry references a user-writable or temporary location")
+                if reasons:
+                    findings.append({
+                        "risk": "REVIEW",
+                        "section": "cron",
+                        "item": item.get("path"),
+                        "line": entry.get("line") or item.get("line"),
+                        "reasons": reasons,
+                    })
+
+        for item in inventory["periodic"]:
+            if item.get("path", "").startswith(("/usr/local/", "/opt/homebrew/")):
+                findings.append({
+                    "risk": "LOW",
+                    "section": "periodic",
+                    "item": item.get("name"),
+                    "path": item.get("path"),
+                    "reasons": ["Third-party periodic script runs on a schedule"],
+                })
+
+        for item in inventory["shell_profiles"]:
+            if item.get("notable_entries"):
+                findings.append({
+                    "risk": "REVIEW",
+                    "section": "shell_profiles",
+                    "item": item.get("path"),
+                    "path": item.get("path"),
+                    "reasons": ["Shell profile contains command patterns worth reviewing"],
+                    "entries": item.get("notable_entries"),
+                })
+
+        for item in inventory["privileged_helpers"]:
+            if item.get("path", "").startswith("/Library/PrivilegedHelperTools"):
+                findings.append({
+                    "risk": "LOW",
+                    "section": "privileged_helpers",
+                    "item": item.get("name"),
+                    "path": item.get("path"),
+                    "reasons": ["Third-party privileged helper tool is installed"],
+                })
+
+        for item in inventory["system_extensions"]:
+            if "activated" in str(item.get("state", "")).lower() or item.get("bundle_id"):
+                findings.append({
+                    "risk": "LOW",
+                    "section": "system_extensions",
+                    "item": item.get("bundle_id") or item.get("raw"),
+                    "reasons": ["System extension is present"],
+                    "raw": item.get("raw"),
+                })
+
+        for item in inventory["kernel_extensions"]:
+            bundle_id = item.get("bundle_id") or ""
+            if bundle_id and not bundle_id.startswith("com.apple."):
+                findings.append({
+                    "risk": "REVIEW",
+                    "section": "kernel_extensions",
+                    "item": bundle_id,
+                    "reasons": ["Non-Apple kernel extension is loaded"],
+                    "raw": item.get("raw"),
+                })
+
+        for item in inventory["background_items"]:
+            findings.append({
+                "risk": "LOW",
+                "section": "background_items",
+                "item": item.get("source"),
+                "reasons": ["Background item data is discoverable and should be reviewed"],
+                "raw": item.get("raw"),
+            })
+
+        findings.sort(key=lambda x: {"HIGH": 0, "MEDIUM": 1, "REVIEW": 2, "LOW": 3}.get(x.get("risk"), 4))
+
+        if json_output:
+            print(json.dumps(findings, indent=2))
+            return findings
+
+        if not findings:
+            print("✓ No expanded startup/persistence findings found.")
+            return findings
+
+        print("=== Comprehensive Startup/Persistence Audit ===\n")
+        for finding in findings:
+            print(f"[{finding.get('risk')}] {finding.get('section')}: {finding.get('item')}")
+            for reason in finding.get("reasons", []):
+                print(f"  - {reason}")
+            if finding.get("path"):
+                print(f"  Path: {finding['path']}")
+        return findings
 
     def disable(self, label: str, force: bool = False) -> bool:
         """Disable a startup item."""
@@ -658,7 +1145,7 @@ class StartupManager:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Startup Manager")
-    parser.add_argument("action", nargs="?", choices=["list", "agents", "daemons", "cron", "disable", "enable", "audit", "summary", "search", "running", "disabled", "pause", "start"], help="Action to perform (omit for interactive mode)")
+    parser.add_argument("action", nargs="?", choices=["list", "agents", "daemons", "cron", "disable", "enable", "audit", "summary", "search", "running", "disabled", "pause", "start", "inventory", "comprehensive-audit"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("label", nargs="?", help="Label to enable/disable/pause/start")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--json", action="store_true", help="JSON output")
@@ -685,6 +1172,10 @@ def main():
         manager.list_running(json_output=args.json, sort_by=args.sort)
     elif args.action == "disabled":
         manager.list_disabled(json_output=args.json, sort_by=args.sort)
+    elif args.action == "inventory":
+        manager.comprehensive_inventory(json_output=True)
+    elif args.action == "comprehensive-audit":
+        manager.comprehensive_audit(json_output=args.json)
     elif args.action == "pause":
         if not args.label:
             print("Error: label required for pause")

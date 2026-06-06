@@ -6,7 +6,9 @@ import os
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, asdict
+from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
+from io import StringIO
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
@@ -46,6 +48,7 @@ class SnapshotManager:
 
     SNAPSHOT_DIR = os.path.expanduser("~/.msp/snapshots")
     DEFAULT_SNAPSHOT = "default"
+    SCHEMA_VERSION = "2.0"
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
@@ -109,7 +112,22 @@ class SnapshotManager:
         snapshot_path = os.path.join(self.SNAPSHOT_DIR, f"{name}.json")
 
         snapshot = {
-            "version": "1.0",
+            "version": self.SCHEMA_VERSION,
+            "schema": {
+                "name": "msp.snapshot",
+                "version": self.SCHEMA_VERSION,
+                "captured_sections": [
+                    "settings",
+                    "sharing",
+                    "security_settings",
+                    "tcc",
+                    "profiles",
+                    "firewall",
+                    "dns",
+                    "proxy",
+                    "vpn",
+                ],
+            },
             "timestamp": datetime.now().isoformat(),
             "hostname": self._get_hostname(),
             "os_version": self._get_os_version(),
@@ -123,13 +141,23 @@ class SnapshotManager:
             },
             "network": {},
             "startup": {},
+            "sharing": self._capture_sharing(),
+            "security_settings": self._capture_security_settings(),
+            "tcc": self._capture_tcc_summary(),
+            "profiles": self._capture_profiles(),
+            "firewall": self._capture_firewall_details(),
+            "dns": self._capture_dns(),
+            "proxy": self._capture_proxy(),
+            "vpn": self._capture_vpn(),
             "custom_settings": {},
         }
 
         if include_network:
+            snapshot["schema"]["captured_sections"].append("network")
             snapshot["network"] = self._capture_network()
 
         if include_startup:
+            snapshot["schema"]["captured_sections"].append("startup")
             snapshot["startup"] = self._capture_startup()
 
         if include_custom:
@@ -159,10 +187,50 @@ class SnapshotManager:
                     except (ValueError, IndexError):
                         pass
 
+        success, output = self._run_cmd("lsof -iTCP -sTCP:ESTABLISHED -nP 2>/dev/null | tail -n +2")
+        if success and output.strip():
+            for line in output.strip().split('\n'):
+                parts = line.split()
+                if len(parts) >= 9:
+                    try:
+                        endpoint = parts[8]
+                        local, remote = endpoint.split("->", 1) if "->" in endpoint else (endpoint, "")
+                        network["established"].append({
+                            "process": parts[0],
+                            "pid": int(parts[1]),
+                            "user": parts[2],
+                            "local": local,
+                            "remote": remote,
+                        })
+                    except (ValueError, IndexError):
+                        pass
+
         return network
 
-    def _capture_startup(self) -> List[str]:
+    def _capture_startup(self) -> Any:
         """Capture startup items."""
+        try:
+            from src.startup import StartupManager
+            manager = StartupManager(verbose=self.verbose)
+            if hasattr(manager, "_get_all_items"):
+                return {
+                    "items": [
+                        {
+                            "name": getattr(item, "name", ""),
+                            "label": getattr(item, "label", ""),
+                            "path": getattr(item, "path", ""),
+                            "type": getattr(item, "type", ""),
+                            "status": getattr(item, "status", ""),
+                            "pid": getattr(item, "pid", None),
+                        }
+                        for item in manager._get_all_items()
+                    ],
+                    "source": "src.startup.StartupManager",
+                }
+        except Exception as e:
+            if self.verbose:
+                print(f"Startup module unavailable, using launchctl fallback: {e}")
+
         items = []
         success, output = self._run_cmd("launchctl list 2>/dev/null")
         if success and output.strip():
@@ -171,6 +239,200 @@ class SnapshotManager:
                 if len(parts) >= 3:
                     items.append(parts[2])
         return items
+
+    def _capture_sharing(self) -> Dict[str, Any]:
+        """Capture local sharing service state."""
+        try:
+            from src.sharing import SharingManager
+            return {
+                "status": SharingManager(verbose=self.verbose).get_sharing_status(),
+                "source": "src.sharing.SharingManager",
+            }
+        except Exception as e:
+            return {
+                "available": False,
+                "error": str(e),
+                "facts": {
+                    "remote_login": self._command_fact("systemsetup -getremotelogin 2>/dev/null"),
+                    "screen_sharing": self._launchctl_loaded("com.apple.screensharing"),
+                    "file_sharing": self._launchctl_loaded("smbd"),
+                    "airdrop": self._command_fact(
+                        "defaults read com.apple.NetworkBrowser BrowseAllInterfaces 2>/dev/null"
+                    ),
+                },
+            }
+
+    def _capture_security_settings(self) -> Dict[str, Any]:
+        """Capture local security preference details."""
+        try:
+            from src.security import SecuritySettings
+            manager = SecuritySettings(verbose=self.verbose)
+            return {
+                "display": manager.get_display_settings(),
+                "energy": manager.get_energy_settings(),
+                "firewall": manager.get_firewall_connection_info(),
+                "source": "src.security.SecuritySettings",
+            }
+        except Exception as e:
+            return {
+                "available": False,
+                "error": str(e),
+                "display": {
+                    "idle_time": self._command_fact("defaults -currentHost read com.apple.screensaver idleTime 2>/dev/null"),
+                    "password_after_sleep": self._command_fact(
+                        "defaults read com.apple.screensaver askForPassword 2>/dev/null"
+                    ),
+                    "password_delay": self._command_fact(
+                        "defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null"
+                    ),
+                },
+            }
+
+    def _capture_tcc_summary(self) -> Dict[str, Any]:
+        """Capture a TCC summary if an implementation is present."""
+        try:
+            from src import tcc
+        except Exception as e:
+            return {"available": False, "error": str(e), "summary": {}}
+
+        try:
+            manager_cls = getattr(tcc, "TCCManager", None)
+            if not manager_cls:
+                return {"available": False, "error": "src.tcc has no TCCManager", "summary": {}}
+            manager = manager_cls(verbose=self.verbose)
+            stdout = StringIO()
+            stderr = StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                if hasattr(manager, "summary"):
+                    summary = manager.summary()
+                elif hasattr(manager, "list_permissions"):
+                    permissions = manager.list_permissions()
+                    summary = self._summarize_tcc_permissions(permissions)
+                elif hasattr(manager, "list_all"):
+                    permissions = manager.list_all()
+                    summary = self._summarize_tcc_permissions(permissions)
+                else:
+                    summary = {"manager": manager_cls.__name__}
+            return {
+                "available": True,
+                "summary": summary,
+                "source": "src.tcc.TCCManager",
+                "messages": {
+                    "stdout": stdout.getvalue().strip(),
+                    "stderr": stderr.getvalue().strip(),
+                },
+            }
+        except Exception as e:
+            return {"available": False, "error": str(e), "summary": {}}
+
+    def _summarize_tcc_permissions(self, permissions: Any) -> Dict[str, Any]:
+        """Summarize TCC permissions without requiring a specific TCC API shape."""
+        summary = {"total": 0, "by_service": {}, "by_auth_value": {}}
+        if not isinstance(permissions, list):
+            summary["raw_type"] = type(permissions).__name__
+            return summary
+
+        summary["total"] = len(permissions)
+        for item in permissions:
+            if isinstance(item, dict):
+                service = item.get("service") or item.get("permission") or "unknown"
+                auth = item.get("auth_value", item.get("allowed", item.get("status", "unknown")))
+            else:
+                service = getattr(item, "service", "unknown")
+                auth = getattr(item, "auth_value", getattr(item, "allowed", getattr(item, "status", "unknown")))
+            summary["by_service"][str(service)] = summary["by_service"].get(str(service), 0) + 1
+            summary["by_auth_value"][str(auth)] = summary["by_auth_value"].get(str(auth), 0) + 1
+        return summary
+
+    def _capture_profiles(self) -> Dict[str, Any]:
+        """Capture configuration profile facts."""
+        installed = self._command_fact("profiles list -output stdout 2>/dev/null")
+        mdm = self._command_fact("profiles status -type enrollment 2>/dev/null")
+        return {
+            "installed": installed,
+            "mdm_enrollment": mdm,
+            "profile_count": self._count_profile_lines(installed.get("output", "")),
+        }
+
+    def _capture_firewall_details(self) -> Dict[str, Any]:
+        """Capture Application Firewall details."""
+        commands = {
+            "global_state": "/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate",
+            "stealth_mode": "/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode",
+            "logging": "/usr/libexec/ApplicationFirewall/socketfilterfw --getloggingmode",
+            "block_all": "/usr/libexec/ApplicationFirewall/socketfilterfw --getblockall",
+            "allows_signed": "/usr/libexec/ApplicationFirewall/socketfilterfw --getallowsigned",
+        }
+        return {key: self._command_fact(cmd) for key, cmd in commands.items()}
+
+    def _capture_dns(self) -> Dict[str, Any]:
+        """Capture DNS resolver facts."""
+        return {
+            "scutil_dns": self._command_fact("scutil --dns 2>/dev/null"),
+            "network_services": self._capture_network_service_dns(),
+        }
+
+    def _capture_proxy(self) -> Dict[str, Any]:
+        """Capture proxy configuration facts."""
+        return {
+            "scutil_proxy": self._command_fact("scutil --proxy 2>/dev/null"),
+            "network_services": self._capture_network_service_proxies(),
+        }
+
+    def _capture_vpn(self) -> Dict[str, Any]:
+        """Capture VPN/network extension facts."""
+        return {
+            "network_connections": self._command_fact("scutil --nc list 2>/dev/null"),
+            "network_extensions": self._command_fact("systemextensionsctl list 2>/dev/null"),
+        }
+
+    def _command_fact(self, cmd: str) -> Dict[str, Any]:
+        """Run a native command and return a fail-soft fact."""
+        success, output = self._run_cmd(cmd)
+        return {
+            "success": success,
+            "output": output.strip(),
+        }
+
+    def _launchctl_loaded(self, pattern: str) -> Dict[str, Any]:
+        return self._command_fact(f"launchctl list 2>/dev/null | grep -i {pattern}")
+
+    def _network_services(self) -> List[str]:
+        success, output = self._run_cmd("networksetup -listallnetworkservices 2>/dev/null")
+        if not success:
+            return []
+        services = []
+        for line in output.splitlines():
+            line = line.strip()
+            if not line or line.startswith("An asterisk"):
+                continue
+            services.append(line.lstrip("*"))
+        return services
+
+    def _capture_network_service_dns(self) -> Dict[str, Any]:
+        facts = {}
+        for service in self._network_services():
+            facts[service] = self._command_fact(f'networksetup -getdnsservers "{service}" 2>/dev/null')
+        return facts
+
+    def _capture_network_service_proxies(self) -> Dict[str, Any]:
+        facts = {}
+        for service in self._network_services():
+            facts[service] = {
+                "web": self._command_fact(f'networksetup -getwebproxy "{service}" 2>/dev/null'),
+                "secure_web": self._command_fact(f'networksetup -getsecurewebproxy "{service}" 2>/dev/null'),
+                "socks": self._command_fact(f'networksetup -getsocksfirewallproxy "{service}" 2>/dev/null'),
+                "auto": self._command_fact(f'networksetup -getautoproxyurl "{service}" 2>/dev/null'),
+            }
+        return facts
+
+    def _count_profile_lines(self, output: str) -> int:
+        count = 0
+        for line in output.splitlines():
+            stripped = line.strip().lower()
+            if stripped.startswith("attribute: profileidentifier:") or stripped.startswith("profileidentifier:"):
+                count += 1
+        return count
 
     def _load_custom_settings(self) -> Dict[str, Any]:
         """Load custom settings from config."""
@@ -253,26 +515,11 @@ class SnapshotManager:
         if not snapshot:
             return []
 
-        current = {
-            "firewall": self._check_firewall(),
-            "firewall_stealth": self._check_stealth(),
-            "gatekeeper": self._check_gatekeeper(),
-            "filevault": self._check_filevault(),
-            "captive_portal": self._check_captive_portal(),
-            "bluetooth": self._check_bluetooth(),
-        }
+        current = self._capture_current_for_diff(snapshot)
 
         diffs = []
-        for key in snapshot.get("settings", {}):
-            snap_val = snapshot["settings"].get(key)
-            curr_val = current.get(key)
-            if snap_val != curr_val:
-                diffs.append({
-                    "setting": key,
-                    "snapshot_value": snap_val,
-                    "current_value": curr_val,
-                    "status": "changed"
-                })
+        for section in self._comparable_sections(snapshot):
+            self._diff_values(section, snapshot.get(section), current.get(section), diffs)
 
         if json_output:
             print(json.dumps(diffs, indent=2))
@@ -295,6 +542,131 @@ class SnapshotManager:
             print("No differences - system matches snapshot")
 
         return diffs
+
+    def _capture_current_for_diff(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        """Capture the current state for sections present in a snapshot."""
+        current = {
+            "settings": {
+                "firewall": self._check_firewall(),
+                "firewall_stealth": self._check_stealth(),
+                "gatekeeper": self._check_gatekeeper(),
+                "filevault": self._check_filevault(),
+                "captive_portal": self._check_captive_portal(),
+                "bluetooth": self._check_bluetooth(),
+            }
+        }
+
+        collectors = {
+            "sharing": self._capture_sharing,
+            "security_settings": self._capture_security_settings,
+            "tcc": self._capture_tcc_summary,
+            "profiles": self._capture_profiles,
+            "firewall": self._capture_firewall_details,
+            "dns": self._capture_dns,
+            "proxy": self._capture_proxy,
+            "vpn": self._capture_vpn,
+            "network": self._capture_network,
+            "startup": self._capture_startup,
+            "custom_settings": self._load_custom_settings,
+        }
+
+        for section in self._comparable_sections(snapshot):
+            if section in current:
+                continue
+            collector = collectors.get(section)
+            if collector:
+                current[section] = collector()
+
+        return current
+
+    def _comparable_sections(self, snapshot: Dict[str, Any]) -> List[str]:
+        """Return sections that should be compared for drift."""
+        excluded = {"version", "schema", "timestamp", "hostname", "os_version"}
+        sections = []
+        for key, value in snapshot.items():
+            if key in excluded:
+                continue
+            if key in {"network", "startup"} and not value:
+                continue
+            sections.append(key)
+        return sections
+
+    def _diff_values(self, path: str, snapshot_value: Any, current_value: Any,
+                     diffs: List[Dict[str, Any]]) -> None:
+        """Recursively compare snapshot values and append path-addressed diffs."""
+        snap_norm = self._normalize_for_diff(snapshot_value)
+        curr_norm = self._normalize_for_diff(current_value)
+
+        if isinstance(snap_norm, dict) and isinstance(curr_norm, dict):
+            for key in sorted(set(snap_norm) | set(curr_norm)):
+                self._diff_values(f"{path}.{key}", snap_norm.get(key), curr_norm.get(key), diffs)
+            return
+
+        if isinstance(snap_norm, list) and isinstance(curr_norm, list):
+            added, removed = self._list_delta(snap_norm, curr_norm)
+            if added or removed:
+                diffs.append({
+                    "setting": path,
+                    "section": path.split(".", 1)[0],
+                    "snapshot_value": {
+                        "count": len(snap_norm),
+                        "removed": removed,
+                    },
+                    "current_value": {
+                        "count": len(curr_norm),
+                        "added": added,
+                    },
+                    "status": "changed"
+                })
+            return
+
+        if snap_norm != curr_norm:
+            diffs.append({
+                "setting": path,
+                "section": path.split(".", 1)[0],
+                "snapshot_value": snap_norm,
+                "current_value": curr_norm,
+                "status": "changed"
+            })
+
+    def _normalize_for_diff(self, value: Any) -> Any:
+        """Normalize nested values so ordering noise does not dominate diffs."""
+        if isinstance(value, dict):
+            return {key: self._normalize_for_diff(value[key]) for key in sorted(value)}
+        if isinstance(value, list):
+            normalized = [self._normalize_for_diff(item) for item in value]
+            try:
+                return sorted(normalized, key=lambda item: json.dumps(item, sort_keys=True))
+            except TypeError:
+                return normalized
+        return value
+
+    def _list_delta(self, snapshot_items: List[Any], current_items: List[Any]) -> tuple[List[Any], List[Any]]:
+        """Return added and removed list items, preserving duplicate counts."""
+        snapshot_counts = {}
+        current_counts = {}
+        encoded_items = {}
+
+        for item in snapshot_items:
+            encoded = json.dumps(item, sort_keys=True)
+            encoded_items[encoded] = item
+            snapshot_counts[encoded] = snapshot_counts.get(encoded, 0) + 1
+
+        for item in current_items:
+            encoded = json.dumps(item, sort_keys=True)
+            encoded_items[encoded] = item
+            current_counts[encoded] = current_counts.get(encoded, 0) + 1
+
+        added = []
+        removed = []
+        for encoded in sorted(set(snapshot_counts) | set(current_counts)):
+            delta = current_counts.get(encoded, 0) - snapshot_counts.get(encoded, 0)
+            if delta > 0:
+                added.extend([encoded_items[encoded]] * delta)
+            elif delta < 0:
+                removed.extend([encoded_items[encoded]] * abs(delta))
+
+        return added, removed
 
     def restore(self, name: str, dry_run: bool = False, force: bool = False) -> bool:
         """Restore settings from a snapshot."""

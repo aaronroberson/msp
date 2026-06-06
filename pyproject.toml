@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "macos-privacy-cli"
+version = "0.1.0"
+description = "Local-first macOS security and privacy CLI"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "argcomplete>=3.0.0",
+  "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=7.0",
+]
+
+[project.scripts]
+msp = "main:main"
+mac-privacy = "main:main"
+mpc = "main:main"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
