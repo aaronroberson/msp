@@ -8,6 +8,8 @@ import sys
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -317,6 +319,7 @@ def main():
     parser.add_argument("--preset1", help="First preset to compare")
     parser.add_argument("--preset2", help="Second preset to compare")
     parser.add_argument("--sort", choices=[""], help="Sort not applicable for AI commands")
+    setup_completion(parser)
     args = parser.parse_args()
 
     analyzer = AIAnalyzer(verbose=args.verbose)
