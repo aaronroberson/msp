@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -559,6 +561,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["severity", "category", "item"], help="Sort by: severity, category, item")
+    setup_completion(parser)
     args = parser.parse_args()
 
     scanner = SecurityScanner(verbose=args.verbose)

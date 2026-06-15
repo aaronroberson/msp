@@ -16,6 +16,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -178,6 +180,8 @@ class Rule:
     remediation: str
     predicate: Predicate = field(repr=False, compare=False)
     profiles: Sequence[str] = field(default_factory=lambda: tuple(PROFILE_DEFINITIONS))
+    remediation_id: Optional[str] = None
+    evidence_paths: Sequence[str] = field(default_factory=tuple)
     cis: Optional[str] = None
     nist: Optional[str] = None
     stig: Optional[str] = None
@@ -220,7 +224,8 @@ class Rule:
             ],
         }
         evidence: Dict[str, Any] = {}
-        for path in evidence_paths.get(self.category, []):
+        paths = tuple(self.evidence_paths) or tuple(evidence_paths.get(self.category, []))
+        for path in paths:
             value = get_path(facts, path)
             if value is not None:
                 evidence[path] = value
@@ -238,6 +243,8 @@ class Finding:
     description: str
     remediation: str
     profile: str
+    remediation_id: Optional[str] = None
+    evidence_paths: Sequence[str] = field(default_factory=tuple)
     cis: Optional[str] = None
     nist: Optional[str] = None
     stig: Optional[str] = None
@@ -255,6 +262,8 @@ class Finding:
             description=rule.description,
             remediation=rule.remediation,
             profile=profile,
+            remediation_id=rule.remediation_id,
+            evidence_paths=tuple(rule.evidence_paths),
             cis=rule.cis,
             nist=rule.nist,
             stig=rule.stig,
@@ -320,6 +329,8 @@ def rule(
     remediation: str,
     predicate: Predicate,
     profiles: Sequence[str] = tuple(PROFILE_DEFINITIONS),
+    remediation_id: Optional[str] = None,
+    evidence_paths: Sequence[str] = (),
     cis: Optional[str] = None,
     nist: Optional[str] = None,
     stig: Optional[str] = None,
@@ -337,6 +348,8 @@ def rule(
         remediation=remediation,
         predicate=predicate,
         profiles=tuple(profiles),
+        remediation_id=remediation_id,
+        evidence_paths=tuple(evidence_paths),
         cis=cis,
         nist=nist,
         stig=stig,
@@ -363,6 +376,8 @@ def default_rules() -> List[Rule]:
             lambda f: _path_exists(f, "firewall.enabled")
             and not _as_bool(get_path(f, "firewall.enabled")),
             profiles=all_profiles,
+            remediation_id="firewall.enable",
+            evidence_paths=("firewall.enabled",),
             cis="CIS Apple macOS Firewall",
             nist="CM-7, SC-7",
             stig="APPL-14-002021",
@@ -377,6 +392,8 @@ def default_rules() -> List[Rule]:
             lambda f: get_path(f, "firewall.stealth") is not None
             and not _as_bool(get_path(f, "firewall.stealth")),
             profiles=strict_profiles,
+            remediation_id="firewall.stealth.enable",
+            evidence_paths=("firewall.stealth",),
             cis="CIS Apple macOS Firewall",
             nist="SC-7",
         ),
@@ -390,6 +407,8 @@ def default_rules() -> List[Rule]:
             lambda f: _path_exists(f, "filevault.enabled")
             and not _as_bool(get_path(f, "filevault.enabled")),
             profiles=all_profiles,
+            remediation_id="filevault.enable.guidance",
+            evidence_paths=("filevault.enabled",),
             cis="CIS Apple macOS FileVault",
             nist="SC-28",
             stig="APPL-14-005020",
@@ -404,6 +423,8 @@ def default_rules() -> List[Rule]:
             lambda f: get_path(f, "gatekeeper.enabled") is not None
             and not _as_bool(get_path(f, "gatekeeper.enabled")),
             profiles=all_profiles,
+            remediation_id="gatekeeper.enable",
+            evidence_paths=("gatekeeper.enabled",),
             cis="CIS Apple macOS Gatekeeper",
             nist="SI-7",
             stig="APPL-14-002060",
@@ -418,6 +439,8 @@ def default_rules() -> List[Rule]:
             lambda f: _as_bool(get_path(f, "sharing.enabled"))
             or _list_count(get_path(f, "sharing.share_points")) > 0,
             profiles=("personal", "enterprise", "high_security"),
+            remediation_id="sharing.disable_all",
+            evidence_paths=("sharing.enabled", "sharing.share_points"),
             cis="CIS Apple macOS Sharing",
             nist="CM-7, SC-7",
         ),
@@ -435,6 +458,8 @@ def default_rules() -> List[Rule]:
                 if isinstance(item, Mapping)
             ),
             profiles=all_profiles,
+            remediation_id="sharing.disable_guest",
+            evidence_paths=("sharing.guest_enabled_services", "sharing.share_points"),
             cis="CIS Apple macOS Sharing",
             nist="AC-2, AC-3",
         ),
@@ -447,6 +472,8 @@ def default_rules() -> List[Rule]:
             "Review camera, microphone, screen recording, accessibility, and full disk access grants.",
             lambda f: _list_count(get_path(f, "tcc.high_risk_grants")) > 0,
             profiles=all_profiles,
+            remediation_id="tcc.review_high_risk",
+            evidence_paths=("tcc.high_risk_grants",),
             cis="CIS Apple macOS Privacy Preferences Policy Control",
             nist="AC-6",
         ),
@@ -460,6 +487,8 @@ def default_rules() -> List[Rule]:
             lambda f: _list_count(get_path(f, "tcc.allowed.ScreenCapture")) > 0
             or _list_count(get_path(f, "tcc.allowed.kTCCServiceScreenCapture")) > 0,
             profiles=strict_profiles,
+            remediation_id="tcc.reset_screen_capture",
+            evidence_paths=("tcc.allowed.ScreenCapture", "tcc.allowed.kTCCServiceScreenCapture"),
             cis="CIS Apple macOS Privacy Preferences Policy Control",
             nist="AC-6",
         ),
@@ -472,6 +501,8 @@ def default_rules() -> List[Rule]:
             "Investigate unsigned startup items and remove unauthorized entries.",
             lambda f: _list_count(get_path(f, "startup.unsigned_items")) > 0,
             profiles=all_profiles,
+            remediation_id="startup.review_unsigned",
+            evidence_paths=("startup.unsigned_items",),
             cis="CIS Apple macOS System Integrity",
             nist="CM-6, SI-7",
         ),
@@ -484,6 +515,8 @@ def default_rules() -> List[Rule]:
             "Quarantine the host if needed, then investigate and remove suspicious persistence.",
             lambda f: _list_count(get_path(f, "startup.suspicious_items")) > 0,
             profiles=all_profiles,
+            remediation_id="startup.review_suspicious",
+            evidence_paths=("startup.suspicious_items",),
             nist="SI-4, SI-7",
         ),
         rule(
@@ -495,6 +528,8 @@ def default_rules() -> List[Rule]:
             "Confirm each listener is expected and restrict it to localhost where possible.",
             lambda f: _list_count(get_path(f, "network.exposed_services")) > 0,
             profiles=all_profiles,
+            remediation_id="network.review_exposed_services",
+            evidence_paths=("network.exposed_services",),
             cis="CIS Apple macOS Network Services",
             nist="CM-7, SC-7",
         ),
@@ -509,6 +544,8 @@ def default_rules() -> List[Rule]:
             or _service_enabled(f, "sharing.services.ssh")
             or _service_enabled(f, "sharing.services.sftp"),
             profiles=("personal", "enterprise", "high_security"),
+            remediation_id="remote_login.disable",
+            evidence_paths=("network.services.ssh", "sharing.services.ssh", "sharing.services.sftp"),
             cis="CIS Apple macOS Remote Login",
             nist="AC-17",
             stig="APPL-14-004040",
@@ -523,6 +560,8 @@ def default_rules() -> List[Rule]:
             lambda f: get_path(f, "security_settings.password_after_sleep") is not None
             and not _as_bool(get_path(f, "security_settings.password_after_sleep")),
             profiles=all_profiles,
+            remediation_id="security.password_after_sleep.enable",
+            evidence_paths=("security_settings.password_after_sleep",),
             cis="CIS Apple macOS Screen Saver",
             nist="AC-11",
             stig="APPL-14-000060",
@@ -536,6 +575,8 @@ def default_rules() -> List[Rule]:
             "Set password-after-sleep delay to 0 seconds for stricter profiles or under 60 seconds for personal use.",
             lambda f: _password_delay_exceeds_profile(f),
             profiles=all_profiles,
+            remediation_id="security.password_delay.set_zero",
+            evidence_paths=("security_settings.password_delay",),
             cis="CIS Apple macOS Screen Saver",
             nist="AC-11",
         ),
@@ -548,6 +589,8 @@ def default_rules() -> List[Rule]:
             "Reduce screen lock timeout to match the selected baseline.",
             lambda f: _screen_lock_exceeds_profile(f),
             profiles=all_profiles,
+            remediation_id="security.screen_lock.set_profile",
+            evidence_paths=("security_settings.screen_lock_minutes",),
             cis="CIS Apple macOS Screen Saver",
             nist="AC-11",
         ),
@@ -560,6 +603,8 @@ def default_rules() -> List[Rule]:
             "Bind local development services to 127.0.0.1 or restrict access with the firewall.",
             lambda f: _has_exposed_developer_port(f),
             profiles=developer_plus,
+            remediation_id="network.review_developer_ports",
+            evidence_paths=("network.exposed_services",),
             nist="CM-7, SC-7",
             tags=("developer",),
         ),
@@ -685,6 +730,11 @@ def summarize(findings: Iterable[Finding]) -> Dict[str, Any]:
 
 def load_facts(path: str) -> Dict[str, Any]:
     if path == "-":
+        if sys.stdin.isatty():
+            print("Error: audit requires facts from stdin or a file.", file=sys.stderr)
+            print("Usage: msp interrogate --json | msp audit", file=sys.stderr)
+            print("       msp audit facts.json", file=sys.stderr)
+            sys.exit(1)
         return json.load(sys.stdin)
     with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
@@ -724,8 +774,79 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def interactive_menu() -> None:
+    """Interactive menu for security audit."""
+    from .facts import collect_facts
+
+    while True:
+        print("\n" + "=" * 60)
+        print("       Audit - Security Rule Evaluation")
+        print("=" * 60)
+        print("  1. Collect fresh facts & run audit")
+        print("  2. Load facts from file & run audit")
+        print("  3. List available profiles")
+        print("  q. Back to main menu")
+        print("=" * 60)
+
+        choice = input("\nSelect action [1-3, q]: ").strip().lower()
+
+        if choice in ("q", "quit"):
+            break
+
+        if choice == "1":
+            print("\nCollecting system facts...")
+            facts = collect_facts(redact=False)
+            profiles = sorted(PROFILE_DEFINITIONS)
+            print("\nAvailable profiles:")
+            for i, p in enumerate(profiles, 1):
+                print(f"  {i}. {p}")
+            sel = input(f"\nSelect profile [1-{len(profiles)}] (default: personal): ").strip()
+            profile = "personal"
+            if sel.isdigit() and 1 <= int(sel) <= len(profiles):
+                profile = profiles[int(sel) - 1]
+            print(f"\nEvaluating against profile: {profile}")
+            findings = evaluate(facts, profile=profile)
+            if findings:
+                print(findings_to_table(findings))
+            else:
+                print("No findings.")
+            input("\nPress Enter to continue...")
+        elif choice == "2":
+            path = input("Path to facts JSON file: ").strip()
+            if path:
+                try:
+                    facts = load_facts(path)
+                    profiles = sorted(PROFILE_DEFINITIONS)
+                    print("\nAvailable profiles:")
+                    for i, p in enumerate(profiles, 1):
+                        print(f"  {i}. {p}")
+                    sel = input(f"\nSelect profile [1-{len(profiles)}] (default: personal): ").strip()
+                    profile = "personal"
+                    if sel.isdigit() and 1 <= int(sel) <= len(profiles):
+                        profile = profiles[int(sel) - 1]
+                    findings = evaluate(facts, profile=profile)
+                    if findings:
+                        print(findings_to_table(findings))
+                    else:
+                        print("No findings.")
+                except Exception as e:
+                    print(f"Error: {e}")
+            input("\nPress Enter to continue...")
+        elif choice == "3":
+            print("\nAvailable profiles:")
+            for pid, pdef in PROFILE_DEFINITIONS.items():
+                print(f"\n  {pid}: {pdef.get('description', '')}")
+            input("\nPress Enter to continue...")
+        else:
+            print("Invalid choice")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    if (argv is None and len(sys.argv) <= 1) or (argv is not None and len(argv) == 0):
+        interactive_menu()
+        return 0
     parser = _build_parser()
+    setup_completion(parser)
     args = parser.parse_args(argv)
 
     if args.list_profiles:

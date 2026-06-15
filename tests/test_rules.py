@@ -77,6 +77,18 @@ class RulesTest(unittest.TestCase):
         self.assertTrue(filevault.cis)
         self.assertTrue(filevault.nist)
         self.assertTrue(filevault.stig)
+        self.assertEqual(filevault.remediation_id, "filevault.enable.guidance")
+        self.assertEqual(tuple(filevault.evidence_paths), ("filevault.enabled",))
+
+    def test_remediation_metadata_is_emitted_in_json(self):
+        facts = {"firewall": {"enabled": False}}
+
+        payload = json.loads(findings_to_json(evaluate(facts)))
+        finding = payload["findings"][0]
+
+        self.assertEqual(finding["rule_id"], "FW-001")
+        self.assertEqual(finding["remediation_id"], "firewall.enable")
+        self.assertEqual(finding["evidence_paths"], ["firewall.enabled"])
 
     def test_output_helpers_render_json_and_plain_table(self):
         facts = {"firewall": {"enabled": False}}
