@@ -12,6 +12,8 @@ from io import StringIO
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -942,6 +944,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["name", "timestamp", "hostname"], help="Sort by: name, timestamp, hostname")
+    setup_completion(parser)
     args = parser.parse_args()
 
     manager = SnapshotManager(verbose=args.verbose)
