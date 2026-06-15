@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Optional LLM reasoning support for macOS privacy evidence.
 
-The module is dependency-free by default. Cloud-backed providers are optional
-and imported lazily so the CLI remains usable offline and without SDK installs.
+The module is dependency-free by default. Local providers (ollama, apfel)
+require no SDK installs. Cloud-backed providers are optional and imported
+lazily so the CLI remains usable offline.
 """
 
 from __future__ import annotations
@@ -13,15 +14,43 @@ import shutil
 import subprocess
 import sys
 import argparse
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Protocol, Sequence
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
 from src.command import setup_completion, suggest_command
+
+try:
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
+
+@contextmanager
+def _spinner(message: str) -> Iterator[None]:
+    """Show a spinner while work is in progress. Falls back to simple text."""
+    if RICH_AVAILABLE:
+        with Progress(SpinnerColumn(), TextColumn(f"[progress.description]{message}..."), transient=True) as p:
+            p.add_task("", total=None)
+            yield
+    else:
+        sys.stdout.write(f"\r\u23f3 {message}...")
+        sys.stdout.flush()
+        try:
+            yield
+        finally:
+            sys.stdout.write("\r" + " " * 40 + "\r")
+            sys.stdout.flush()
 
 
 DEFAULT_OPENAI_MODEL = "gpt-5.5"
 DEFAULT_APFEL_EXECUTABLE = "apfel"
+DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+DEFAULT_OLLAMA_MODEL = "qwen2.5-coder:1.5b"
 
 
 class LLMProvider(Protocol):
@@ -165,6 +194,115 @@ class ApfelProvider:
 
 
 @dataclass
+class OllamaProvider:
+    """Local provider that calls Ollama's REST API for structured reasoning.
+
+    Zero external dependencies — uses stdlib urllib only.
+    Supports JSON mode for guaranteed structured output.
+    Uses qwen2.5-coder:1.5b by default — ultra-small (~1GB RAM, runs on any Mac).
+    If Ollama is unavailable or crashes, falls back to apfel / local heuristic.
+    """
+
+    base_url: str = DEFAULT_OLLAMA_BASE_URL
+    model: str = DEFAULT_OLLAMA_MODEL
+    timeout: int = 60
+    model_timeout: int = 30
+    name: str = "ollama"
+
+    def __post_init__(self) -> None:
+        self.base_url = os.environ.get("OLLAMA_BASE_URL", self.base_url).rstrip("/")
+        self.model = os.environ.get("OLLAMA_MODEL", self.model)
+
+    @classmethod
+    def available(cls) -> bool:
+        base_url = os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).rstrip("/")
+        req = Request(f"{base_url}/api/tags", method="GET")
+        req.add_header("Accept", "application/json")
+        try:
+            with urlopen(req, timeout=3) as resp:
+                return resp.status == 200
+        except (URLError, OSError):
+            return False
+
+    def _confirm_model_loaded(self) -> None:
+        """Check if the model exists on the server before sending a chat request.
+        Prevents Ollama from silently crashing when loading a model that won't fit.
+        """
+        req = Request(f"{self.base_url}/api/tags", method="GET")
+        req.add_header("Accept", "application/json")
+        try:
+            with urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except (URLError, OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Ollama not reachable: {exc}") from exc
+
+        models = data.get("models", [])
+        model_names = [m.get("name", "") for m in models]
+        if not any(self.model in name for name in model_names):
+            raise RuntimeError(
+                f"Ollama model '{self.model}' not found. "
+                f"Run: ollama pull {self.model}"
+                f"\nAvailable: {', '.join(model_names[:5]) or 'none'}"
+            )
+
+    def complete_json(self, prompt: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self._confirm_model_loaded()
+
+        url = f"{self.base_url}/api/chat"
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a macOS privacy and security analyst. "
+                    "Return only a valid JSON object. "
+                    "Do not include markdown fences, explanations, or extra text."
+                ),
+            },
+            {
+                "role": "user",
+                "content": prompt + "\n\nEvidence JSON:\n" + json.dumps(payload, sort_keys=True),
+            },
+        ]
+        body = json.dumps({
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.1,
+                "num_ctx": 2048,
+            },
+        }).encode("utf-8")
+
+        req = Request(url, data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+
+        with _spinner(f"Ollama ({self.model})"):
+            try:
+                with urlopen(req, timeout=self.model_timeout) as resp:
+                    response_data = json.loads(resp.read().decode("utf-8"))
+            except URLError as exc:
+                raise RuntimeError(f"Ollama request failed: {exc.reason}") from exc
+            except (json.JSONDecodeError, OSError) as exc:
+                raise RuntimeError(f"Ollama response error: {exc}") from exc
+
+        raw = response_data.get("message", {}).get("content", "")
+        if not raw:
+            raise RuntimeError("Ollama returned an empty response")
+
+        try:
+            result = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Ollama returned non-JSON content: {raw[:200]}"
+            ) from exc
+
+        if not isinstance(result, Mapping):
+            raise RuntimeError("Ollama returned a non-object JSON response")
+        return result
+
+
+@dataclass
 class OpenAIProvider:
     """Optional OpenAI provider using the SDK only when configured."""
 
@@ -224,17 +362,25 @@ class OpenAIProvider:
 
 
 def choose_provider(preferred: Optional[str] = None) -> LLMProvider:
-    """Select an available provider without requiring cloud dependencies."""
+    """Select an available provider without requiring cloud dependencies.
+
+    Priority order: explicit choice > env var > auto
+    Auto order: ollama (local) > apfel (Apple Intel.) > openai (cloud) > local heuristic
+    """
 
     provider = (preferred or os.environ.get("MSP_LLM_PROVIDER") or "auto").lower()
     if provider in {"local", "local_heuristic", "heuristic"}:
         return LocalHeuristicProvider()
+    if provider == "ollama":
+        return OllamaProvider()
     if provider == "apfel":
         return ApfelProvider()
     if provider == "openai":
         return OpenAIProvider()
     if provider != "auto":
         raise ValueError(f"unknown LLM provider: {preferred}")
+    if OllamaProvider.available():
+        return OllamaProvider()
     if ApfelProvider.available():
         return ApfelProvider()
     if OpenAIProvider.available():
@@ -316,7 +462,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--facts", help="Facts JSON file.")
     parser.add_argument("--findings", help="Findings JSON file.")
     parser.add_argument("--plan", help="Remediation plan JSON file.")
-    parser.add_argument("--provider", choices=["auto", "local", "apfel", "openai"], default="auto")
+    parser.add_argument("--provider", choices=["auto", "local", "ollama", "apfel", "openai"], default="auto")
     parser.add_argument("--json", action="store_true", help="Emit JSON output.")
     parser.add_argument("--output", help="Write reasoning output to a file.")
     return parser
@@ -335,7 +481,7 @@ def interactive_menu() -> None:
         print("=" * 60)
         print("  1. Collect fresh facts & run analysis")
         print("  2. Load facts from file")
-        print(f"  3. Select provider [auto/local/apfel/openai]")
+        print(f"  3. Select provider [auto/local/ollama/apfel/openai]")
         print("  q. Back to main menu")
         print("=" * 60)
 
@@ -348,7 +494,7 @@ def interactive_menu() -> None:
             print("\nCollecting system facts...")
             try:
                 facts = collect_facts(redact=False)
-                providers = ["auto", "local", "apfel", "openai"]
+                providers = ["auto", "local", "ollama", "apfel", "openai"]
                 print("\nAvailable providers:")
                 for i, p in enumerate(providers, 1):
                     print(f"  {i}. {p}")
@@ -372,7 +518,7 @@ def interactive_menu() -> None:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
         elif choice == "3":
-            providers = ["auto", "local", "apfel", "openai"]
+            providers = ["auto", "local", "ollama", "apfel", "openai"]
             print("\nAvailable providers:")
             for i, p in enumerate(providers, 1):
                 print(f"  {i}. {p}")

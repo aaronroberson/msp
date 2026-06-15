@@ -1,6 +1,6 @@
 # msp - macOS Security & Privacy CLI
 
-A comprehensive security and privacy CLI for macOS that combines native commands, Homebrew tools, and Apple Intelligence (via apfel) for real-time monitoring and threat detection.
+A comprehensive security and privacy CLI for macOS that combines native commands, Homebrew tools, and local AI (via Ollama) for real-time monitoring and threat detection.
 
 ## Features
 
@@ -9,7 +9,7 @@ A comprehensive security and privacy CLI for macOS that combines native commands
 - **File Watching** - Real-time filesystem monitoring
 - **Traffic Analysis** - DNS queries, HTTP traffic, packet capture
 - **Security Scanner** - Code signatures, Gatekeeper, heuristic detection
-- **AI Integration** - Apple Intelligence-powered analysis via `apfel`
+- **AI Integration** - Local AI-powered analysis via `ollama`
 - **Method Chaining** - Build and run custom monitoring workflows
 - **Dependency Manager** - Auto-install required tools
 
@@ -140,7 +140,30 @@ msp ask watch               # Interactive monitoring mode
 msp ask suggest             # Hardening suggestions
 ```
 
-Note: `msp ask` automatically includes network context (established connections, listening ports) for network-related questions.
+Note: `msp ask` automatically includes network context (established connections, listening ports) for network-related questions. Requires `ollama serve` to be running (or `apfel` as fallback).
+
+### AI Model Configuration
+
+The default model is **`qwen2.5-coder:1.5b`** — an ultra-small code-specialized model (~1GB RAM) that runs on any Mac without crashing. Configure via environment variables:
+
+```bash
+# Use a larger model (requires more RAM):
+export OLLAMA_MODEL="llama3.2"
+
+# Point to a remote Ollama instance:
+export OLLAMA_BASE_URL="http://192.168.1.100:11434"
+
+# Explicit provider selection:
+export MSP_LLM_PROVIDER="apfel"    # Apple Intelligence fallback
+export MSP_LLM_PROVIDER="openai"   # Requires OPENAI_API_KEY
+export MSP_LLM_PROVIDER="local"    # Offline heuristic (no LLM needed)
+```
+
+Usage hints:
+- **First time**: `ollama pull qwen2.5-coder:1.5b` (downloads ~1GB)
+- **Start server**: `ollama serve` (runs in background)
+- **Check memory**: If your system feels sluggish, try `ollama pull granite-code:3b` (3B, ~2GB) or stick with the default 1.5B
+- **No Ollama?** apfel serves as automatic fallback if installed
 
 ### Method Chaining (`msp chain`)
 ```bash
@@ -175,7 +198,7 @@ Run `msp doctor` to check and install dependencies.
 | Package | Description | Auto-install |
 |---------|-------------|--------------|
 | fswatch | File system watcher | ✓ |
-| apfel | Apple Intelligence | ✓ (already installed) |
+| ollama | Local LLM (privacy-first) | ✓ |
 | processmonitor | Process monitoring (Objective-See) | Prompt |
 | knockknock | Startup scanner (Objective-See) | Prompt |
 | wireshark | Packet analyzer (tshark CLI) | Prompt |
@@ -183,7 +206,7 @@ Run `msp doctor` to check and install dependencies.
 
 ## Privacy
 
-- All data stays local (apfel is onboard Apple Intelligence)
+- All data stays local (Ollama runs on-device open-source models)
 - Sensitive data (IPs, hostnames) are masked in output
 - No outbound network calls
 - No telemetry or analytics

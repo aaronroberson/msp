@@ -1,7 +1,7 @@
 # msp Implementation Plan
 
 ## Overview
-Comprehensive macOS security and privacy CLI integrating native commands, Homebrew tools, and Apple Intelligence for real-time monitoring and threat detection.
+Comprehensive macOS security and privacy CLI integrating native commands, Homebrew tools, and local AI (Ollama) for real-time monitoring and threat detection.
 
 ## Dependencies
 
@@ -12,7 +12,8 @@ Comprehensive macOS security and privacy CLI integrating native commands, Homebr
 | knockknock | brew cask | No | Prompt |
 | wireshark | brew | No | Prompt |
 | somo | brew | No | Prompt |
-| apfel | brew | Yes | ✓ (installed) |
+| ollama | brew | Yes | ✓ |
+| apfel | brew | No | Prompt (fallback) |
 
 ## Modules
 
@@ -61,11 +62,11 @@ Comprehensive macOS security and privacy CLI integrating native commands, Homebr
 - `report`: JSON + human-readable
 
 ### 7. ai.py - AI Integration
-- `ask "prompt"`: Call `apfel "prompt"`
+- `ask "prompt"`: Chat with local LLM via Ollama (fallback: apfel)
 - `ask "prompt" -f scan.json`: Attach file
-- `analyze <module>`: Run module, pass to apfel
+- `analyze <module>`: Run module, pass to LLM
 - `watch`: Interactive scan → analyze → prompt → act
-- Privacy: All data stays local via apfel
+- Privacy: All data stays local via Ollama / apfel
 
 ### 8. chain.py - Method Chaining
 - `define <name> "cmd1 | cmd2"`: Save to `~/.msp/chains.json`
@@ -78,7 +79,8 @@ Comprehensive macOS security and privacy CLI integrating native commands, Homebr
 ## Privacy & Confirmation Rules
 
 - **Data masking**: IPs partially obscured, paths anonymized
-- **Onboard AI**: apfel stays local - no outbound calls
+- **Onboard AI**: Ollama (primary) / apfel (fallback) — all local, no outbound calls
+- **Ollama models**: `brew install ollama && ollama pull llama3.2` for default model
 - **Confirmation levels**:
   - System apps: Always confirm
   - User apps: Auto-allow with warning
@@ -103,7 +105,7 @@ Comprehensive macOS security and privacy CLI integrating native commands, Homebr
 4. fswatch.py - File watching
 5. traffic.py - Traffic analysis
 6. scanner.py - Security scan
-7. ai.py - Apfel integration
+7. ai.py - Ollama integration (apfel fallback)
 8. chain.py - Method chaining
 9. main.py - Updated dispatcher
 10. Documentation

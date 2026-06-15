@@ -9,15 +9,25 @@
       "install_cmd": "brew install fswatch",
       "verify_cmd": "which fswatch"
     },
-    "apfel": {
-      "name": "apfel",
-      "description": "Apple Intelligence from the command line",
+    "ollama": {
+      "name": "ollama",
+      "description": "Local LLM inference server (privacy-first AI)",
       "type": "formula",
       "required": true,
       "auto_install": true,
+      "install_cmd": "brew install ollama",
+      "verify_cmd": "ollama --version",
+      "note": "Run 'ollama serve' to start, then 'ollama pull qwen2.5-coder:1.5b' (~1GB RAM, runs on any Mac)"
+    },
+    "apfel": {
+      "name": "apfel",
+      "description": "Apple Intelligence from the command line (fallback)",
+      "type": "formula",
+      "required": false,
+      "auto_install": false,
       "install_cmd": "brew install apfel",
       "verify_cmd": "which apfel",
-      "note": "Already installed"
+      "note": "Optional fallback when Ollama is unavailable"
     },
     "processmonitor": {
       "name": "ProcessMonitor",

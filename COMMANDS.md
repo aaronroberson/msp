@@ -185,7 +185,8 @@ The CLI can be invoked as `msp`, `mpc`, or `mac-privacy`. All commands support `
 
 **Flags:** `--json`, `--fix` (alias for `fix` subcommand)
 
-**Auto-installed:** fswatch, apfel
+**Auto-installed:** fswatch, ollama
+**Optional:** apfel (Apple Intelligence fallback)
 **Prompt to install:** processmonitor, knockknock, wireshark, somo
 
 ---

@@ -432,33 +432,87 @@ Examples:
 
         prompt = " ".join(args.args)
 
-        # Auto-include network data for network-related questions
-        network_keywords = ["network", "connection", "connections", "port", "listen", "outbound", "inbound", "traffic", "firewall"]
+        # --- Collect system diagnostics for every ask query ---
+        import subprocess as _subprocess
+
+        def _sh(cmd: str, timeout: int = 10) -> str:
+            try:
+                r = _subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+                return r.stdout.strip() if r.returncode == 0 else ""
+            except Exception:
+                return ""
+
+        context_parts = []
+
+        # System overview
+        uptime_out = _sh("uptime")
+        if uptime_out:
+            context_parts.append(f"### Uptime & Load\n{uptime_out}")
+
+        # Top CPU processes
+        cpu_out = _sh("ps axo pid,pcpu,pmem,comm -r | head -20")
+        if cpu_out:
+            context_parts.append(f"### Top CPU Processes\n{cpu_out}")
+
+        # Top memory processes
+        mem_out = _sh("ps axo pid,pcpu,pmem,comm -m | head -20")
+        if mem_out:
+            context_parts.append(f"### Top Memory Processes\n{mem_out}")
+
+        # Memory pressure
+        mempressure_out = _sh("memory_pressure 2>/dev/null | head -15 || vm_stat 2>/dev/null | head -20")
+        if mempressure_out:
+            context_parts.append(f"### Memory Pressure\n{mempressure_out}")
+
+        # Swap
+        swap_out = _sh("sysctl vm.swapusage 2>/dev/null")
+        if swap_out:
+            context_parts.append(f"### Swap\n{swap_out}")
+
+        # Disk
+        disk_out = _sh("df -h / 2>/dev/null")
+        if disk_out:
+            context_parts.append(f"### Disk Usage\n{disk_out}")
+
+        # Thermal state
+        therm_out = _sh("pmset -g therm 2>/dev/null")
+        if therm_out:
+            context_parts.append(f"### Thermal State\n{therm_out}")
+
+        # Network data for network-related questions
+        network_keywords = ["network", "connection", "connections", "port", "listen", "outbound",
+                           "inbound", "traffic", "firewall", "slow", "freeze", "freezing",
+                           "hang", "lag", "bandwidth", "internet", "wifi"]
         if any(kw in prompt.lower() for kw in network_keywords):
             nm = NetworkMonitor()
             established = nm.list_established()
             listening = nm.list_listening()
 
-            context = "\n\n## Current Network Data:\n\n### Established Connections (first 50):\n"
+            net_lines = []
+            net_lines.append("### Established Connections (first 50)")
             if established:
                 for c in established[:50]:
                     local = getattr(c, 'local', getattr(c, 'host', '*')) or '*'
                     remote = getattr(c, 'remote', getattr(c, 'peer', '')) or ''
                     proc = getattr(c, 'process', getattr(c, 'name', '')) or ''
-                    context += f"- {local} -> {remote} | {proc}\n"
+                    net_lines.append(f"  {local} -> {remote} | {proc}")
             else:
-                context += "None\n"
+                net_lines.append("  None")
 
-            context += "\n### Listening Ports (first 30):\n"
+            net_lines.append("")
+            net_lines.append("### Listening Ports (first 30)")
             if listening:
                 for c in listening[:30]:
                     port = getattr(c, 'port', '?') or '?'
                     proc = getattr(c, 'process', getattr(c, 'name', '')) or ''
-                    context += f"- *:{port} | {proc}\n"
+                    net_lines.append(f"  *:{port} | {proc}")
             else:
-                context += "None\n"
+                net_lines.append("  None")
 
-            prompt = f"{prompt}\n\n{context}"
+            context_parts.append("\n".join(net_lines))
+
+        if context_parts:
+            prompt = f"{prompt}\n\n## Live System Diagnostics\n\n" + "\n\n".join(context_parts)
 
         data = None
         if "--data" in args.args:

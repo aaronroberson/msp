@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import os
 import re
+import select
 import shlex
 import subprocess
 import sys
+import termios
 import time
+import tty
 from dataclasses import asdict, dataclass
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
 try:
     import argcomplete
@@ -253,3 +256,153 @@ def _error_result(
         ),
         error=exc.__class__.__name__,
     )
+
+
+# ── Interactive terminal UI ──────────────────────────────────────────────
+
+Item = Tuple[str, str, Optional[str]]  # (value, label, description)
+
+
+def interactive_select(
+    items: List[Item],
+    *,
+    title: str = "",
+    multi: bool = False,
+) -> Optional[List[str]]:
+    """Arrow-key navigable, Tab-toggle terminal selector.
+
+    Args:
+        items: list of (value, label, description) tuples.
+        title: header displayed above the list.
+        multi: if True, Tab toggles selection and Enter confirms all
+               selected. If False, Enter immediately selects the item
+               under the cursor.
+
+    Returns:
+        List of selected values, or None if cancelled.
+    """
+    if not items:
+        return None
+
+    n = len(items)
+    cursor = 0
+    selected: set[int] = set()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+
+    HIDE = "\033[?25l"
+    SHOW = "\033[?25h"
+    CLR = "\033[2K"
+    BOLD = "\033[1m"
+    RST = "\033[0m"
+    CYN = "\033[36m"
+    GRN = "\033[32m"
+    GRAY = "\033[90m"
+
+    def render() -> str:
+        lines: List[str] = []
+        if title:
+            lines.append(f"  {BOLD}{title}{RST}")
+        help_text = "(↑↓ navigate, ↵ select, q quit)"
+        if multi:
+            help_text = "(↑↓ navigate, ⭾ toggle, ↵ execute, q quit)"
+        lines.append(f"  {GRAY}{help_text}{RST}\n")
+        for i, item in enumerate(items):
+            _, label, desc = item
+            prefix = "▸" if i == cursor else " "
+            if multi:
+                check = "☑" if i in selected else "☐"
+                display = f" {prefix} {CYN if i == cursor else RST}{check} {label}{RST}"
+            else:
+                display = f" {prefix} {CYN if i == cursor else RST}{label}{RST}"
+            if desc and i == cursor:
+                display += f"  {GRAY}{desc}{RST}"
+            lines.append(display)
+        lines.append("")
+        return "\n".join(lines)
+
+    def count() -> int:
+        return n + 3  # title + help + blank + n items
+
+    try:
+        tty.setraw(fd)
+        sys.stdout.write(HIDE)
+        sys.stdout.flush()
+
+        while True:
+            rendered = render()
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+
+            raw = b""
+            while True:
+                b = os.read(fd, 1)
+                raw += b
+                if b == b"\x1b":
+                    raw += os.read(fd, 2)
+                break
+
+            key = raw.decode("utf-8", errors="replace")
+
+            sys.stdout.write(f"\033[{count()}A")
+            for _ in range(count()):
+                sys.stdout.write(CLR)
+                sys.stdout.write("\033[B" if _ < count() - 1 else "")
+            sys.stdout.write(f"\033[{count()}A")
+
+            if key == "\r" or key == "\n":
+                if multi:
+                    if selected:
+                        break
+                else:
+                    selected.add(cursor)
+                    break
+            elif key == "q":
+                selected.clear()
+                break
+            elif key == "\t" or key == " ":
+                if multi:
+                    if cursor in selected:
+                        selected.remove(cursor)
+                    else:
+                        selected.add(cursor)
+            elif key == "\x1b[A" and cursor > 0:
+                cursor -= 1
+            elif key == "\x1b[B" and cursor < n - 1:
+                cursor += 1
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        sys.stdout.write(SHOW)
+        for _ in range(count()):
+            sys.stdout.write(CLR)
+            sys.stdout.write("\n")
+        sys.stdout.write(f"\033[{count()}A")
+        sys.stdout.flush()
+
+    return [items[i][0] for i in sorted(selected)] if selected else None
+
+
+def interactive_menu(
+    actions: List[Tuple[str, str, str]],
+    *,
+    title: str = "",
+    back_label: str = "Back",
+) -> Optional[str]:
+    """Convenience wrapper around *interactive_select* for menu navigation.
+
+    Args:
+        actions: list of (value, label, description) tuples.
+        title: header text.
+        back_label: label for the implicit back/quit option.
+
+    Returns:
+        Selected value string, or None if user hit back/quit.
+    """
+    menu_items: List[Item] = []
+    for val, label, desc in actions:
+        menu_items.append((val, label, desc))
+
+    result = interactive_select(menu_items, title=title, multi=False)
+    if result is None:
+        return None
+    return result[0] if result else None
