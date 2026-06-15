@@ -10,6 +10,8 @@ from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 from dataclasses import dataclass, asdict
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -532,6 +534,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["name", "type", "steps"], help="Sort by: name, type, steps")
+    setup_completion(parser)
     args = parser.parse_args()
 
     manager = ChainManager(verbose=args.verbose)
