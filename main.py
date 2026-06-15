@@ -21,6 +21,11 @@ Commands:
     scan               Security scanning
     tcc                App privacy permissions
     audit              Rule-based security audit
+    interrogate        Normalized fact collection
+    reason             Optional LLM/local reasoning over evidence
+    remediate          Plan and apply conservative remediations
+    report             Generate evidence reports
+    workflow           Built-in interrogation workflows
 
     ask                AI-powered analysis
     chain              Method chaining
@@ -33,6 +38,7 @@ import sys
 import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from src.command import setup_completion, suggest_command
 
 
 COMMAND_MODULES = {
@@ -44,6 +50,13 @@ COMMAND_MODULES = {
     "tcc": "tcc",
     "audit": "rules",
     "rules": "rules",
+    "interrogate": "facts",
+    "facts": "facts",
+    "reason": "llm",
+    "remediate": "remediate",
+    "report": "report",
+    "workflow": "workflows",
+    "workflows": "workflows",
     "snapshot": "snapshot",
     "sharing": "sharing",
     "security": "security",
@@ -51,6 +64,8 @@ COMMAND_MODULES = {
     "doctor": "deps",
     "deps": "deps",
 }
+
+NO_ACTION_MODULES = {"facts", "llm", "report"}
 
 
 def run_command(module_name: str, command: str, args: list, global_args: dict = None):
@@ -174,7 +189,8 @@ def main():
 Commands:
   status, list, enable, disable - Privacy settings
   net, startup, fswatch, traffic - Monitoring
-  scan, tcc, audit, ask, chain, doctor - Security & AI
+  scan, tcc, interrogate, audit, reason, remediate, report, workflow - Security suite
+  ask, chain, doctor - AI, automation & dependencies
 
 Examples:
   msp status                       Show security status
@@ -197,6 +213,12 @@ Examples:
 
   msp scan quick                     Quick security scan
   msp scan deep                      Deep scan
+  msp interrogate --json             Collect normalized facts
+  msp audit --profile personal       Evaluate facts from stdin
+  msp reason --facts facts.json      Reason over evidence
+  msp remediate plan findings.json   Build remediation plan
+  msp report --facts facts.json --findings findings.json --format md --output report.md
+  msp workflow list                  List built-in workflows
 
   msp ask "what's suspicious?"      AI analysis
   msp chain run daily               Run daily check
@@ -208,11 +230,23 @@ Examples:
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination", "state"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination, state")
+    parser.add_argument("--install-completion", action="store_true", help="Install shell completion for bash/zsh")
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
 
+    setup_completion(parser)
     args, unknown_args = parser.parse_known_args()
     args.args.extend(unknown_args)
+
+    if args.install_completion:
+        script = "msp"
+        print(f"To install shell completion for {script}, add this to your ~/.bashrc or ~/.zshrc:")
+        print()
+        print(f"  eval \"$(register-python-argcomplete {script})\"")
+        print()
+        print("Then restart your shell or run:")
+        print(f"  source ~/.bashrc  # or ~/.zshrc")
+        return
 
     if not args.command:
         # Interactive mode via privacy_settings module
@@ -444,6 +478,10 @@ Examples:
         if not args.args:
             # No args - run interactive mode
             run_command(module_name, "", [], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
+        elif module_name == "report":
+            run_command(module_name, "", args.args, None)
+        elif module_name in NO_ACTION_MODULES:
+            run_command(module_name, "", args.args, {"json": args.json, "verbose": False, "sort": None})
         elif module_name == "rules":
             run_command(module_name, "", args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
         elif module_name == "deps":
@@ -453,8 +491,7 @@ Examples:
             # Pass first arg as action
             run_command(module_name, args.args[0], args.args[1:], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
     else:
-        print(f"Unknown command: {command}")
-        print("Run 'msp --help' for available commands.")
+        suggest_command(command, list(COMMAND_MODULES.keys()) + ["status", "list", "enable", "disable", "preset", "services", "snapshot", "sharing", "security", "ask"])
 
 
 if __name__ == "__main__":

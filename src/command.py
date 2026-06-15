@@ -6,9 +6,37 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass
-from typing import Mapping, Optional, Sequence, Union
+from typing import Any, Mapping, Optional, Sequence, Union
+
+try:
+    import argcomplete
+    HAS_ARGCOMPLETE = True
+except ImportError:
+    HAS_ARGCOMPLETE = False
+
+
+def setup_completion(parser: Any) -> None:
+    """Enable argcomplete shell completion for *parser* when available."""
+    if HAS_ARGCOMPLETE:
+        try:
+            argcomplete.autocomplete(parser)
+        except Exception:
+            pass
+
+
+def suggest_command(cmd: str, commands: Sequence[str]) -> None:
+    """Print a suggestion when an unknown command is entered."""
+    from difflib import get_close_matches
+    matches = [m for m in get_close_matches(cmd, commands, n=3, cutoff=0.4) if m != cmd]
+    if matches:
+        print(f"Unknown command: {cmd}")
+        print(f"Did you mean? {', '.join(matches)}")
+    else:
+        print(f"Unknown command: {cmd}")
+    print("Run 'msp --help' for available commands.")
 
 
 Command = Union[str, Sequence[str]]
