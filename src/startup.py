@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -1152,6 +1154,7 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive mode")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status"], default="name", help="Sort by: name, label, pid, type, path, status")
+    setup_completion(parser)
     args = parser.parse_args()
 
     manager = StartupManager(verbose=args.verbose)
@@ -1280,6 +1283,8 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
         ("11", "start", "Start a disabled daemon"),
         ("12", "disable", "Disable a startup item"),
         ("13", "enable", "Enable a startup item"),
+        ("14", "inventory", "Full startup/persistence inventory"),
+        ("15", "comprehensive-audit", "Audit all startup items deeply"),
         ("q", "quit", "Exit"),
     ]
 
@@ -1292,11 +1297,11 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
         print(f"       Current sort: {current_sort}")
         print("=" * 60)
         for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<12} - {desc}")
+            print(f"  {key:>2}. {action:<20} - {desc}")
         print("  s. sort      - Change sort order")
         print("=" * 60)
 
-        choice = input("\nSelect action [1-13, s, q]: ").strip().lower()
+        choice = input("\nSelect action [1-15, s, q]: ").strip().lower()
 
         if choice == "q" or choice == "quit":
             print("Goodbye!")
@@ -1333,6 +1338,8 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
             "11": "start",
             "12": "disable",
             "13": "enable",
+            "14": "inventory",
+            "15": "comprehensive-audit",
         }
 
         if choice in action_map:
@@ -1424,6 +1431,16 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
                     manager.enable(label)
             else:
                 print("Label required")
+        elif action == "inventory":
+            manager.comprehensive_inventory(json_output=json_output)
+        elif action == "comprehensive-audit":
+            results = manager.comprehensive_audit(json_output=json_output)
+            if results and not json_output:
+                print(f"\nFound {len(results)} item(s) requiring review.")
+                for r in results:
+                    print(f"\n[{r.get('risk', 'INFO')}] {r['item']}")
+                    for reason in r.get('reasons', []):
+                        print(f"  └ {reason}")
         else:
             print(f"Unknown action: {action}")
 

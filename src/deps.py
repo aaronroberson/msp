@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List, Dict, Any
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -334,6 +336,7 @@ def main():
     parser.add_argument("--install", metavar="PKG", help="Install specific package")
     parser.add_argument("--check", metavar="PKG", help="Check specific package")
     parser.add_argument("--sort", choices=["name", "status", "required"], help="Sort by: name, status, required")
+    setup_completion(parser)
     args = parser.parse_args()
 
     manager = DependencyManager()

@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -474,6 +476,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["timestamp", "call", "process", "path", "age", "directory", "warning"], help="Sort by: timestamp, call, process, path, age, directory, warning")
+    setup_completion(parser)
     args = parser.parse_args()
 
     watcher = FileWatcher(verbose=args.verbose)
