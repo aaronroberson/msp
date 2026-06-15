@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -411,6 +413,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["port", "process", "pid", "user", "protocol", "local", "remote", "total", "in", "out"], help="Sort by: port, process, pid, user, protocol, local, remote, total, in, out")
+    setup_completion(parser)
     args = parser.parse_args()
 
     monitor = NetworkMonitor(verbose=args.verbose)
