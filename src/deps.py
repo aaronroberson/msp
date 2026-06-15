@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List, Dict, Any
 
-from src.command import setup_completion, suggest_command
+from src.command import (
+    setup_completion,
+    suggest_command,
+    interactive_menu as cmd_interactive_menu,
+    interactive_select,
+)
 
 try:
     from rich.console import Console
@@ -246,59 +251,31 @@ def interactive_menu(manager: DependencyManager, json_output: bool = False):
         ("3", "install", "Install a package"),
         ("4", "fix", "Install missing required deps"),
         ("5", "install-all", "Install all missing packages"),
-        ("q", "quit", "Exit"),
     ]
 
     sort_options = ["name", "status", "required"]
     current_sort = "name"
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Dependency Manager - Interactive Mode")
-        print(f"       Current sort: {current_sort}")
-        print("=" * 60)
-        for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<14} - {desc}")
-        print("  s. sort      - Change sort order")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("1", "status", "Show all dependency status"),
+            ("2", "check", "Check a specific package"),
+            ("3", "install", "Install a package"),
+            ("4", "fix", "Install missing required deps"),
+            ("5", "install-all", "Install all missing packages"),
+            ("s", "sort", f"Change sort order (current: {current_sort})"),
+        ], title="Dependency Manager - Interactive Mode")
 
-        choice = input("\nSelect action [1-5, s, q]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
 
-        if choice == "s" or choice == "sort":
-            print("\nSort options:")
-            for i, opt in enumerate(sort_options, 1):
-                marker = " *" if opt == current_sort else ""
-                print(f"  {i}. {opt}{marker}")
-            sort_choice = input(f"\nSelect sort [1-{len(sort_options)}]: ").strip()
-            try:
-                idx = int(sort_choice) - 1
-                if 0 <= idx < len(sort_options):
-                    current_sort = sort_options[idx]
-                    print(f"Sort set to: {current_sort}")
-                else:
-                    print("Invalid choice")
-            except ValueError:
-                print("Invalid choice")
-            continue
-
-        action_map = {
-            "1": "status",
-            "2": "check",
-            "3": "install",
-            "4": "fix",
-            "5": "install-all",
-        }
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            print(f"Invalid choice: {choice}")
+        if action == "s":
+            sort_items = [(o, o + (" *" if o == current_sort else ""), None) for o in sort_options]
+            sort_val = interactive_select(sort_items, title="Sort options")
+            if sort_val:
+                current_sort = sort_val[0]
+                print(f"Sort set to: {current_sort}")
             continue
 
         if action == "status":

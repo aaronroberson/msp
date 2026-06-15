@@ -12,7 +12,12 @@ from io import StringIO
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from src.command import setup_completion, suggest_command
+from src.command import (
+    setup_completion,
+    suggest_command,
+    interactive_menu as cmd_interactive_menu,
+    interactive_select,
+)
 
 try:
     from rich.console import Console
@@ -825,7 +830,6 @@ def interactive_menu(manager: SnapshotManager, json_output: bool = False):
         ("4", "restore", "Restore settings from snapshot"),
         ("5", "watch", "Watch snapshot for drift"),
         ("6", "delete", "Delete a snapshot"),
-        ("q", "quit", "Exit"),
     ]
 
     sort_options = {
@@ -834,63 +838,32 @@ def interactive_menu(manager: SnapshotManager, json_output: bool = False):
     current_sort = {"list": "timestamp"}
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Snapshot Manager - Interactive Mode")
-        print("=" * 60)
-        for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<12} - {desc}")
-        print("  s. sort      - Change sort order")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("1", "capture", "Capture current system state"),
+            ("2", "list", "List all snapshots"),
+            ("3", "diff", "Compare current state to snapshot"),
+            ("4", "restore", "Restore settings from snapshot"),
+            ("5", "watch", "Watch snapshot for drift"),
+            ("6", "delete", "Delete a snapshot"),
+            ("s", "sort", "Change sort order"),
+        ], title="Snapshot Manager - Interactive Mode")
 
-        choice = input("\nSelect action [1-6, s, q]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
 
-        if choice == "s" or choice == "sort":
-            print("\nSelect command to change sort for:")
+        if action == "s":
             sortable_actions = [a for a in actions if a[1] in sort_options]
-            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
-                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
-            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
-            try:
-                cmd_idx = int(cmd_choice) - 1
-                if 0 <= cmd_idx < len(sortable_actions):
-                    cmd = sortable_actions[cmd_idx][1]
-                    opts = sort_options[cmd]
-                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
-                    for i, opt in enumerate(opts, 1):
-                        marker = " *" if opt == current_sort[cmd] else ""
-                        print(f"  {i}. {opt}{marker}")
-                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
-                    idx = int(sort_choice) - 1
-                    if 0 <= idx < len(opts):
-                        current_sort[cmd] = opts[idx]
-                        print(f"Sort set to: {current_sort[cmd]}")
-                    else:
-                        print("Invalid choice")
-                else:
-                    print("Invalid choice")
-            except ValueError:
-                print("Invalid choice")
-            continue
-
-        action_map = {
-            "1": "capture",
-            "2": "list",
-            "3": "diff",
-            "4": "restore",
-            "5": "watch",
-            "6": "delete",
-        }
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            print(f"Invalid choice: {choice}")
+            cmd_items = [(a[1], f"{a[2]} (current: {current_sort[a[1]]})", None) for a in sortable_actions]
+            cmd_val = interactive_select(cmd_items, title="Select command to change sort for")
+            if cmd_val:
+                cmd = cmd_val[0]
+                opts = sort_options[cmd]
+                opt_items = [(o, o + (" *" if o == current_sort[cmd] else ""), None) for o in opts]
+                sort_val = interactive_select(opt_items, title="Sort options")
+                if sort_val:
+                    current_sort[cmd] = sort_val[0]
+                    print(f"Sort set to: {current_sort[cmd]}")
             continue
 
         if action == "capture":

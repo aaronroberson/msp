@@ -16,9 +16,23 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 try:
-    from src.command import CommandResult, list_command, setup_completion, suggest_command
+    from src.command import (
+        CommandResult,
+        interactive_menu as cmd_interactive_menu,
+        interactive_select as cmd_interactive_select,
+        list_command,
+        setup_completion,
+        suggest_command,
+    )
 except ImportError:  # pragma: no cover - allows direct module execution during development.
-    from command import CommandResult, list_command, setup_completion, suggest_command  # type: ignore
+    from command import (  # type: ignore
+        CommandResult,
+        interactive_menu as cmd_interactive_menu,
+        interactive_select as cmd_interactive_select,
+        list_command,
+        setup_completion,
+        suggest_command,
+    )
 
 
 SAFETY_LEVELS = ("low", "medium", "high", "destructive")
@@ -695,21 +709,16 @@ def interactive_menu() -> None:
     from .rules import evaluate as rules_evaluate, findings_to_json
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Remediate - Remediation Planning")
-        print("=" * 60)
-        print("  1. Full chain: interrogate → audit → plan")
-        print("  2. Load findings from file & plan")
-        print("  3. Load plan from file & apply")
-        print("  q. Back to main menu")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("1", "Full chain: interrogate → audit → plan", None),
+            ("2", "Load findings from file & plan", None),
+            ("3", "Load plan from file & apply", None),
+        ], title="Remediate - Remediation Planning")
 
-        choice = input("\nSelect action [1-3, q]: ").strip().lower()
-
-        if choice in ("q", "quit"):
+        if action is None:
             break
 
-        if choice == "1":
+        if action == "1":
             print("\nCollecting system facts...")
             try:
                 facts = collect_facts(redact=False)
@@ -718,13 +727,9 @@ def interactive_menu() -> None:
                 payload = json.loads(findings_to_json(findings))
                 planner = RemediationPlanner()
                 safeties = ["informational", "moderate", "aggressive", "destructive"]
-                print("\nSafety levels:")
-                for i, s in enumerate(safeties, 1):
-                    print(f"  {i}. {s}")
-                sel = input(f"\nMax safety [1-{len(safeties)}] (default: destructive): ").strip()
-                max_safety = "destructive"
-                if sel.isdigit() and 1 <= int(sel) <= len(safeties):
-                    max_safety = safeties[int(sel) - 1]
+                items = [(s, s, None) for s in safeties]
+                result = cmd_interactive_select(items, title="Select max safety level")
+                max_safety = result[0] if result else "destructive"
                 plan = planner.plan_from_findings(
                     _extract_findings(payload),
                     max_safety=max_safety,
@@ -733,20 +738,16 @@ def interactive_menu() -> None:
             except Exception as e:
                 print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        elif choice == "2":
+        elif action == "2":
             path = input("Path to findings JSON file: ").strip()
             if path:
                 try:
                     payload = _read_json_file(path)
                     planner = RemediationPlanner()
                     safeties = ["informational", "moderate", "aggressive", "destructive"]
-                    print("\nSafety levels:")
-                    for i, s in enumerate(safeties, 1):
-                        print(f"  {i}. {s}")
-                    sel = input(f"\nMax safety [1-{len(safeties)}] (default: destructive): ").strip()
-                    max_safety = "destructive"
-                    if sel.isdigit() and 1 <= int(sel) <= len(safeties):
-                        max_safety = safeties[int(sel) - 1]
+                    items = [(s, s, None) for s in safeties]
+                    result = cmd_interactive_select(items, title="Select max safety level")
+                    max_safety = result[0] if result else "destructive"
                     plan = planner.plan_from_findings(
                         _extract_findings(payload),
                         max_safety=max_safety,
@@ -755,7 +756,7 @@ def interactive_menu() -> None:
                 except Exception as e:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        elif choice == "3":
+        elif action == "3":
             path = input("Path to plan JSON file: ").strip()
             if path:
                 try:
@@ -767,8 +768,6 @@ def interactive_menu() -> None:
                 except Exception as e:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        else:
-            print("Invalid choice")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

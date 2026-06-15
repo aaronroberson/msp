@@ -16,7 +16,12 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
-from src.command import setup_completion, suggest_command
+from src.command import (
+    interactive_menu as cmd_interactive_menu,
+    interactive_select as cmd_interactive_select,
+    setup_completion,
+    suggest_command,
+)
 
 try:
     from rich.console import Console
@@ -779,31 +784,22 @@ def interactive_menu() -> None:
     from .facts import collect_facts
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Audit - Security Rule Evaluation")
-        print("=" * 60)
-        print("  1. Collect fresh facts & run audit")
-        print("  2. Load facts from file & run audit")
-        print("  3. List available profiles")
-        print("  q. Back to main menu")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("1", "Collect fresh facts & run audit", None),
+            ("2", "Load facts from file & run audit", None),
+            ("3", "List available profiles", None),
+        ], title="Audit - Security Rule Evaluation")
 
-        choice = input("\nSelect action [1-3, q]: ").strip().lower()
-
-        if choice in ("q", "quit"):
+        if action is None:
             break
 
-        if choice == "1":
+        if action == "1":
             print("\nCollecting system facts...")
             facts = collect_facts(redact=False)
             profiles = sorted(PROFILE_DEFINITIONS)
-            print("\nAvailable profiles:")
-            for i, p in enumerate(profiles, 1):
-                print(f"  {i}. {p}")
-            sel = input(f"\nSelect profile [1-{len(profiles)}] (default: personal): ").strip()
-            profile = "personal"
-            if sel.isdigit() and 1 <= int(sel) <= len(profiles):
-                profile = profiles[int(sel) - 1]
+            items = [(p, p, None) for p in profiles]
+            result = cmd_interactive_select(items, title="Select profile")
+            profile = result[0] if result else "personal"
             print(f"\nEvaluating against profile: {profile}")
             findings = evaluate(facts, profile=profile)
             if findings:
@@ -811,19 +807,15 @@ def interactive_menu() -> None:
             else:
                 print("No findings.")
             input("\nPress Enter to continue...")
-        elif choice == "2":
+        elif action == "2":
             path = input("Path to facts JSON file: ").strip()
             if path:
                 try:
                     facts = load_facts(path)
                     profiles = sorted(PROFILE_DEFINITIONS)
-                    print("\nAvailable profiles:")
-                    for i, p in enumerate(profiles, 1):
-                        print(f"  {i}. {p}")
-                    sel = input(f"\nSelect profile [1-{len(profiles)}] (default: personal): ").strip()
-                    profile = "personal"
-                    if sel.isdigit() and 1 <= int(sel) <= len(profiles):
-                        profile = profiles[int(sel) - 1]
+                    items = [(p, p, None) for p in profiles]
+                    result = cmd_interactive_select(items, title="Select profile")
+                    profile = result[0] if result else "personal"
                     findings = evaluate(facts, profile=profile)
                     if findings:
                         print(findings_to_table(findings))
@@ -832,13 +824,11 @@ def interactive_menu() -> None:
                 except Exception as e:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        elif choice == "3":
+        elif action == "3":
             print("\nAvailable profiles:")
             for pid, pdef in PROFILE_DEFINITIONS.items():
                 print(f"\n  {pid}: {pdef.get('description', '')}")
             input("\nPress Enter to continue...")
-        else:
-            print("Invalid choice")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

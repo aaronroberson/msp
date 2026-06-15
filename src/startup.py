@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from src.command import setup_completion, suggest_command
+from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 
 try:
     from rich.console import Console
@@ -1269,85 +1269,38 @@ def main():
 
 def interactive_menu(manager: StartupManager, json_output: bool = False):
     """Interactive menu for startup management."""
-    actions = [
-        ("1", "list", "List all startup items"),
-        ("2", "running", "List running daemons (with PIDs)"),
-        ("3", "disabled", "List disabled daemons (plist exists, not running)"),
-        ("4", "agents", "List user launch agents only"),
-        ("5", "daemons", "List system launch daemons only"),
-        ("6", "cron", "List cron jobs"),
-        ("7", "audit", "Audit for suspicious items"),
-        ("8", "summary", "Quick risk summary"),
-        ("9", "search", "Search items by name/label"),
-        ("10", "pause", "Pause a running daemon"),
-        ("11", "start", "Start a disabled daemon"),
-        ("12", "disable", "Disable a startup item"),
-        ("13", "enable", "Enable a startup item"),
-        ("14", "inventory", "Full startup/persistence inventory"),
-        ("15", "comprehensive-audit", "Audit all startup items deeply"),
-        ("q", "quit", "Exit"),
-    ]
-
     sort_options = ["name", "label", "pid", "type", "path", "status"]
     current_sort = "name"
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Startup Manager - Interactive Mode")
-        print(f"       Current sort: {current_sort}")
-        print("=" * 60)
-        for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<20} - {desc}")
-        print("  s. sort      - Change sort order")
-        print("=" * 60)
+        action = cmd_menu([
+            ("list", "list", "List all startup items"),
+            ("running", "running", "List running daemons (with PIDs)"),
+            ("disabled", "disabled", "List disabled daemons (plist exists, not running)"),
+            ("agents", "agents", "List user launch agents only"),
+            ("daemons", "daemons", "List system launch daemons only"),
+            ("cron", "cron", "List cron jobs"),
+            ("audit", "audit", "Audit for suspicious items"),
+            ("summary", "summary", "Quick risk summary"),
+            ("search", "search", "Search items by name/label"),
+            ("pause", "pause", "Pause a running daemon"),
+            ("start", "start", "Start a disabled daemon"),
+            ("disable", "disable", "Disable a startup item"),
+            ("enable", "enable", "Enable a startup item"),
+            ("inventory", "inventory", "Full startup/persistence inventory"),
+            ("comprehensive-audit", "comprehensive-audit", "Audit all startup items deeply"),
+            ("sort", "sort", f"Change sort order (current: {current_sort})"),
+        ], title="Startup Manager - Interactive Mode")
 
-        choice = input("\nSelect action [1-15, s, q]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
 
-        if choice == "s" or choice == "sort":
-            print("\nSort options:")
-            for i, opt in enumerate(sort_options, 1):
-                marker = " *" if opt == current_sort else ""
-                print(f"  {i}. {opt}{marker}")
-            sort_choice = input("\nSelect sort [1-6]: ").strip()
-            try:
-                idx = int(sort_choice) - 1
-                if 0 <= idx < len(sort_options):
-                    current_sort = sort_options[idx]
-                    print(f"Sort set to: {current_sort}")
-                else:
-                    print("Invalid choice")
-            except ValueError:
-                print("Invalid choice")
-            continue
-
-        action_map = {
-            "1": "list",
-            "2": "running",
-            "3": "disabled",
-            "4": "agents",
-            "5": "daemons",
-            "6": "cron",
-            "7": "audit",
-            "8": "summary",
-            "9": "search",
-            "10": "pause",
-            "11": "start",
-            "12": "disable",
-            "13": "enable",
-            "14": "inventory",
-            "15": "comprehensive-audit",
-        }
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            print(f"Invalid choice: {choice}")
+        if action == "sort":
+            items = [(o, o, None) for o in sort_options]
+            result = interactive_select(items, title=f"Sort by (current: {current_sort})")
+            if result:
+                current_sort = result[0]
             continue
 
         if action == "list":
@@ -1373,10 +1326,10 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
                     if r.get('path'):
                         print(f"  Path: {r['path']}")
 
-                    action = input("  Action? [d]isable, [s]kip, [q]uit: ").strip().lower()
-                    if action == 'd':
+                    ynaction = input("  Action? [d]isable, [s]kip, [q]uit: ").strip().lower()
+                    if ynaction == 'd':
                         manager.disable(r['item'], force=True)
-                    elif action == 'q':
+                    elif ynaction == 'q':
                         break
         elif action == "summary":
             results = manager.audit(json_output=True)
@@ -1441,8 +1394,6 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
                     print(f"\n[{r.get('risk', 'INFO')}] {r['item']}")
                     for reason in r.get('reasons', []):
                         print(f"  └ {reason}")
-        else:
-            print(f"Unknown action: {action}")
 
         input("\nPress Enter to continue...")
 

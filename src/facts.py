@@ -23,7 +23,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from src.command import setup_completion, suggest_command
+from src.command import (
+    interactive_menu as cmd_interactive_menu,
+    interactive_select as cmd_interactive_select,
+    setup_completion,
+    suggest_command,
+)
 
 try:
     from .network import NetworkMonitor
@@ -482,51 +487,35 @@ def interactive_menu() -> None:
     redact = True
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Interrogate - Fact Collection")
-        print("=" * 60)
-        print("  1. Collect all facts")
-        print("  2. Select sections to collect")
-        print(f"  3. Toggle redaction [{'on' if redact else 'off'}]")
-        print("  4. Save to file")
-        print("  q. Back to main menu")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("1", "Collect all facts", None),
+            ("2", "Select sections to collect", None),
+            (f"3", f"Toggle redaction [{'on' if redact else 'off'}]", None),
+            ("4", "Save to file", None),
+        ], title="Interrogate - Fact Collection")
 
-        choice = input("\nSelect action [1-4, q]: ").strip().lower()
-
-        if choice in ("q", "quit"):
+        if action is None:
             break
 
-        if choice == "1":
+        if action == "1":
             print("\nCollecting facts across all sections...")
             facts = collect_facts(sections=None, redact=redact)
             write_facts(facts)
             input("\nPress Enter to continue...")
-        elif choice == "2":
+        elif action == "2":
             print(f"\nCurrent sections: {', '.join(sections)}")
-            print("Available sections:")
-            for i, sec in enumerate(DEFAULT_SECTIONS, 1):
-                marker = " *" if sec in sections else ""
-                print(f"  {i}. {sec}{marker}")
-            sel = input("\nSelect sections to include (comma-separated numbers, or 'all'): ").strip()
-            if sel.lower() == "all":
-                sections = list(DEFAULT_SECTIONS)
-            elif sel:
-                indices = []
-                for part in sel.split(","):
-                    part = part.strip()
-                    if part.isdigit() and 1 <= int(part) <= len(DEFAULT_SECTIONS):
-                        indices.append(int(part) - 1)
-                if indices:
-                    sections = [DEFAULT_SECTIONS[i] for i in indices]
+            items = [(s, s, None) for s in DEFAULT_SECTIONS]
+            sel_items = cmd_interactive_select(items, title="Select sections to include", multi=True)
+            if sel_items is not None:
+                sections = list(sel_items)
             print(f"\nCollecting facts for: {', '.join(sections)}")
             facts = collect_facts(sections=sections, redact=redact)
             write_facts(facts)
             input("\nPress Enter to continue...")
-        elif choice == "3":
+        elif action == "3":
             redact = not redact
             print(f"Redaction {'on' if redact else 'off'}")
-        elif choice == "4":
+        elif action == "4":
             facts = collect_facts(sections=None, redact=redact)
             path = input("Output file path: ").strip()
             if path:
@@ -535,8 +524,6 @@ def interactive_menu() -> None:
             else:
                 print("No path specified")
             input("\nPress Enter to continue...")
-        else:
-            print("Invalid choice")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

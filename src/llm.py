@@ -21,7 +21,12 @@ from typing import Any, Dict, Iterator, List, Mapping, Optional, Protocol, Seque
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-from src.command import setup_completion, suggest_command
+from src.command import (
+    interactive_menu as cmd_interactive_menu,
+    interactive_select as cmd_interactive_select,
+    setup_completion,
+    suggest_command,
+)
 
 try:
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -476,39 +481,30 @@ def interactive_menu() -> None:
     findings = []
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Reason - LLM Privacy Analysis")
-        print("=" * 60)
-        print("  1. Collect fresh facts & run analysis")
-        print("  2. Load facts from file")
-        print(f"  3. Select provider [auto/local/ollama/apfel/openai]")
-        print("  q. Back to main menu")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("1", "Collect fresh facts & run analysis", None),
+            ("2", "Load facts from file", None),
+            ("3", "Select provider", None),
+        ], title="Reason - LLM Privacy Analysis")
 
-        choice = input("\nSelect action [1-3, q]: ").strip().lower()
-
-        if choice in ("q", "quit"):
+        if action is None:
             break
 
-        if choice == "1":
+        if action == "1":
             print("\nCollecting system facts...")
             try:
                 facts = collect_facts(redact=False)
                 providers = ["auto", "local", "ollama", "apfel", "openai"]
-                print("\nAvailable providers:")
-                for i, p in enumerate(providers, 1):
-                    print(f"  {i}. {p}")
-                sel = input(f"\nSelect provider [1-{len(providers)}] (default: auto): ").strip()
-                provider = "auto"
-                if sel.isdigit() and 1 <= int(sel) <= len(providers):
-                    provider = providers[int(sel) - 1]
+                items = [(p, p, None) for p in providers]
+                result = cmd_interactive_select(items, title="Select provider")
+                provider = result[0] if result else "auto"
                 print(f"\nAnalyzing with provider: {provider}")
                 result = analyze(facts=facts, findings=findings, provider_name=provider)
                 print(json.dumps(result, indent=2, sort_keys=True))
             except Exception as e:
                 print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        elif choice == "2":
+        elif action == "2":
             path = input("Path to facts JSON file: ").strip()
             if path:
                 try:
@@ -517,14 +513,12 @@ def interactive_menu() -> None:
                 except Exception as e:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        elif choice == "3":
+        elif action == "3":
             providers = ["auto", "local", "ollama", "apfel", "openai"]
-            print("\nAvailable providers:")
-            for i, p in enumerate(providers, 1):
-                print(f"  {i}. {p}")
-            sel = input(f"\nSelect provider [1-{len(providers)}]: ").strip()
-            if sel.isdigit() and 1 <= int(sel) <= len(providers):
-                provider = providers[int(sel) - 1]
+            items = [(p, p, None) for p in providers]
+            result = cmd_interactive_select(items, title="Select provider")
+            if result:
+                provider = result[0]
                 print(f"\nAnalyzing with provider: {provider}")
                 try:
                     result = analyze(facts=facts, findings=findings, provider_name=provider)
@@ -532,8 +526,6 @@ def interactive_menu() -> None:
                 except Exception as e:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        else:
-            print("Invalid choice")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

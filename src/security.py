@@ -7,7 +7,7 @@ import os
 import sys
 from typing import Dict, Any
 
-from src.command import setup_completion, suggest_command
+from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 
 try:
     from rich.console import Console
@@ -208,44 +208,18 @@ class SecuritySettings:
 
 def interactive_menu(ss: SecuritySettings, json_output: bool = False):
     """Interactive menu for security settings."""
-    actions = [
-        ("1", "status", "Show current security settings"),
-        ("2", "lock", "Lock screen immediately"),
-        ("3", "sleep", "Put display to sleep"),
-        ("4", "computer-sleep", "Put computer to sleep"),
-        ("5", "set", "Set a security setting"),
-        ("q", "quit", "Exit"),
-    ]
-
     while True:
-        print("\n" + "=" * 60)
-        print("       Security Settings - Interactive Mode")
-        print("=" * 60)
-        for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<16} - {desc}")
-        print("=" * 60)
+        action = cmd_menu([
+            ("status", "status", "Show current security settings"),
+            ("lock", "lock", "Lock screen immediately"),
+            ("sleep", "sleep", "Put display to sleep"),
+            ("computer-sleep", "computer-sleep", "Put computer to sleep"),
+            ("set", "set", "Set a security setting"),
+        ], title="Security Settings - Interactive Mode")
 
-        choice = input("\nSelect action [1-5, q]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
-
-        action_map = {
-            "1": "status",
-            "2": "lock",
-            "3": "sleep",
-            "4": "computer-sleep",
-            "5": "set",
-        }
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            print(f"Invalid choice: {choice}")
-            continue
 
         if action == "status":
             ss.show_status(json_output=json_output)

@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from src.command import setup_completion, suggest_command
+from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 
 try:
     from rich.console import Console
@@ -835,38 +835,31 @@ def valid_bundle_id(value: str) -> bool:
 
 def interactive_menu(manager: TCCManager, json_output: bool = False) -> None:
     """Interactive menu for TCC management."""
-    actions = [
-        ("1", "list", "List all permissions"),
-        ("2", "show", "Show permissions for a service"),
-        ("3", "reset", "Reset permissions via tccutil"),
-        ("4", "backup", "Backup TCC database to JSON"),
-        ("5", "audit", "Audit high-risk permissions"),
-        ("6", "grant", "Grant a permission (unsupported)"),
-        ("7", "revoke", "Revoke a permission (unsupported)"),
-        ("8", "restore", "Restore TCC from backup (unsupported)"),
-        ("q", "quit", "Quit"),
-    ]
     current_sort = "service"
 
     while True:
-        print("\nTCC Manager - Interactive Mode")
-        for key, action, description in actions:
-            print(f"{key}. {action:<8} - {description}")
-        print("s. sort     - Change sort")
+        action = cmd_menu([
+            ("list", "list", "List all permissions"),
+            ("show", "show", "Show permissions for a service"),
+            ("reset", "reset", "Reset permissions via tccutil"),
+            ("backup", "backup", "Backup TCC database to JSON"),
+            ("audit", "audit", "Audit high-risk permissions"),
+            ("grant", "grant", "Grant a permission (unsupported)"),
+            ("revoke", "revoke", "Revoke a permission (unsupported)"),
+            ("restore", "restore", "Restore TCC from backup (unsupported)"),
+            ("sort", "sort", f"Change sort (current: {current_sort})"),
+        ], title="TCC Manager - Interactive Mode")
 
-        choice = input("\nChoice: ").strip().lower()
-        if choice in {"q", "quit", "exit"}:
+        if action is None:
             break
-        if choice == "s":
-            sort = input("Sort by service/client/client_name/allowed/prompt_count/last_modified: ").strip()
-            if sort in {"service", "client", "client_name", "allowed", "prompt_count", "last_modified"}:
-                current_sort = sort
-            else:
-                print("Invalid sort")
-            continue
 
-        action_map = {key: action for key, action, _ in actions}
-        action = action_map.get(choice, choice)
+        if action == "sort":
+            sort_opts = ["service", "client", "client_name", "allowed", "prompt_count", "last_modified"]
+            items = [(s, s, None) for s in sort_opts]
+            result = interactive_select(items, title=f"Sort by (current: {current_sort})")
+            if result:
+                current_sort = result[0]
+            continue
 
         try:
             if action == "list":
@@ -908,8 +901,6 @@ def interactive_menu(manager: TCCManager, json_output: bool = False) -> None:
                     manager.restore(file_path, json_output=json_output)
                 else:
                     print("File path required for restore")
-            else:
-                print(f"Invalid choice: {choice}")
         except ValueError as exc:
             print(f"Error: {exc}", file=sys.stderr)
 

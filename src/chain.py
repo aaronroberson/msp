@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 from dataclasses import dataclass, asdict
 
-from src.command import setup_completion, suggest_command
+from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 
 try:
     from rich.console import Console
@@ -392,81 +392,32 @@ class ChainManager:
 
 def interactive_menu(manager: ChainManager, json_output: bool = False):
     """Interactive menu for chain manager."""
-    actions = [
-        ("1", "list", "List all chains"),
-        ("2", "run", "Run a chain"),
-        ("3", "define", "Define a new chain"),
-        ("4", "delete", "Delete a custom chain"),
-        ("5", "watch", "Watch a chain repeatedly"),
-        ("6", "export", "Export a chain to file"),
-        ("7", "import", "Import a chain from file"),
-        ("q", "quit", "Exit"),
-    ]
-
     sort_options = {
         "list": ["name", "type", "steps"],
     }
     current_sort = {"list": "name"}
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Chain Manager - Interactive Mode")
-        print("=" * 60)
-        for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<12} - {desc}")
-        print("  s. sort      - Change sort order")
-        print("=" * 60)
+        action = cmd_menu([
+            ("list", "list", "List all chains"),
+            ("run", "run", "Run a chain"),
+            ("define", "define", "Define a new chain"),
+            ("delete", "delete", "Delete a custom chain"),
+            ("watch", "watch", "Watch a chain repeatedly"),
+            ("export", "export", "Export a chain to file"),
+            ("import", "import", "Import a chain from file"),
+            ("sort", "sort", f"Change sort order (current: {current_sort['list']})"),
+        ], title="Chain Manager - Interactive Mode")
 
-        choice = input("\nSelect action [1-7, s, q]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
 
-        if choice == "s" or choice == "sort":
-            print("\nSelect command to change sort for:")
-            sortable_actions = [a for a in actions if a[1] in sort_options]
-            for i, (key, action_name, desc) in enumerate(sortable_actions, 1):
-                print(f"  {i}. {desc} (current: {current_sort[action_name]})")
-            cmd_choice = input(f"\nSelect [1-{len(sortable_actions)}]: ").strip()
-            try:
-                cmd_idx = int(cmd_choice) - 1
-                if 0 <= cmd_idx < len(sortable_actions):
-                    cmd = sortable_actions[cmd_idx][1]
-                    opts = sort_options[cmd]
-                    print(f"\nSort options for {sortable_actions[cmd_idx][2]}:")
-                    for i, opt in enumerate(opts, 1):
-                        marker = " *" if opt == current_sort[cmd] else ""
-                        print(f"  {i}. {opt}{marker}")
-                    sort_choice = input(f"\nSelect sort [1-{len(opts)}]: ").strip()
-                    idx = int(sort_choice) - 1
-                    if 0 <= idx < len(opts):
-                        current_sort[cmd] = opts[idx]
-                        print(f"Sort set to: {current_sort[cmd]}")
-                    else:
-                        print("Invalid choice")
-                else:
-                    print("Invalid choice")
-            except ValueError:
-                print("Invalid choice")
-            continue
-
-        action_map = {
-            "1": "list",
-            "2": "run",
-            "3": "define",
-            "4": "delete",
-            "5": "watch",
-            "6": "export",
-            "7": "import",
-        }
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            print(f"Invalid choice: {choice}")
+        if action == "sort":
+            items = [(o, o, None) for o in sort_options["list"]]
+            result = interactive_select(items, title=f"Sort by (current: {current_sort['list']})")
+            if result:
+                current_sort["list"] = result[0]
             continue
 
         if action == "list":

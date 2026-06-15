@@ -73,7 +73,7 @@ from dataclasses import dataclass, asdict
 from typing import Optional, List, Dict, Any, Callable
 from enum import Enum
 
-from .command import HAS_ARGCOMPLETE as ARGCOMPLETE_AVAILABLE, setup_completion, suggest_command
+from .command import HAS_ARGCOMPLETE as ARGCOMPLETE_AVAILABLE, interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 
 try:
     from rich.console import Console
@@ -1025,167 +1025,93 @@ def interactive_menu():
     category_filter = None
     json_output = "--json" in sys.argv
 
-    actions = [
-        ("1", "list", "List privacy/security settings"),
-        ("2", "status", "Show comprehensive security status"),
-        ("3", "enable", "Enable a privacy/security setting"),
-        ("4", "disable", "Disable a privacy/security setting"),
-        ("5", "preset-list", "List available presets"),
-        ("6", "preset-apply", "Apply a preset configuration"),
-        ("7", "services", "List running services"),
-        ("8", "preset-save", "Save current settings as a preset"),
-        ("9", "preset-delete", "Delete a saved preset"),
-        *INTERACTIVE_MODULES,
-        ("q", "quit", "Exit"),
-    ]
-
-    options_hint = "1-9, 10-27, s, c, q"
-
     categories = [c.value for c in SettingCategory]
 
     while True:
-        print("\n" + "=" * 60)
-        print("       msp - macOS Security & Privacy")
-        print("=" * 60)
-        sort_label = sort_by or "name"
-        cat_label = category_filter or "all"
-        print(f"  Sort: [{sort_label}]  Category: [{cat_label}]")
-        print(f"  (press 's' to change sort, 'c' to filter by category)")
-        print("-" * 60)
+        action = cmd_menu([
+            ("list", "list", "List privacy/security settings"),
+            ("status", "status", "Show comprehensive security status"),
+            ("enable", "enable", "Enable a privacy/security setting"),
+            ("disable", "disable", "Disable a privacy/security setting"),
+            ("preset-list", "preset-list", "List available presets"),
+            ("preset-apply", "preset-apply", "Apply a preset configuration"),
+            ("services", "services", "List running services"),
+            ("preset-save", "preset-save", "Save current settings as a preset"),
+            ("preset-delete", "preset-delete", "Delete a saved preset"),
+        ] + [
+            (a, a, d) for _, a, d in INTERACTIVE_MODULES
+        ] + [
+            ("sort", f"sort [{sort_by}]", "Change sort order"),
+            ("category", f"category [{category_filter or 'all'}]", "Filter by category"),
+        ], title="msp - macOS Security & Privacy")
 
-        # Print privacy settings section
-        print("  -- Privacy Settings --")
-        for key, action, desc in actions:
-            if action == "list":
-                print(f"  {key:>2}. {action:<16} - {desc}")
-            elif action in ("status", "enable", "disable", "preset-list", "preset-apply", "services", "preset-save", "preset-delete"):
-                print(f"  {key:>2}. {action:<16} - {desc}")
-        print("  " + "-" * 56)
-
-        # Print other tools section
-        print("  -- Other Tools --")
-        for key, action, desc in INTERACTIVE_MODULES:
-            print(f"  {key:>2}. {action:<16} - {desc}")
-
-        print("  " + "-" * 56)
-        print(f"  {'s':>2}. {'sort':<16} - Change sort order")
-        print(f"  {'c':>2}. {'category':<16} - Filter by category")
-        print(f"  {'q':>2}. {'quit':<16} - Exit")
-        print("=" * 60)
-
-        choice = input(f"\nSelect action [{options_hint}]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
 
-        if choice == "s":
+        if action == "sort":
             sort_keys = ["name", "category", "state"]
-            print(f"\nCurrent sort: {sort_by}")
-            for i, k in enumerate(sort_keys, 1):
-                marker = " *" if k == sort_by else ""
-                print(f"  {i}. {k}{marker}")
-            s_choice = input(f"\nSelect sort [1-{len(sort_keys)}]: ").strip()
-            if s_choice.isdigit() and 1 <= int(s_choice) <= len(sort_keys):
-                sort_by = sort_keys[int(s_choice) - 1]
+            items = [(k, k, None) for k in sort_keys]
+            result = interactive_select(items, title=f"Sort (current: {sort_by})")
+            if result:
+                sort_by = result[0]
             continue
 
-        if choice == "c":
-            print(f"\nCurrent filter: {category_filter or 'all'}")
-            print("  0. all")
-            for i, cat in enumerate(categories, 1):
-                marker = " *" if cat == category_filter else ""
-                print(f"  {i}. {cat}{marker}")
-            c_choice = input(f"\nSelect category [0-{len(categories)}]: ").strip()
-            if c_choice == "0":
-                category_filter = None
-            elif c_choice.isdigit() and 1 <= int(c_choice) <= len(categories):
-                category_filter = categories[int(c_choice) - 1]
+        if action == "category":
+            items = [("all", "all", "No filter")] + [(cat, cat, None) for cat in categories]
+            result = interactive_select(items, title=f"Category filter (current: {category_filter or 'all'})")
+            if result:
+                val = result[0]
+                category_filter = None if val == "all" else val
             continue
 
-        # Build action map: privacy settings + interactive modules
-        action_map = {
-            "1": "list",
-            "2": "status",
-            "3": "enable",
-            "4": "disable",
-            "5": "preset-list",
-            "6": "preset-apply",
-            "7": "services",
-            "8": "preset-save",
-            "9": "preset-delete",
-        }
-        for key, action, _ in INTERACTIVE_MODULES:
-            action_map[key] = action
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            action_names = [a[1] for a in actions if a[1] != "quit"]
-            suggest_command(choice, action_names)
-            continue
-
-        if action in ("list", "services", "preset-list", "preset-apply", "preset-save", "preset-delete",
-                       "status", "enable", "disable"):
-            # Privacy settings actions
+        if action in (
+            "list", "services", "preset-list", "preset-apply", "preset-save", "preset-delete",
+            "status", "enable", "disable"
+        ):
             if action == "list":
                 manager.list_settings(category=category_filter, json_output=json_output, sort_by=sort_by)
             elif action == "status":
                 manager.get_status(json_output=json_output)
             elif action == "enable":
-                print("\nAvailable settings:")
-                for i, s in enumerate(manager.SETTINGS, 1):
-                    print(f"  {i}. {s.name}")
-                setting_idx = input("\nSetting number: ").strip()
-                if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
-                    setting = manager.SETTINGS[int(setting_idx) - 1]
+                items = [(s.name, s.name, s.description) for s in manager.SETTINGS]
+                result = interactive_select(items, title="Select setting to enable")
+                if result:
+                    setting = next(s for s in manager.SETTINGS if s.name == result[0])
                     if manager.enable_setting(setting):
                         print(f"Enabled: {setting.name}")
                     else:
                         print(f"Failed to enable: {setting.name}")
                 else:
-                    print("Invalid selection")
+                    print("No setting selected")
             elif action == "disable":
-                print("\nAvailable settings:")
-                for i, s in enumerate(manager.SETTINGS, 1):
-                    print(f"  {i}. {s.name}")
-                setting_idx = input("\nSetting number: ").strip()
-                if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
-                    setting = manager.SETTINGS[int(setting_idx) - 1]
+                items = [(s.name, s.name, s.description) for s in manager.SETTINGS]
+                result = interactive_select(items, title="Select setting to disable")
+                if result:
+                    setting = next(s for s in manager.SETTINGS if s.name == result[0])
                     if manager.disable_setting(setting):
                         print(f"Disabled: {setting.name}")
                     else:
                         print(f"Failed to disable: {setting.name}")
                 else:
-                    print("Invalid selection")
+                    print("No setting selected")
             elif action == "preset-list":
                 preset_manager.list_presets(json_output=json_output)
             elif action == "preset-apply":
-                print("\nAvailable presets:")
-                for pid, p in preset_manager.PRESETS.items():
-                    print(f"  {pid} - {p['name']}")
-                pid = input("\nPreset ID: ").strip()
-                dry_run = input("Dry run? (y/N): ").strip().lower() == "y"
-                if pid:
+                items = [(pid, p['name'], p['description']) for pid, p in preset_manager.PRESETS.items()]
+                result = interactive_select(items, title="Select preset")
+                if result:
+                    pid = result[0]
+                    dry_run = input("Dry run? (y/N): ").strip().lower() == "y"
                     preset_manager.apply_preset(pid, dry_run=dry_run)
                 else:
                     print("No preset specified")
             elif action == "services":
                 manager.list_services(json_output=json_output, sort_by=sort_by)
             elif action == "preset-save":
-                print("\nCurrent settings state:")
-                for i, s in enumerate(manager.SETTINGS, 1):
-                    state = manager.get_current_state(s).value
-                    print(f"  {i}. {s.name} [{state}]")
-                selections = input("\nSettings to enable (comma-separated numbers): ").strip()
-                enable_names = []
-                if selections:
-                    for idx in selections.split(","):
-                        idx = idx.strip()
-                        if idx.isdigit() and 1 <= int(idx) <= len(manager.SETTINGS):
-                            enable_names.append(manager.SETTINGS[int(idx) - 1].name)
+                items = [(s.name, s.name, f"[{manager.get_current_state(s).value}] {s.description}") for s in manager.SETTINGS]
+                result = interactive_select(items, title="Select settings to enable (multi-select)", multi=True)
+                enable_names = result if result else []
                 preset_id = input("Preset name/ID: ").strip()
                 if preset_id:
                     settings = {s.name: s.name in enable_names for s in manager.SETTINGS}
@@ -1193,22 +1119,19 @@ def interactive_menu():
                 else:
                     print("No preset name specified")
             elif action == "preset-delete":
-                print("\nAvailable presets:")
-                presets_listed = False
-                for pid, p in preset_manager.PRESETS.items():
-                    print(f"  {pid} - {p['name']}")
-                    presets_listed = True
-                if not presets_listed:
-                    print("  (none)")
-                pid = input("\nPreset ID to delete: ").strip()
-                if pid:
-                    preset_manager.delete_preset(pid)
+                items = [(pid, p['name'], p['description']) for pid, p in preset_manager.PRESETS.items()]
+                if not items:
+                    print("No presets available")
+                    input("\nPress Enter to continue...")
+                    continue
+                result = interactive_select(items, title="Select preset to delete")
+                if result:
+                    preset_manager.delete_preset(result[0])
                 else:
                     print("No preset specified")
 
             input("\nPress Enter to continue...")
         else:
-            # Launch other module
             module_name = ACTION_TO_MODULE.get(action)
             if not module_name:
                 print(f"Unknown module: {action}")

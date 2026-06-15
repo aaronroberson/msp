@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
-from src.command import setup_completion, suggest_command
+from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 
 
 BUNDLE_SCHEMA_VERSION = "1.0"
@@ -264,30 +264,25 @@ def interactive_menu() -> None:
     from .rules import evaluate as rules_evaluate, findings_to_json
 
     while True:
-        print("\n" + "=" * 60)
-        print("       Report - Evidence Report Generator")
-        print("=" * 60)
-        print("  1. Full chain: interrogate → audit → report")
-        print("  2. Load facts + findings from files")
-        print("  q. Back to main menu")
-        print("=" * 60)
+        action = cmd_menu([
+            ("full", "Full chain", "Interrogate, audit, then generate report"),
+            ("load", "Load files", "Load facts + findings from JSON files"),
+        ], title="Report - Evidence Report Generator")
 
-        choice = input("\nSelect action [1-2, q]: ").strip().lower()
-
-        if choice in ("q", "quit"):
+        if action is None:
             break
 
-        if choice == "1":
+        if action == "full":
             print("\nCollecting system facts...")
             try:
                 facts = collect_facts(redact=False)
                 print("Evaluating with personal profile...")
                 findings = rules_evaluate(facts, profile="personal")
-                print("\nOutput format:")
-                print("  1. JSON")
-                print("  2. Markdown")
-                fmt_sel = input("\nSelect format [1-2] (default: md): ").strip()
-                fmt = "md" if fmt_sel != "1" else "json"
+                fmt_result = interactive_select([
+                    ("json", "JSON", None),
+                    ("md", "Markdown", None),
+                ], title="Select format")
+                fmt = fmt_result[0] if fmt_result else "md"
                 output = input("Output file path: ").strip()
                 if output:
                     bundle = build_bundle(facts, findings, None)
@@ -299,7 +294,7 @@ def interactive_menu() -> None:
             except Exception as e:
                 print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        elif choice == "2":
+        elif action == "load":
             facts_path = input("Path to facts JSON: ").strip()
             findings_path = input("Path to findings JSON: ").strip()
             plan_path = input("Path to remediation plan (optional): ").strip() or None
@@ -308,11 +303,11 @@ def interactive_menu() -> None:
                     facts = load_json(facts_path)
                     findings = load_json(findings_path)
                     plan = load_json(plan_path) if plan_path else None
-                    print("\nOutput format:")
-                    print("  1. JSON")
-                    print("  2. Markdown")
-                    fmt_sel = input("Select format [1-2] (default: md): ").strip()
-                    fmt = "md" if fmt_sel != "1" else "json"
+                    fmt_result = interactive_select([
+                        ("json", "JSON", None),
+                        ("md", "Markdown", None),
+                    ], title="Select format")
+                    fmt = fmt_result[0] if fmt_result else "md"
                     output = input("Output file path: ").strip()
                     if output:
                         bundle = build_bundle(facts, findings, plan)
@@ -322,8 +317,6 @@ def interactive_menu() -> None:
                 except Exception as e:
                     print(f"Error: {e}")
             input("\nPress Enter to continue...")
-        else:
-            print("Invalid choice")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

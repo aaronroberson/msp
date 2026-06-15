@@ -19,7 +19,12 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-from src.command import setup_completion, suggest_command, interactive_select
+from src.command import (
+    interactive_menu as cmd_interactive_menu,
+    interactive_select,
+    setup_completion,
+    suggest_command,
+)
 
 try:
     from rich.console import Console
@@ -556,46 +561,22 @@ from datetime import datetime
 
 def interactive_menu(analyzer: AIAnalyzer, json_output: bool = False):
     """Interactive menu for AI analyzer."""
-    actions = [
-        ("1", "ask", "Ask AI a question"),
-        ("2", "analyze", "Analyze current system data"),
-        ("3", "watch", "Interactive monitoring mode"),
-        ("4", "explain", "Explain a security setting"),
-        ("5", "compare", "Compare two presets"),
-        ("6", "suggest", "Security hardening suggestions"),
-        ("q", "quit", "Exit"),
-    ]
+    if json_output or not sys.stdin.isatty():
+        return
 
     while True:
-        print("\n" + "=" * 60)
-        print("       AI Analyzer - Interactive Mode")
-        print("=" * 60)
-        for key, action, desc in actions:
-            print(f"  {key:>2}. {action:<12} - {desc}")
-        print("=" * 60)
+        action = cmd_interactive_menu([
+            ("ask", "Ask AI a question", None),
+            ("analyze", "Analyze current system data", None),
+            ("watch", "Interactive monitoring mode", None),
+            ("explain", "Explain a security setting", None),
+            ("compare", "Compare two presets", None),
+            ("suggest", "Security hardening suggestions", None),
+        ], title="AI Analyzer - Interactive Mode")
 
-        choice = input("\nSelect action [1-6, q]: ").strip().lower()
-
-        if choice == "q" or choice == "quit":
+        if action is None:
             print("Goodbye!")
             break
-
-        action_map = {
-            "1": "ask",
-            "2": "analyze",
-            "3": "watch",
-            "4": "explain",
-            "5": "compare",
-            "6": "suggest",
-        }
-
-        if choice in action_map:
-            action = action_map[choice]
-        elif choice in [a[1] for a in actions]:
-            action = choice
-        else:
-            print(f"Invalid choice: {choice}")
-            continue
 
         if action == "ask":
             prompt = input("Your question: ").strip()
