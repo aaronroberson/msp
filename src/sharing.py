@@ -7,6 +7,8 @@ import os
 import sys
 from typing import List, Dict, Any, Optional
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -334,6 +336,7 @@ def main():
     parser.add_argument("--json", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["name", "path", "guest", "readonly"], help="Sort by: name, path, guest, readonly")
+    setup_completion(parser)
     args = parser.parse_args()
 
     manager = SharingManager(verbose=args.verbose)

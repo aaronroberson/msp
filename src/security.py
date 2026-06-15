@@ -7,6 +7,8 @@ import os
 import sys
 from typing import Dict, Any
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     RICH_AVAILABLE = True
@@ -284,6 +286,7 @@ def main():
     parser.add_argument("--json", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["key"], help="Sort by: key")
+    setup_completion(parser)
     args = parser.parse_args()
 
     ss = SecuritySettings(verbose=args.verbose)

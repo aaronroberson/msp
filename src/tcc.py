@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from src.command import setup_completion, suggest_command
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -839,6 +841,9 @@ def interactive_menu(manager: TCCManager, json_output: bool = False) -> None:
         ("3", "reset", "Reset permissions via tccutil"),
         ("4", "backup", "Backup TCC database to JSON"),
         ("5", "audit", "Audit high-risk permissions"),
+        ("6", "grant", "Grant a permission (unsupported)"),
+        ("7", "revoke", "Revoke a permission (unsupported)"),
+        ("8", "restore", "Restore TCC from backup (unsupported)"),
         ("q", "quit", "Quit"),
     ]
     current_sort = "service"
@@ -883,6 +888,26 @@ def interactive_menu(manager: TCCManager, json_output: bool = False) -> None:
                 manager.backup(output=output, json_output=json_output)
             elif action == "audit":
                 manager.audit(json_output=json_output, sort_by=current_sort)
+            elif action == "grant":
+                service = input("Service: ").strip()
+                client = input("Bundle ID or path: ").strip()
+                if service and client:
+                    manager.grant(service, client, json_output=json_output)
+                else:
+                    print("Service and client required for grant")
+            elif action == "revoke":
+                service = input("Service: ").strip()
+                client = input("Bundle ID or path: ").strip()
+                if service and client:
+                    manager.revoke(service, client, json_output=json_output)
+                else:
+                    print("Service and client required for revoke")
+            elif action == "restore":
+                file_path = input("Backup file path: ").strip()
+                if file_path:
+                    manager.restore(file_path, json_output=json_output)
+                else:
+                    print("File path required for restore")
             else:
                 print(f"Invalid choice: {choice}")
         except ValueError as exc:
@@ -915,6 +940,7 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["service", "client", "client_name", "allowed", "prompt_count", "last_modified"], default="service", help="Sort by service, client, client_name, allowed, prompt_count, last_modified")
+    setup_completion(parser)
     args = parser.parse_args()
 
     manager = TCCManager(scope=args.scope, db_path=args.db_path, verbose=args.verbose)

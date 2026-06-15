@@ -73,11 +73,7 @@ from dataclasses import dataclass, asdict
 from typing import Optional, List, Dict, Any, Callable
 from enum import Enum
 
-try:
-    from argcomplete import warn
-    ARGCOMPLETE_AVAILABLE = True
-except ImportError:
-    ARGCOMPLETE_AVAILABLE = False
+from .command import HAS_ARGCOMPLETE as ARGCOMPLETE_AVAILABLE, setup_completion, suggest_command
 
 try:
     from rich.console import Console
@@ -961,35 +957,123 @@ class PresetManager:
         return False
 
 
+def _launch_module(module_name: str) -> None:
+    """Launch a module's interactive menu by calling its main() with no action."""
+    try:
+        mod = __import__(f"src.{module_name}", fromlist=["main"])
+        saved = sys.argv[:]
+        sys.argv = [f"msp-{module_name}"]
+        try:
+            mod.main()
+        except SystemExit:
+            pass
+        finally:
+            sys.argv = saved
+    except Exception as e:
+        print(f"Error launching {module_name}: {e}")
+
+INTERACTIVE_MODULES = [
+    ("10", "net", "Network monitoring & connections"),
+    ("11", "startup", "Startup item management"),
+    ("12", "fswatch", "File system watcher"),
+    ("13", "traffic", "Traffic analyzer"),
+    ("14", "scan", "Security scanner"),
+    ("15", "tcc", "App privacy permissions"),
+    ("16", "audit", "Rule-based security audit (stdin)"),
+    ("17", "interrogate", "Normalized fact collection"),
+    ("18", "reason", "LLM/local reasoning over facts"),
+    ("19", "remediate", "Build & apply remediation plans"),
+    ("20", "report", "Generate evidence reports"),
+    ("21", "workflow", "Built-in interrogation workflows"),
+    ("22", "ask", "AI-powered privacy analysis"),
+    ("23", "chain", "Automated method chaining"),
+    ("24", "doctor", "Dependency checker"),
+    ("25", "snapshot", "Save/restore privacy state"),
+    ("26", "sharing", "File sharing services"),
+    ("27", "security", "System security settings"),
+]
+
+NO_INTERACTIVE_MODULES: set = set()
+
+ACTION_TO_MODULE = {
+    "net": "network",
+    "startup": "startup",
+    "fswatch": "fswatch",
+    "traffic": "traffic",
+    "scan": "scanner",
+    "tcc": "tcc",
+    "audit": "rules",
+    "interrogate": "facts",
+    "reason": "llm",
+    "remediate": "remediate",
+    "report": "report",
+    "workflow": "workflows",
+    "ask": "ai",
+    "chain": "chain",
+    "doctor": "deps",
+    "snapshot": "snapshot",
+    "sharing": "sharing",
+    "security": "security",
+}
+
+
 def interactive_menu():
     """Interactive menu for privacy/security settings."""
     manager = PrivacySettingsManager(verbose="-v" in sys.argv or "--verbose" in sys.argv)
     preset_manager = PresetManager(manager)
     sort_by = "name"
+    category_filter = None
     json_output = "--json" in sys.argv
 
     actions = [
-        ("1", "list", "List all privacy/security settings"),
+        ("1", "list", "List privacy/security settings"),
         ("2", "status", "Show comprehensive security status"),
         ("3", "enable", "Enable a privacy/security setting"),
         ("4", "disable", "Disable a privacy/security setting"),
         ("5", "preset-list", "List available presets"),
         ("6", "preset-apply", "Apply a preset configuration"),
         ("7", "services", "List running services"),
+        ("8", "preset-save", "Save current settings as a preset"),
+        ("9", "preset-delete", "Delete a saved preset"),
+        *INTERACTIVE_MODULES,
         ("q", "quit", "Exit"),
     ]
 
+    options_hint = "1-9, 10-27, s, c, q"
+
+    categories = [c.value for c in SettingCategory]
+
     while True:
         print("\n" + "=" * 60)
-        print("       macOS Privacy & Security - Interactive Mode")
+        print("       msp - macOS Security & Privacy")
         print("=" * 60)
-        print(f"  Sort: [{'name' if sort_by == 'name' else sort_by}]  (press 's' to change)")
+        sort_label = sort_by or "name"
+        cat_label = category_filter or "all"
+        print(f"  Sort: [{sort_label}]  Category: [{cat_label}]")
+        print(f"  (press 's' to change sort, 'c' to filter by category)")
         print("-" * 60)
+
+        # Print privacy settings section
+        print("  -- Privacy Settings --")
         for key, action, desc in actions:
+            if action == "list":
+                print(f"  {key:>2}. {action:<16} - {desc}")
+            elif action in ("status", "enable", "disable", "preset-list", "preset-apply", "services", "preset-save", "preset-delete"):
+                print(f"  {key:>2}. {action:<16} - {desc}")
+        print("  " + "-" * 56)
+
+        # Print other tools section
+        print("  -- Other Tools --")
+        for key, action, desc in INTERACTIVE_MODULES:
             print(f"  {key:>2}. {action:<16} - {desc}")
+
+        print("  " + "-" * 56)
+        print(f"  {'s':>2}. {'sort':<16} - Change sort order")
+        print(f"  {'c':>2}. {'category':<16} - Filter by category")
+        print(f"  {'q':>2}. {'quit':<16} - Exit")
         print("=" * 60)
 
-        choice = input("\nSelect action [1-7, s, q]: ").strip().lower()
+        choice = input(f"\nSelect action [{options_hint}]: ").strip().lower()
 
         if choice == "q" or choice == "quit":
             print("Goodbye!")
@@ -1006,6 +1090,20 @@ def interactive_menu():
                 sort_by = sort_keys[int(s_choice) - 1]
             continue
 
+        if choice == "c":
+            print(f"\nCurrent filter: {category_filter or 'all'}")
+            print("  0. all")
+            for i, cat in enumerate(categories, 1):
+                marker = " *" if cat == category_filter else ""
+                print(f"  {i}. {cat}{marker}")
+            c_choice = input(f"\nSelect category [0-{len(categories)}]: ").strip()
+            if c_choice == "0":
+                category_filter = None
+            elif c_choice.isdigit() and 1 <= int(c_choice) <= len(categories):
+                category_filter = categories[int(c_choice) - 1]
+            continue
+
+        # Build action map: privacy settings + interactive modules
         action_map = {
             "1": "list",
             "2": "status",
@@ -1014,62 +1112,116 @@ def interactive_menu():
             "5": "preset-list",
             "6": "preset-apply",
             "7": "services",
+            "8": "preset-save",
+            "9": "preset-delete",
         }
+        for key, action, _ in INTERACTIVE_MODULES:
+            action_map[key] = action
 
         if choice in action_map:
             action = action_map[choice]
         elif choice in [a[1] for a in actions]:
             action = choice
         else:
-            print(f"Invalid choice: {choice}")
+            action_names = [a[1] for a in actions if a[1] != "quit"]
+            suggest_command(choice, action_names)
             continue
 
-        if action == "list":
-            manager.list_settings(json_output=json_output, sort_by=sort_by)
-        elif action == "status":
-            manager.get_status(json_output=json_output)
-        elif action == "enable":
-            print("\nAvailable settings:")
-            for i, s in enumerate(manager.SETTINGS, 1):
-                print(f"  {i}. {s.name}")
-            setting_idx = input("\nSetting number: ").strip()
-            if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
-                setting = manager.SETTINGS[int(setting_idx) - 1]
-                if manager.enable_setting(setting):
-                    print(f"Enabled: {setting.name}")
+        if action in ("list", "services", "preset-list", "preset-apply", "preset-save", "preset-delete",
+                       "status", "enable", "disable"):
+            # Privacy settings actions
+            if action == "list":
+                manager.list_settings(category=category_filter, json_output=json_output, sort_by=sort_by)
+            elif action == "status":
+                manager.get_status(json_output=json_output)
+            elif action == "enable":
+                print("\nAvailable settings:")
+                for i, s in enumerate(manager.SETTINGS, 1):
+                    print(f"  {i}. {s.name}")
+                setting_idx = input("\nSetting number: ").strip()
+                if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
+                    setting = manager.SETTINGS[int(setting_idx) - 1]
+                    if manager.enable_setting(setting):
+                        print(f"Enabled: {setting.name}")
+                    else:
+                        print(f"Failed to enable: {setting.name}")
                 else:
-                    print(f"Failed to enable: {setting.name}")
-            else:
-                print("Invalid selection")
-        elif action == "disable":
-            print("\nAvailable settings:")
-            for i, s in enumerate(manager.SETTINGS, 1):
-                print(f"  {i}. {s.name}")
-            setting_idx = input("\nSetting number: ").strip()
-            if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
-                setting = manager.SETTINGS[int(setting_idx) - 1]
-                if manager.disable_setting(setting):
-                    print(f"Disabled: {setting.name}")
+                    print("Invalid selection")
+            elif action == "disable":
+                print("\nAvailable settings:")
+                for i, s in enumerate(manager.SETTINGS, 1):
+                    print(f"  {i}. {s.name}")
+                setting_idx = input("\nSetting number: ").strip()
+                if setting_idx.isdigit() and 1 <= int(setting_idx) <= len(manager.SETTINGS):
+                    setting = manager.SETTINGS[int(setting_idx) - 1]
+                    if manager.disable_setting(setting):
+                        print(f"Disabled: {setting.name}")
+                    else:
+                        print(f"Failed to disable: {setting.name}")
                 else:
-                    print(f"Failed to disable: {setting.name}")
-            else:
-                print("Invalid selection")
-        elif action == "preset-list":
-            preset_manager.list_presets(json_output=json_output)
-        elif action == "preset-apply":
-            print("\nAvailable presets:")
-            for pid, p in preset_manager.PRESETS.items():
-                print(f"  {pid} - {p['name']}")
-            pid = input("\nPreset ID: ").strip()
-            dry_run = input("Dry run? (y/N): ").strip().lower() == "y"
-            if pid:
-                preset_manager.apply_preset(pid, dry_run=dry_run)
-            else:
-                print("No preset specified")
-        elif action == "services":
-            manager.list_services(json_output=json_output, sort_by=sort_by)
+                    print("Invalid selection")
+            elif action == "preset-list":
+                preset_manager.list_presets(json_output=json_output)
+            elif action == "preset-apply":
+                print("\nAvailable presets:")
+                for pid, p in preset_manager.PRESETS.items():
+                    print(f"  {pid} - {p['name']}")
+                pid = input("\nPreset ID: ").strip()
+                dry_run = input("Dry run? (y/N): ").strip().lower() == "y"
+                if pid:
+                    preset_manager.apply_preset(pid, dry_run=dry_run)
+                else:
+                    print("No preset specified")
+            elif action == "services":
+                manager.list_services(json_output=json_output, sort_by=sort_by)
+            elif action == "preset-save":
+                print("\nCurrent settings state:")
+                for i, s in enumerate(manager.SETTINGS, 1):
+                    state = manager.get_current_state(s).value
+                    print(f"  {i}. {s.name} [{state}]")
+                selections = input("\nSettings to enable (comma-separated numbers): ").strip()
+                enable_names = []
+                if selections:
+                    for idx in selections.split(","):
+                        idx = idx.strip()
+                        if idx.isdigit() and 1 <= int(idx) <= len(manager.SETTINGS):
+                            enable_names.append(manager.SETTINGS[int(idx) - 1].name)
+                preset_id = input("Preset name/ID: ").strip()
+                if preset_id:
+                    settings = {s.name: s.name in enable_names for s in manager.SETTINGS}
+                    preset_manager.save_preset(preset_id, settings, name=preset_id, description="")
+                else:
+                    print("No preset name specified")
+            elif action == "preset-delete":
+                print("\nAvailable presets:")
+                presets_listed = False
+                for pid, p in preset_manager.PRESETS.items():
+                    print(f"  {pid} - {p['name']}")
+                    presets_listed = True
+                if not presets_listed:
+                    print("  (none)")
+                pid = input("\nPreset ID to delete: ").strip()
+                if pid:
+                    preset_manager.delete_preset(pid)
+                else:
+                    print("No preset specified")
 
-        input("\nPress Enter to continue...")
+            input("\nPress Enter to continue...")
+        else:
+            # Launch other module
+            module_name = ACTION_TO_MODULE.get(action)
+            if not module_name:
+                print(f"Unknown module: {action}")
+                input("\nPress Enter to continue...")
+                continue
+
+            if action in NO_INTERACTIVE_MODULES:
+                print(f"\n'{action}' has no interactive mode. Use it via CLI:")
+                print(f"  msp {action} --help")
+                input("\nPress Enter to continue...")
+                continue
+
+            _launch_module(module_name)
 
 
 def main():
@@ -1131,14 +1283,8 @@ Presets:
     preset_parser.add_argument("--settings", help="JSON settings for save action")
     preset_parser.add_argument("--description", help="Description for save action")
 
+    setup_completion(parser)
     args = parser.parse_args()
-
-    if ARGCOMPLETE_AVAILABLE:
-        try:
-            import argcomplete
-            argcomplete.autocomplete(parser)
-        except Exception:
-            pass
 
     manager = PrivacySettingsManager(verbose=args.verbose)
     preset_manager = PresetManager(manager)
