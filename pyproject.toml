@@ -14,6 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+llm = [
+  "openai>=1.0.0",
+]
 test = [
   "pytest>=7.0",
 ]
@@ -22,6 +25,11 @@ test = [
 msp = "main:main"
 mac-privacy = "main:main"
 mpc = "main:main"
+msp-interrogate = "src.facts:main"
+msp-reason = "src.llm:main"
+msp-remediate = "src.remediate:main"
+msp-report = "src.report:main"
+msp-workflow = "src.workflows:main"
 
 [tool.setuptools]
 py-modules = ["main"]

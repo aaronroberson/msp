@@ -1,0 +1,8 @@
+# Local databases
+lancedb/
+
+# History files
+$APFEL_GLOBAL_HISTORY
+
+# Testing caches
+.pytest_cache/
