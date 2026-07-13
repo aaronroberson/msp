@@ -1,0 +1,68 @@
+- generic [ref=e3] [box=0,0,1440,1112]:
+  - generic [ref=e7] [box=0,0,1440,70]:
+    - img "Exdera" [ref=e9] [cursor=pointer] [box=32,15,128,40]
+    - generic [ref=e10] [box=1207,20,201,30]:
+      - button "Analysis" [ref=e11] [cursor=pointer] [box=1207,20,106,30]:
+        - img [ref=e12] [box=1207,20,30,30]
+        - generic [ref=e15] [box=1245,21,68,28]: Analysis
+      - button "User" [ref=e16] [cursor=pointer] [box=1345,23,63,24]:
+        - img [ref=e17] [box=1345,25,20,20]
+        - generic [ref=e19] [box=1373,23,35,24]: User
+  - generic [ref=e21] [box=0,70,1440,914]:
+    - generic [ref=e23] [box=16,82,1408,28]:
+      - generic [ref=e24] [box=16,82,18,28]: 🔗
+      - generic [ref=e25] [box=46,84,344,24]:
+        - text: Shared Design Audit
+        - generic [ref=e26] [box=195,91,196,14]: View-only · Shared by Exdera User
+    - generic [ref=e28] [box=20,154,1400,798]:
+      - generic [ref=e30] [box=20,154,217,192]:
+        - paragraph [ref=e31] [box=33,167,191,14]: Design File
+        - button "metaForge full screen.jpg metaForge full screen.jpg" [ref=e33] [cursor=pointer] [box=33,191,191,143]:
+          - img "metaForge full screen.jpg" [ref=e34] [box=35,193,187,139]
+          - generic [ref=e36] [box=39,315,179,12]: metaForge full screen.jpg
+      - generic [ref=e37] [box=257,154,1163,798]:
+        - generic [ref=e38] [box=257,154,473,798]:
+          - generic [ref=e39] [box=257,154,473,198]:
+            - generic [ref=e41] [box=277,174,433,64]
+            - generic [ref=e49] [box=277,254,433,78]
+          - generic [ref=e66] [box=257,368,473,203]:
+            - heading "Score Breakdown" [level=3] [ref=e67] [box=274,385,439,15]
+            - generic [ref=e68] [box=274,412,439,27]
+            - generic [ref=e76] [box=274,451,439,27]
+            - generic [ref=e84] [box=274,489,439,27]
+            - generic [ref=e92] [box=274,528,439,27]
+          - generic [ref=e100] [box=257,587,473,332]:
+            - heading "Interactive Map" [level=3] [ref=e102] [box=274,604,439,15]
+            - generic [ref=e105] [box=270,644,447,262]
+          - paragraph [ref=e107] [box=257,935,473,17]: 🕒 Jun 15, 2026, 3:17 PM
+        - generic [ref=e108] [box=750,154,670,494]:
+          - generic [ref=e110] [box=750,154,670,48]:
+            - heading "Design Audit Report" [level=1] [ref=e111] [box=750,154,670,28]
+            - paragraph [ref=e112] [box=750,182,670,20]: metaForge full screen.jpg
+          - generic [ref=e113] [box=750,206,670,117]:
+            - paragraph [ref=e114] [box=767,223,636,15]: Analysis Types
+            - generic [ref=e115] [box=767,246,636,60]
+          - button "✅ Analysis Summary 🧩 Content Analysis, Accessibility & Usability Analysis, Technical & Visual Analysis 5/10" [ref=e120] [cursor=pointer] [box=751,336,668,68]:
+            - generic [ref=e122] [box=781,356,20,28]: ✅
+            - generic [ref=e123] [box=813,352,496,36]
+            - generic [ref=e126] [box=1321,357,82,26]
+          - button "❗ High Priority Challenges 🧩 Content Analysis, Accessibility & Usability Analysis 4/10" [ref=e132] [cursor=pointer] [box=751,414,668,68]:
+            - generic [ref=e134] [box=781,434,20,28]: ❗
+            - generic [ref=e135] [box=813,430,496,36]
+            - generic [ref=e138] [box=1321,435,82,26]
+          - button "⚠️ Medium Priority Challenges 🧩 Content Analysis, Technical & Visual Analysis, Accessibility & Usability Analysis 6/10" [ref=e144] [cursor=pointer] [box=751,493,668,68]:
+            - generic [ref=e146] [box=781,513,20,28]: ⚠️
+            - generic [ref=e147] [box=813,509,496,36]
+            - generic [ref=e150] [box=1321,514,82,26]
+          - button "🔘 Low Priority Challenges 🧩 Content Analysis 7/10" [ref=e156] [cursor=pointer] [box=751,571,668,68]:
+            - generic [ref=e158] [box=781,591,20,28]: 🔘
+            - generic [ref=e159] [box=813,587,497,36]
+            - generic [ref=e162] [box=1322,592,81,26]
+  - contentinfo [ref=e167] [box=0,984,1440,128]:
+    - generic [ref=e168] [box=16,1000,1408,96]:
+      - generic [ref=e169] [box=40,1024,1360,16]:
+        - paragraph [ref=e170] [cursor=pointer] [box=40,1024,266,16]: Copyright © 2025 EXDERA. All rights reserved.
+        - button "Support" [ref=e171] [cursor=pointer] [box=1337,1024,63,16]:
+          - img [ref=e172] [box=1337,1025,14,14]
+          - generic [ref=e174] [box=1355,1024,45,16]: Support
+      - paragraph [ref=e175] [cursor=pointer] [box=40,1056,1360,16]: This service uses AI to assist you; while helpful, its responses may not always be perfect—please use discretion and verify when needed.

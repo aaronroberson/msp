@@ -6,3 +6,6 @@ $APFEL_GLOBAL_HISTORY
 
 # Testing caches
 .pytest_cache/
+
+# Archived internal design docs
+.docs_archive/
