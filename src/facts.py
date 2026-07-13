@@ -46,7 +46,7 @@ except ImportError:  # pragma: no cover - supports direct execution as src/facts
     from tcc import TCCManager
 
 
-DEFAULT_SECTIONS = ("privacy_settings", "network", "startup", "sharing", "security", "tcc")
+DEFAULT_SECTIONS = ("privacy_settings", "network", "startup", "sharing", "security", "tcc", "shell")
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
 
@@ -85,6 +85,7 @@ class FactCollector:
             "startup": {"items": [], "unsigned_items": [], "suspicious_items": []},
             "network": {"listeners": [], "exposed_services": [], "connections": [], "services": {}},
             "security_settings": {},
+            "shell": {"startup_ms": None, "history_lines": None, "history_healthy": None},
         }
 
     def _normalize_sections(self, sections: Optional[Iterable[str]]) -> List[str]:
@@ -185,6 +186,37 @@ class FactCollector:
         }
         for error in facts["tcc"]["errors"]:
             self._record_error("tcc", "TCCManager", str(error))
+
+    def _collect_shell(self, facts: Dict[str, Any]) -> None:
+        import re as _re
+        import subprocess as _sp
+        from pathlib import Path
+
+        def _parse_seconds(text: str) -> float:
+            m = _re.search(r"([\d.]+)\s*total", text)
+            if m:
+                return float(m.group(1))
+            m = _re.search(r"real\s+(?:(\d+)m)?([\d.]+)s", text, _re.IGNORECASE)
+            if m:
+                return (float(m.group(1) or 0) * 60) + float(m.group(2))
+            return 0.0
+
+        try:
+            r = _sp.run("time ( zsh -i -c exit ) 2>&1", shell=True, capture_output=True, text=True, timeout=30)
+            seconds = _parse_seconds(r.stdout + r.stderr)
+            if seconds > 0:
+                facts["shell"]["startup_ms"] = round(seconds * 1000, 1)
+        except Exception:
+            pass
+
+        hist = Path.home() / ".zsh_history"
+        if hist.exists():
+            try:
+                facts["shell"]["history_lines"] = len(hist.read_text().splitlines())
+                rc = _sp.run(["file", str(hist)], capture_output=True, text=True)
+                facts["shell"]["history_healthy"] = "ASCII text" in rc.stdout
+            except Exception:
+                pass
 
     def _merge_mapping(self, target: Dict[str, Any], value: Any) -> None:
         if isinstance(value, Mapping):

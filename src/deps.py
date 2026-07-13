@@ -3,10 +3,12 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from src.command import (
@@ -202,6 +204,52 @@ class DependencyManager:
                 req = "Required" if dep.get("required") else "Optional"
                 print(f"[{status.value}] {name} - {req}")
 
+    def _shell_startup_check(self) -> list[tuple[str, str, str]]:
+        """Check shell startup performance. Returns list of (severity, title, detail)."""
+        shell_issues: list[tuple[str, str, str]] = []
+        def _parse_seconds(text: str) -> float:
+            m = re.search(r"([\d.]+)\s*total", text)
+            if m:
+                return float(m.group(1))
+            m = re.search(r"real\s+(?:(\d+)m)?([\d.]+)s", text, re.IGNORECASE)
+            if m:
+                return (float(m.group(1) or 0) * 60) + float(m.group(2))
+            return 0.0
+
+        try:
+            ok, out = self._run_cmd("time ( zsh -i -c exit ) 2>&1")
+            seconds = _parse_seconds(out)
+            if seconds > 0:
+                ms = seconds * 1000
+                if ms > 500:
+                    shell_issues.append(("HIGH", "Zsh startup is slow", f"{ms:.0f}ms (target: <150ms). Run 'msp tune profile'."))
+                elif ms > 150:
+                    shell_issues.append(("MEDIUM", "Zsh startup could be faster", f"{ms:.0f}ms (target: <150ms)."))
+        except Exception:
+            pass
+
+        history = Path.home() / ".zsh_history"
+        if history.exists():
+            try:
+                _, out = self._run_cmd(f"wc -l < {history}")
+                lines = int(out.strip()) if out.strip().isdigit() else 0
+                if lines > 100000:
+                    shell_issues.append(("MEDIUM", "Large zsh history", f"{lines} lines affects startup/search speed."))
+                _, file_out = self._run_cmd(f"file {history}")
+                if "ASCII" not in file_out:
+                    shell_issues.append(("HIGH", "Corrupted zsh history", "Run 'msp tune apply' to repair."))
+            except Exception:
+                pass
+
+        zshrc = Path.home() / ".zshrc"
+        if zshrc.exists():
+            text = zshrc.read_text()
+            dupes = len(re.findall(r"export PATH=.*antigravity", text)) - 1
+            if dupes > 0:
+                shell_issues.append(("LOW", "Duplicate PATH entries", f"{dupes} duplicate Antigravity IDE entries."))
+
+        return shell_issues
+
     def doctor(self, verbose: bool = False) -> bool:
         """Run dependency check and fix issues."""
         print("Running msp doctor...\n")
@@ -214,19 +262,32 @@ class DependencyManager:
                 if dep.get("required"):
                     issues.append((name, "required", dep))
 
-        if not issues:
-            print("All required dependencies are installed.")
-            return True
+        if issues:
+            print(f"Missing required dependencies:\n")
+            for name, req_type, dep in issues:
+                print(f"  - {name}: {dep.get('description', '')}")
+                print(f"    Install: {dep.get('install_cmd', 'N/A')}\n")
+        else:
+            print("  All required dependencies are installed.\n")
 
-        print(f"Found {len(issues)} missing required dependencies:\n")
-        for name, req_type, dep in issues:
-            print(f"  - {name}: {dep.get('description', '')}")
-            print(f"    Install: {dep.get('install_cmd', 'N/A')}\n")
+        # Shell performance checks
+        shell_issues = self._shell_startup_check()
+        if shell_issues:
+            print("Shell performance:\n")
+            for severity, title, detail in shell_issues:
+                color = {"HIGH": "red", "MEDIUM": "yellow", "LOW": "cyan"}.get(severity, "white")
+                if RICH_AVAILABLE:
+                    print(f"  [{color}]{severity}[/{color}] {title}")
+                else:
+                    print(f"  [{severity}] {title}")
+                print(f"       {detail}\n")
+        else:
+            print("  Shell performance: OK\n")
 
-        if not verbose:
+        if issues and not verbose:
             print("Run 'msp doctor --fix' to install missing dependencies.")
 
-        return False
+        return len(issues) == 0 and len(shell_issues) == 0
 
     def fix(self) -> bool:
         """Install missing required dependencies."""
