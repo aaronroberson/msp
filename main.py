@@ -27,10 +27,11 @@ Commands:
     report             Generate evidence reports
     workflow           Built-in interrogation workflows
 
-    ask                AI-powered analysis
+    ask                AI-powered analysis (alias: ai)
     chain              Method chaining
 
     doctor             Check dependencies
+    tune               System performance tuning
     presets            Manage presets
 """
 import os
@@ -49,23 +50,21 @@ COMMAND_MODULES = {
     "scan": "scanner",
     "tcc": "tcc",
     "audit": "rules",
-    "rules": "rules",
     "interrogate": "facts",
-    "facts": "facts",
     "reason": "llm",
     "remediate": "remediate",
     "report": "report",
     "workflow": "workflows",
-    "workflows": "workflows",
     "snapshot": "snapshot",
     "sharing": "sharing",
     "security": "security",
+    "ai": "ai",
     "chain": "chain",
     "doctor": "deps",
-    "deps": "deps",
+    "tune": "tune",
 }
 
-NO_ACTION_MODULES = {"facts", "llm", "report"}
+NO_ACTION_MODULES = {"facts", "llm", "report", "ai"}
 
 
 def run_command(module_name: str, command: str, args: list, global_args: dict = None):
@@ -190,7 +189,7 @@ Commands:
   status, list, enable, disable - Privacy settings
   net, startup, fswatch, traffic - Monitoring
   scan, tcc, interrogate, audit, reason, remediate, report, workflow - Security suite
-  ask, chain, doctor - AI, automation & dependencies
+  ai/ask, chain, doctor, tune - AI, automation & maintenance
 
 Examples:
   msp status                       Show security status
@@ -230,6 +229,8 @@ Examples:
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination", "state"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination, state")
+    parser.add_argument("--provider", choices=["openai", "ollama", "apfel"], help="LLM provider for ask command")
+    parser.add_argument("--model", help="LLM model name (default: gpt-4o-mini)")
     parser.add_argument("--install-completion", action="store_true", help="Install shell completion for bash/zsh")
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
@@ -418,7 +419,7 @@ Examples:
         from src.ai import AIAnalyzer
         from src.network import NetworkMonitor
 
-        analyzer = AIAnalyzer(verbose=args.verbose)
+        analyzer = AIAnalyzer(verbose=args.verbose, provider=getattr(args, 'provider', None), llm_model=getattr(args, 'model', None))
 
         if not args.args:
             # No args - run interactive mode
@@ -545,7 +546,7 @@ Examples:
             # Pass first arg as action
             run_command(module_name, args.args[0], args.args[1:], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
     else:
-        suggest_command(command, list(COMMAND_MODULES.keys()) + ["status", "list", "enable", "disable", "preset", "services", "snapshot", "sharing", "security", "ask"])
+        suggest_command(command, list(COMMAND_MODULES.keys()) + ["status", "list", "enable", "disable", "preset", "services", "snapshot", "sharing", "security", "ask", "ai"])
 
 
 if __name__ == "__main__":
