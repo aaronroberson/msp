@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""AI integration module for msp CLI using local LLM providers.
+"""AI integration module for msp CLI.
 
-Primary:    Ollama (local, on-device, privacy-first)
-Fallback:   apfel (Apple Intelligence)
+Provider chain (auto-detected):
+  openai  →  ollama  →  apfel
 """
 
 import json
@@ -13,6 +13,7 @@ import subprocess
 import sys
 import termios
 import tty
+import getpass
 from contextlib import contextmanager
 from typing import Iterator, Optional, List, Dict, Any
 from pathlib import Path
@@ -38,6 +39,7 @@ console = Console() if RICH_AVAILABLE else None
 
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_OLLAMA_MODEL = "qwen2.5-coder:1.5b"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
 @contextmanager
@@ -145,8 +147,90 @@ def _apfel_chat(system_prompt: str, user_prompt: str, timeout: int = 60) -> str:
     return result.stdout.strip()
 
 
+def _openai_available() -> bool:
+    try:
+        from openai import OpenAI
+        return bool(os.environ.get("OPENAI_API_KEY"))
+    except ImportError:
+        return False
+
+
+def _openai_chat(
+    messages: List[Dict[str, str]],
+    model: str = DEFAULT_OPENAI_MODEL,
+    timeout: int = 60,
+) -> str:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    resp = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=0.1,
+        timeout=timeout,
+    )
+    return resp.choices[0].message.content or ""
+
+
+_KEYCHAIN_SERVICE = "msp-openai"
+
+
+def _openai_key_from_keychain() -> bool:
+    """Retrieve OpenAI key from macOS keychain. Returns True if found and set."""
+    try:
+        r = subprocess.run(
+            ["security", "find-generic-password", "-s", _KEYCHAIN_SERVICE, "-w"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            os.environ["OPENAI_API_KEY"] = r.stdout.strip()
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _prompt_openai_key() -> bool:
+    """Prompt user for OpenAI API key.
+    Returns True if key was set in os.environ, False if dismissed."""
+    print()
+    print("── OpenAI API Key ──────────────────────────────")
+    print("OPENAI_API_KEY is not set.")
+    print("To use OpenAI as the LLM provider, enter your key.")
+    print("Press Enter to skip and try other providers.")
+    print()
+    try:
+        key = getpass.getpass("API key (hidden): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    if not key:
+        return False
+
+    os.environ["OPENAI_API_KEY"] = key
+    print("\nKey set for this session.")
+
+    try:
+        save = input("Save to macOS keychain for future sessions? [y/N] ").strip().lower()
+        if save == "y":
+            user = os.environ.get("USER", "")
+            subprocess.run(
+                ["security", "add-generic-password", "-s", _KEYCHAIN_SERVICE,
+                 "-a", user, "-w", key, "-U"],
+                capture_output=True, timeout=10,
+            )
+            print("Saved to macOS keychain.")
+    except (EOFError, KeyboardInterrupt):
+        pass
+    except Exception:
+        pass
+    return True
+
+
 class AIAnalyzer:
-    """Privacy-first AI analysis using local LLM providers."""
+    """Privacy-first AI analysis with auto-detecting provider chain.
+
+    Priority: openai → ollama → apfel
+    """
 
     SYSTEM_PROMPT = """You are a macOS terminal diagnostics engineer. Live system data is below.
 
@@ -166,166 +250,16 @@ Example format:
      $ kill -9 563
    Want me to run one of these?"""
 
-
-_COMMAND_PREFIXES = (
-    "kill", "pkill", "sudo", "ps ", "lsof", "top ", "htop", "nettop",
-    "launchctl", "defaults", "spctl", "csrutil", "fdesetup", "diskutil",
-    "dscacheutil", "mdutil", "pmset", "sysctl", "vm_stat", "df ", "du ",
-    "ps aux", "ps -", "echo", "cat ", "less", "more", "head", "tail",
-    "grep", "awk", "sed", "sort", "uniq", "wc ", "cut ", "tr ",
-    "find ", "locate", "which", "whereis", "type ",
-    "ping", "dig ", "nslookup", "curl", "wget",
-    "brew", "pip", "npm", "npx", "yarn",
-    "python", "python3", "ruby", "perl",
-    "open ", "say ", "osascript",
-    "tcpdump", "netstat", "ifconfig", "ip ",
-    "chmod", "chown", "ln ", "cp ", "mv ", "rm ", "mkdir", "touch",
-    "ditto", "tar ", "gzip", "gunzip", "unzip",
-    "date", "cal ", "bc ", "expr",
-    "xattr", "file ", "stat ", "sw_vers", "system_profiler",
-    "mdfind", "screencapture",
-)
-
-
-def _extract_commands(text: str) -> List[str]:
-    """Extract shell commands from AI response text."""
-    seen: set[str] = set()
-    commands: List[str] = []
-
-    for line in text.splitlines():
-        stripped = line.strip()
-
-        # Skip empty, comments, markdown fences
-        if not stripped or stripped.startswith("#") or stripped.startswith("```"):
-            continue
-
-        # Remove common prompt prefixes
-        if stripped.startswith("$ "):
-            stripped = stripped[2:].strip()
-        elif stripped.startswith("> "):
-            stripped = stripped[2:].strip()
-        elif stripped.startswith("% "):
-            stripped = stripped[2:].strip()
-
-        # Check if it looks like a shell command
-        if not stripped:
-            continue
-        if any(stripped.startswith(p) for p in _COMMAND_PREFIXES):
-            # Normalize whitespace and deduplicate
-            normalized = " ".join(stripped.split())
-            if normalized not in seen and len(normalized) > 2:
-                seen.add(normalized)
-                commands.append(normalized)
-
-    return commands
-
-
-def _interactive_command_select(commands: List[str]) -> List[int]:
-    """Arrow-key navigable, Tab-toggle multi-select for a list of commands.
-
-    Returns indices of selected commands (empty list if cancelled).
-    """
-    if not commands:
-        return []
-
-    n = len(commands)
-    cursor = 0
-    selected: set[int] = set()
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-
-    # ANSI helpers
-    UP = "\033[A"
-    DOWN = "\033[B"
-    HIDE = "\033[?25l"
-    SHOW = "\033[?25h"
-    CLEAR_LINE = "\033[2K"
-    BOLD = "\033[1m"
-    RESET = "\033[0m"
-    GREEN = "\033[32m"
-    CYAN = "\033[36m"
-    GRAY = "\033[90m"
-
-    def render():
-        lines = [f"\n {BOLD}Select commands to run:{RESET}  (↑↓ navigate, ⭾ toggle, ↵ execute, q quit)\n"]
-        for i, cmd in enumerate(commands):
-            prefix = "▸" if i == cursor else " "
-            check = "☑" if i in selected else "☐"
-            style = CYAN if i == cursor else RESET
-            desc = cmd[:80] + ("..." if len(cmd) > 80 else "")
-            lines.append(f" {prefix} {style}{check} {desc}{RESET}")
-        lines.append("")
-        return "\n".join(lines)
-
-    def count_lines() -> int:
-        return n + 3  # header + n items + blank line
-
-    try:
-        tty.setraw(fd)
-        sys.stdout.write(HIDE)
-        sys.stdout.flush()
-
-        while True:
-            # Render
-            rendered = render()
-            sys.stdout.write(rendered)
-            sys.stdout.flush()
-
-            # Read key
-            raw = b""
-            while True:
-                b = os.read(fd, 1)
-                raw += b
-                if b == b"\x1b":
-                    # Read next 2 bytes for escape sequences
-                    raw += os.read(fd, 2)
-                break
-
-            key = raw.decode("utf-8", errors="replace")
-
-            # Move cursor back up for re-render
-            sys.stdout.write(f"\033[{count_lines()}A")
-            for _ in range(count_lines()):
-                sys.stdout.write(CLEAR_LINE)
-                if _ < count_lines() - 1:
-                    sys.stdout.write("\033[B")
-            sys.stdout.write(f"\033[{count_lines()}A")
-
-            if key == "\r" or key == "\n":
-                break
-            elif key == "q":
-                selected.clear()
-                break
-            elif key == "\t" or key == " ":
-                if cursor in selected:
-                    selected.remove(cursor)
-                else:
-                    selected.add(cursor)
-            elif key == "\x1b[A" and cursor > 0:
-                cursor -= 1
-            elif key == "\x1b[B" and cursor < n - 1:
-                cursor += 1
-
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        # Clear the selection area
-        sys.stdout.write(SHOW)
-        for _ in range(count_lines()):
-            sys.stdout.write(CLEAR_LINE)
-            sys.stdout.write("\n")
-        sys.stdout.write(f"\033[{count_lines()}A")
-        sys.stdout.flush()
-
-    return sorted(selected)
-
     def __init__(
         self,
         verbose: bool = False,
+        provider: Optional[str] = None,
         llm_model: Optional[str] = None,
         llm_base_url: Optional[str] = None,
     ):
         self.verbose = verbose
-        self.model = llm_model or os.environ.get("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
+        self._provider = provider or os.environ.get("MSP_LLM_PROVIDER", "")  # "openai", "ollama", "apfel"
+        self.model = llm_model or os.environ.get("LLM_MODEL", DEFAULT_OPENAI_MODEL)
         self.base_url = (llm_base_url or os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)).rstrip("/")
 
     def _format_for_llm(self, data: Any) -> str:
@@ -338,40 +272,63 @@ def _interactive_command_select(commands: List[str]) -> List[int]:
         return str(data)
 
     def _chat(self, system_prompt: str, user_prompt: str, json_mode: bool = False) -> str:
-        """Try providers in order: Ollama -> apfel -> error.
+        """Try providers in priority order: openai → ollama → apfel."""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
 
-        Ollama uses qwen2.5-coder:1.5b by default — ~1GB RAM, runs on any Mac.
-        Override via OLLAMA_MODEL env var or --model flag.
-        On crash/timeout, falls back to apfel (Apple Intelligence).
-        """
-        try:
-            if _ollama_available(self.base_url):
-                if not _ollama_model_loaded(self.model, self.base_url):
-                    raise RuntimeError(f"model '{self.model}' not pulled")
+        chain = []
+        forced = self._provider.lower()
+        if forced == "openai":
+            chain = ["openai"]
+        elif forced == "ollama":
+            chain = ["ollama"]
+        elif forced == "apfel":
+            chain = ["apfel"]
+        else:
+            chain = ["openai", "ollama", "apfel"]
 
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ]
-                with _spinner(f"Ollama ({self.model})"):
-                    return _ollama_chat(messages, self.model, self.base_url, json_mode=json_mode)
-        except Exception as e:
-            if self.verbose:
-                print(f"Ollama: {e}")
-                print("Falling back to apfel...")
-
-        try:
-            if _apfel_available():
-                with _spinner("apfel"):
-                    return _apfel_chat(system_prompt, user_prompt)
-        except Exception as e:
-            if self.verbose:
-                print(f"apfel also failed: {e}")
+        for provider in chain:
+            try:
+                if provider == "openai":
+                    if _openai_available():
+                        with _spinner(f"OpenAI ({self.model})"):
+                            return _openai_chat(messages, model=self.model)
+                    if not _openai_available():
+                        _openai_key_from_keychain()
+                    if _openai_available():
+                        with _spinner(f"OpenAI ({self.model})"):
+                            return _openai_chat(messages, model=self.model)
+                    if _prompt_openai_key():
+                        with _spinner(f"OpenAI ({self.model})"):
+                            return _openai_chat(messages, model=self.model)
+                    elif self.verbose:
+                        print("OpenAI: SDK not available or OPENAI_API_KEY not set")
+                elif provider == "ollama":
+                    if _ollama_available(self.base_url):
+                        if not _ollama_model_loaded(self.model, self.base_url):
+                            raise RuntimeError(f"model '{self.model}' not pulled")
+                        with _spinner(f"Ollama ({self.model})"):
+                            return _ollama_chat(messages, self.model, self.base_url, json_mode=json_mode)
+                    elif self.verbose:
+                        print(f"Ollama: not available at {self.base_url}")
+                elif provider == "apfel":
+                    if _apfel_available():
+                        with _spinner("apfel"):
+                            return _apfel_chat(system_prompt, user_prompt)
+                    elif self.verbose:
+                        print("apfel: not found on PATH")
+            except Exception as e:
+                if self.verbose:
+                    print(f"{provider} failed: {e}")
+                continue
 
         raise RuntimeError(
             "No AI provider available.\n"
-            f"  ollama: model={self.model}: run 'ollama pull {self.model}' then 'ollama serve'\n"
-            "  apfel:  run 'brew install apfel'"
+            "  openai: set OPENAI_API_KEY in your environment, or enter it when prompted\n"
+            f"  ollama: run 'ollama pull {self.model}' then 'ollama serve' (optional)\n"
+            "  apfel:  run 'brew install apfel' (optional)"
         )
 
     def ask(self, prompt: str, data: Optional[Any] = None, json_output: bool = False) -> Optional[str]:
@@ -556,6 +513,158 @@ Be concise and practical."""
         return state
 
 
+_COMMAND_PREFIXES = (
+    "kill", "pkill", "sudo", "ps ", "lsof", "top ", "htop", "nettop",
+    "launchctl", "defaults", "spctl", "csrutil", "fdesetup", "diskutil",
+    "dscacheutil", "mdutil", "pmset", "sysctl", "vm_stat", "df ", "du ",
+    "ps aux", "ps -", "echo", "cat ", "less", "more", "head", "tail",
+    "grep", "awk", "sed", "sort", "uniq", "wc ", "cut ", "tr ",
+    "find ", "locate", "which", "whereis", "type ",
+    "ping", "dig ", "nslookup", "curl", "wget",
+    "brew", "pip", "npm", "npx", "yarn",
+    "python", "python3", "ruby", "perl",
+    "open ", "say ", "osascript",
+    "tcpdump", "netstat", "ifconfig", "ip ",
+    "chmod", "chown", "ln ", "cp ", "mv ", "rm ", "mkdir", "touch",
+    "ditto", "tar ", "gzip", "gunzip", "unzip",
+    "date", "cal ", "bc ", "expr",
+    "xattr", "file ", "stat ", "sw_vers", "system_profiler",
+    "mdfind", "screencapture",
+)
+
+
+def _extract_commands(text: str) -> List[str]:
+    """Extract shell commands from AI response text."""
+    seen: set[str] = set()
+    commands: List[str] = []
+
+    for line in text.splitlines():
+        stripped = line.strip()
+
+        # Skip empty, comments, markdown fences
+        if not stripped or stripped.startswith("#") or stripped.startswith("```"):
+            continue
+
+        # Remove common prompt prefixes
+        if stripped.startswith("$ "):
+            stripped = stripped[2:].strip()
+        elif stripped.startswith("> "):
+            stripped = stripped[2:].strip()
+        elif stripped.startswith("% "):
+            stripped = stripped[2:].strip()
+
+        # Check if it looks like a shell command
+        if not stripped:
+            continue
+        if any(stripped.startswith(p) for p in _COMMAND_PREFIXES):
+            # Normalize whitespace and deduplicate
+            normalized = " ".join(stripped.split())
+            if normalized not in seen and len(normalized) > 2:
+                seen.add(normalized)
+                commands.append(normalized)
+
+    return commands
+
+
+def _interactive_command_select(commands: List[str]) -> List[int]:
+    """Arrow-key navigable, Tab-toggle multi-select for a list of commands.
+
+    Returns indices of selected commands (empty list if cancelled).
+    """
+    if not commands:
+        return []
+
+    n = len(commands)
+    cursor = 0
+    selected: set[int] = set()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+
+    # ANSI helpers
+    UP = "\033[A"
+    DOWN = "\033[B"
+    HIDE = "\033[?25l"
+    SHOW = "\033[?25h"
+    CLEAR_LINE = "\033[2K"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    GREEN = "\033[32m"
+    CYAN = "\033[36m"
+    GRAY = "\033[90m"
+
+    def render():
+        lines = [f"\n {BOLD}Select commands to run:{RESET}  (↑↓ navigate, ⭾ toggle, ↵ execute, q quit)\n"]
+        for i, cmd in enumerate(commands):
+            prefix = "▸" if i == cursor else " "
+            check = "☑" if i in selected else "☐"
+            style = CYAN if i == cursor else RESET
+            desc = cmd[:80] + ("..." if len(cmd) > 80 else "")
+            lines.append(f" {prefix} {style}{check} {desc}{RESET}")
+        lines.append("")
+        return "\n".join(lines)
+
+    def count_lines() -> int:
+        return n + 3  # header + n items + blank line
+
+    try:
+        tty.setraw(fd)
+        sys.stdout.write(HIDE)
+        sys.stdout.flush()
+
+        while True:
+            # Render
+            rendered = render()
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+
+            # Read key
+            raw = b""
+            while True:
+                b = os.read(fd, 1)
+                raw += b
+                if b == b"\x1b":
+                    # Read next 2 bytes for escape sequences
+                    raw += os.read(fd, 2)
+                break
+
+            key = raw.decode("utf-8", errors="replace")
+
+            # Move cursor back up for re-render
+            sys.stdout.write(f"\033[{count_lines()}A")
+            for _ in range(count_lines()):
+                sys.stdout.write(CLEAR_LINE)
+                if _ < count_lines() - 1:
+                    sys.stdout.write("\033[B")
+            sys.stdout.write(f"\033[{count_lines()}A")
+
+            if key == "\r" or key == "\n":
+                break
+            elif key == "q":
+                selected.clear()
+                break
+            elif key == "\t" or key == " ":
+                if cursor in selected:
+                    selected.remove(cursor)
+                else:
+                    selected.add(cursor)
+            elif key == "\x1b[A" and cursor > 0:
+                cursor -= 1
+            elif key == "\x1b[B" and cursor < n - 1:
+                cursor += 1
+
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        # Clear the selection area
+        sys.stdout.write(SHOW)
+        for _ in range(count_lines()):
+            sys.stdout.write(CLEAR_LINE)
+            sys.stdout.write("\n")
+        sys.stdout.write(f"\033[{count_lines()}A")
+        sys.stdout.flush()
+
+    return sorted(selected)
+
+
 from datetime import datetime
 
 
@@ -626,14 +735,16 @@ def main():
     parser.add_argument("--setting", help="Setting name to explain")
     parser.add_argument("--preset1", help="First preset to compare")
     parser.add_argument("--preset2", help="Second preset to compare")
-    parser.add_argument("--model", help="Ollama model name (default: llama3.2)")
+    parser.add_argument("--model", help="LLM model name (default: gpt-4o-mini)")
     parser.add_argument("--ollama-url", help="Ollama base URL (default: http://localhost:11434)")
+    parser.add_argument("--provider", choices=["openai", "ollama", "apfel"], help="Force a specific LLM provider")
     parser.add_argument("--sort", choices=[""], help="Sort not applicable for AI commands")
     setup_completion(parser)
     args = parser.parse_args()
 
     analyzer = AIAnalyzer(
         verbose=args.verbose,
+        provider=args.provider,
         llm_model=args.model,
         llm_base_url=args.ollama_url,
     )
