@@ -1,0 +1,32 @@
+version: '3.9'
+services:
+  frigate:
+    container_name: frigate
+    image: ghcr.io/blakeblackshear/frigate:stable
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "5001:5000"  # Changed to 5001 to avoid conflict with macOS Control Center
+      - "8554:8554"
+      - "8555:8555"
+      - "8556:8556"
+      - "8557:8557/tcp"
+      - "8557:8557/udp"
+    environment:
+      - FRIGATE_RTSP_PASSWORD=${FRIGATE_RTSP_PASSWORD}
+      - FFMPEG_THREADS=1
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./config:/config
+      - ./storage:/media/frigate
+      - tmp_cache:/tmp/cache
+    networks:
+      - frigate_net
+
+networks:
+  frigate_net:
+    driver: bridge
+
+volumes:
+  tmp_cache:
+    driver: local

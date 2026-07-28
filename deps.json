@@ -67,6 +67,26 @@
       "auto_install": false,
       "install_cmd": "brew install somo",
       "verify_cmd": "which somo"
+    },
+    "nmap": {
+      "name": "nmap",
+      "description": "Network scanner for discovering devices and open ports",
+      "type": "formula",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "brew install nmap",
+      "verify_cmd": "which nmap",
+      "note": "Used for network device discovery (msp net nmap)"
+    },
+    "openvino": {
+      "name": "openvino",
+      "description": "Intel OpenVINO toolkit for AI acceleration (supports USB NPU devices)",
+      "type": "pip",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "pip install openvino",
+      "verify_cmd": "python3 -c 'import openvino; print(openvino.__version__)' 2>/dev/null",
+      "note": "For Intel NCS2, NCS2+, and other USB AI accelerators. Requires model IR conversion."
     }
   },
   "system_checks": {

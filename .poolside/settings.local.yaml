@@ -1,0 +1,50 @@
+tools:
+    shell:
+        allow:
+            - cat *
+            - head *
+            - tail *
+            - cd *
+            - python3 *
+            - echo *
+            - ls *
+            - find *
+            - curl *
+            - timeout 10 bash *
+            - nmap *
+            - mkdir *
+            - sort
+            - xargs *
+            - grep *
+            - wc *
+            - ifconfig
+            - python *
+            - pip3 install textual *
+            - pip install textual *
+            - pip3 show *
+            - sleep 5
+            - which python3
+            - which msp
+            - /usr/bin/python3 *
+            - which pip3
+            - pip3 *
+            - chmod *
+            - sleep 2
+            - pkill *
+            - "true"
+            - sleep 3
+            - /Users/conscious/Library/Python/3.9/bin/python3 *
+            - msp *
+            - rm *
+            - rmdir *
+            - git status *
+            - git diff *
+            - /Users/conscious/bin/msp *
+            - env python3 *
+            - kill $TUI_PID
+            - which *
+            - tr *
+            - /opt/homebrew/bin/python3 *
+paths:
+    allow:
+        - path: /Users/conscious/.config/poolside/skills/**

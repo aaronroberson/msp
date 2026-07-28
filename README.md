@@ -4,12 +4,12 @@ A comprehensive security and privacy CLI for macOS that combines native commands
 
 ## Features
 
-- **Network Monitoring** - View ports, connections, bandwidth usage
+- **Network Monitoring** - View ports, connections, bandwidth usage, **network devices (ARP)**, **port scanning (nmap)**
 - **Startup Management** - Control launch agents, daemons, login items, cron
 - **File Watching** - Real-time filesystem monitoring
 - **Traffic Analysis** - DNS queries, HTTP traffic, packet capture
 - **Security Scanner** - Code signatures, Gatekeeper, heuristic detection
-- **AI Integration** - Local AI-powered analysis via `ollama`
+- **AI Integration** - Local AI-powered analysis via `ollama`, **OpenVINO USB acceleration support**
 - **Method Chaining** - Build and run custom monitoring workflows
 - **Dependency Manager** - Auto-install required tools
 
@@ -86,6 +86,16 @@ msp net established      # Active connections
 msp net top              # Per-process bandwidth
 msp net kill <pid>       # Kill process
 msp net lookup <host>    # DNS lookup
+msp net arp             # Network devices via ARP cache
+msp net arp --limit 20  # Limit output (default: 20)
+msp net hosts           # Discover live hosts on network (nmap -sn)
+msp net nmap            # Scan for open ports (auto-detect subnet)
+msp net nmap --ports 80,443,8080  # Custom ports
+msp net nmap --target 192.168.1.0/24  # Custom target subnet
+msp net nmap --scan-type cameras  # Camera-specific ports (RTSP, ONVIF, HTTP)
+msp net nmap --ping-scan     # Host discovery only (no port scan)
+msp net nmap --check-http    # Check HTTP status on discovered hosts
+msp net nmap --sudo     # Use sudo for full scan (may be required)
 ```
 
 ### Startup Items (`msp startup`)
@@ -136,9 +146,16 @@ msp scan report         # Generate report
 msp ask "what's suspicious in my processes?"           # Direct query
 msp ask "analyze my connections"                      # Auto-includes network data
 msp ask "explain firewall settings"                    # Explain specific settings
-msp ask watch               # Interactive monitoring mode
-msp ask suggest             # Hardening suggestions
+msp ask watch                 # Interactive monitoring mode
+msp ask suggest               # Hardening suggestions
+msp ask devices               # List available AI devices (checks OpenVINO USB)
 ```
+
+Providers (auto-detected in order):
+1. **openai** - Cloud API (requires `OPENAI_API_KEY`)
+2. **ollama** - Local LLM (default, requires `ollama serve`)
+3. **apfel** - Apple Intelligence fallback (`brew install apfel`)
+4. **openvino** - Intel USB accelerators (`pip install openvino`)
 
 Note: `msp ask` automatically includes network context (established connections, listening ports) for network-related questions. Requires `ollama serve` to be running (or `apfel` as fallback).
 
@@ -157,6 +174,13 @@ export OLLAMA_BASE_URL="http://192.168.1.100:11434"
 export MSP_LLM_PROVIDER="apfel"    # Apple Intelligence fallback
 export MSP_LLM_PROVIDER="openai"   # Requires OPENAI_API_KEY
 export MSP_LLM_PROVIDER="local"    # Offline heuristic (no LLM needed)
+export MSP_LLM_PROVIDER="openvino"  # Intel OpenVINO with USB acceleration
+
+# OpenVINO device selection (when using openvino provider):
+export OPENVINO_DEVICE="NPU"      # Intel Neural Compute Stick 2
+export OPENVINO_DEVICE="GPU"       # Intel GPU
+export OPENVINO_DEVICE="CPU"       # Force CPU
+export OPENVINO_DEVICE="AUTO"      # Auto-detect (default)
 ```
 
 Usage hints:
@@ -164,6 +188,7 @@ Usage hints:
 - **Start server**: `ollama serve` (runs in background)
 - **Check memory**: If your system feels sluggish, try `ollama pull granite-code:3b` (3B, ~2GB) or stick with the default 1.5B
 - **No Ollama?** apfel serves as automatic fallback if installed
+- **USB Acceleration**: Install OpenVINO (`pip install openvino`) and use `MSP_LLM_PROVIDER=openvino` for Intel NCS2/NPU devices
 
 ### Method Chaining (`msp chain`)
 ```bash
@@ -203,6 +228,8 @@ Run `msp doctor` to check and install dependencies.
 | knockknock | Startup scanner (Objective-See) | Prompt |
 | wireshark | Packet analyzer (tshark CLI) | Prompt |
 | somo | Network monitor | Prompt |
+| nmap | Network scanner for device discovery | Prompt |
+| openvino | Intel AI acceleration (USB/NPU) | Prompt |
 
 ## Privacy
 
@@ -229,6 +256,13 @@ Run `msp doctor` to check and install dependencies.
 | `audit` | scan deep → startup audit → fswatch audit → ai suggest |
 
 ## Examples
+
+### Network Device Discovery
+```bash
+msp net arp                 # List devices on your network via ARP cache
+msp net nmap              # Scan for open ports (RTSP, HTTP, Roku default ports)
+msp ask "analyze my network devices" --data <(msp net arp)  # AI analysis of ARP results
+```
 
 ### Daily Security Check
 ```bash

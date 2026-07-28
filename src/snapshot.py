@@ -110,7 +110,7 @@ class SnapshotManager:
         success, output = self._run_cmd("blueutil power")
         return success and "1" in output
 
-    def capture(self, name: str = None, include_network: bool = False,
+    def capture(self, name: str | None = None, include_network: bool = False,
                 include_startup: bool = False, include_custom: bool = True) -> str:
         """Capture current system state to a snapshot."""
         if name is None:

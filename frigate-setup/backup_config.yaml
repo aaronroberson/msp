@@ -1,0 +1,83 @@
+# Frigate Configuration for ONVIF Cameras
+# Cameras found via XFINITY/Xfinity app:
+# - 10.0.0.31 (same subnet) - may work with proper credentials
+# - 192.168.1.2 (isolated subnet) - needs network changes
+# - 192.168.1.3 (isolated subnet) - needs network changes
+
+detectors:
+  cpu1:
+    type: cpu
+
+objects:
+  track:
+    - person
+    - car
+    - dog
+    - cat
+    - package
+    - bicycle
+
+# Cameras - UPDATE credentials with your actual values
+cameras:
+  # Camera on same subnet - can be reached directly
+  camera_10g:
+    ffmpeg:
+      inputs:
+        - path: rtsp://admin:YOUR_PASSWORD@10.0.0.31:554/stream1
+          roles:
+            - detect
+            - record
+    width: 1920
+    height: 1080
+    fps: 5
+    objects:
+      track:
+        - person
+        - car
+
+  # Camera on isolated subnet - needs network routing
+  camera_192_2:
+    ffmpeg:
+      inputs:
+        - path: rtsp://admin:YOUR_PASSWORD@192.168.1.2:554/stream1
+          roles:
+            - detect
+            - record
+    width: 1920
+    height: 1080
+    fps: 5
+
+  # Third camera on isolated subnet
+  camera_192_3:
+    ffmpeg:
+      inputs:
+        - path: rtsp://admin:YOUR_PASSWORD@192.168.1.3:554/stream1
+          roles:
+            - detect
+            - record
+    width: 1920
+    height: 1080
+    fps: 5
+
+# Recording settings (events + continuous)
+record:
+  enabled: true
+  retain_days: 30
+
+# Go2rtc for ONVIF auto-discovery
+go2rtc:
+  streams: {}
+  # Optional: ONVIF auto-discovery
+  # onvif:
+  #   providers:
+  #     - name: onvif
+
+# Web UI
+webserver:
+  port: 5000
+
+# Birdseye view
+birdseye:
+  enabled: true
+  width: 1280
+  height: 720

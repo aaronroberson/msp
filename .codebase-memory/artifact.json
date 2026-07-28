@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "3575f7703af0f68f8bd7c0017b0b027bb4858590",
+    "indexed_at": "2026-07-27T05:26:37Z",
+    "project": "Users-conscious-macos-privacy-cli",
+    "nodes": 1175,
+    "edges": 6031,
+    "original_size": 7274496,
+    "compressed_size": 1254339,
+    "compression_level": 3
+}

@@ -307,6 +307,209 @@ class NetworkMonitor:
             print(f"No DNS records for {host}")
             return []
 
+    def list_devices_arp(self, limit: int = 20, json_output: bool = False) -> List[Dict[str, str]]:
+        """List network devices discovered via ARP cache.
+
+        Uses: arp -a | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
+        """
+        success, output = self._run_cmd("arp -a 2>/dev/null")
+
+        devices = []
+        if success and output.strip():
+            # Parse ARP output: ? (192.168.1.1) at (xx:xx:xx:xx:xx:xx) on en0 ifscope [ethernet]
+            arp_pattern = re.compile(r'\(([\d.]+)\)\s+at\s+([0-9a-f:]+)\s+on\s+(\w+)')
+            for line in output.strip().split('\n'):
+                # Also filter for IP addresses
+                if re.search(r'([0-9]{1,3}\.){3}[0-9]{1,3}', line):
+                    match = arp_pattern.search(line)
+                    if match:
+                        ip, mac, interface = match.groups()
+                        devices.append({
+                            "ip": mask_ip(ip),
+                            "mac": mac,
+                            "interface": interface,
+                            "status": "reachable"
+                        })
+
+        # Sort by IP
+        devices = sorted(devices, key=lambda x: x["ip"])[:limit]
+
+        if json_output:
+            print(json.dumps(devices, indent=2))
+            return devices
+
+        if RICH_AVAILABLE and console:
+            table = Table(title="Network Devices (ARP Cache)")
+            table.add_column("IP", style="cyan")
+            table.add_column("MAC Address", style="green")
+            table.add_column("Interface", style="yellow")
+            table.add_column("Status", style="magenta")
+
+            for d in devices:
+                table.add_row(d["ip"], d["mac"], d["interface"], d["status"])
+            console.print(table)
+        else:
+            print(f"{'IP':<18} {'MAC Address':<18} {'Interface':<12} {'Status'}")
+            print("-" * 70)
+            for d in devices:
+                print(f"{d['ip']:<18} {d['mac']:<18} {d['interface']:<12} {d['status']}")
+
+        return devices
+
+    def nmap_scan(self, target: str = None, ports: str = None, subnet: str = None, json_output: bool = False, sudo: bool = False, scan_type: str = "default", ping_scan: bool = False, check_http: bool = False) -> List[Dict[str, Any]]:
+        """Scan network for open ports using nmap.
+
+        Uses: nmap -p <ports> <target> --open
+        Default ports: 554 (RTSP), 80 (HTTP), 8080 (HTTP-alt), 8899 (Roku)
+        scan_type: 'default' uses ports param, 'cameras' uses camera-specific ports
+        ping_scan: If True, runs nmap -sn (host discovery only)
+        check_http: If True, performs HTTP check on discovered hosts
+        """
+        # Set ports based on scan type if not provided
+        if ports is None and scan_type == "cameras":
+            ports = "554,80,8080,8899,5541,8000,8554,8888,9000,1900"  # RTSP, ONVIF, HTTP camera ports
+        elif ports is None:
+            ports = "554,80,8080,8899"
+        # Determine target - auto-detect local subnet if not provided
+        scan_target = target
+        if not scan_target:
+            if subnet:
+                scan_target = subnet
+            else:
+                # Try to detect local network
+                success, output = self._run_cmd("route get default 2>/dev/null | grep interface")
+                if success and output.strip():
+                    iface = output.strip().split()[-1] if output.strip() else "en0"
+                else:
+                    iface = "en0"
+
+                # Get IP and derive subnet
+                success, output = self._run_cmd(f"ipconfig getifaddr {iface} 2>/dev/null")
+                if success and output.strip():
+                    ip_parts = output.strip().split('.')
+                    if len(ip_parts) == 4:
+                        scan_target = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
+                    else:
+                        scan_target = "10.0.0.0/24"  # fallback
+                else:
+                    scan_target = "10.0.0.0/24"  # fallback
+
+        # Build nmap command
+        if ping_scan:
+            cmd = f"nmap -sn {scan_target} 2>&1"
+            if self.verbose:
+                print(f"Ping scanning {scan_target}...")
+        else:
+            cmd = f"nmap -p {ports} {scan_target} --open 2>&1"
+            if self.verbose:
+                print(f"Scanning {scan_target} for open ports {ports}...")
+
+        success, output = self._run_cmd(cmd, sudo=sudo)
+
+        results = []
+        if ping_scan:
+            # Parse ping scan output - just list live hosts
+            host_pattern = re.compile(r'^Nmap scan report for ([\d.]+)', re.MULTILINE)
+            host_up_pattern = re.compile(r'Host is up')
+            for line in output.strip().split('\n'):
+                host_match = host_pattern.search(line)
+                if host_match:
+                    ip = host_match.group(1)
+                    results.append({"ip": mask_ip(ip), "originIp": ip, "ports": [], "status": "alive"})
+        elif "open" in output.lower() or "report" in output.lower():
+            # Parse port scan output
+            host_pattern = re.compile(r'^Nmap scan report for ([\d.]+)', re.MULTILINE)
+            port_pattern = re.compile(r'(\d+)/tcp\s+open\s+(\w+)(?:\s+(.+?))?$')
+
+            current_host = None
+            for line in output.strip().split('\n'):
+                line = line.strip()
+                host_match = host_pattern.search(line)
+                if host_match:
+                    current_host = host_match.group(1)
+                    if current_host not in [r.get("ip") for r in results]:
+                        results.append({"ip": mask_ip(current_host), "ports": []})
+
+                port_match = port_pattern.search(line)
+                if port_match and current_host:
+                    port, state, service = port_match.groups()
+                    for r in results:
+                        if r["ip"] == mask_ip(current_host) or r["ip"] == current_host:
+                            r["ports"].append({"port": int(port), "service": service or "unknown"})
+
+        # HTTP check if requested
+        if check_http and results:
+            for r in results:
+                # Use originIp if available, otherwise try to unmask
+                original_ip = r.get("originIp", r["ip"].replace(".*", ""))
+                http_cmd = f"curl -s --connect-timeout 2 -o /dev/null -w '%{{http_code}}' http://{original_ip}/ 2>/dev/null"
+                _, http_out = self._run_cmd(http_cmd)
+                if http_out.strip() and http_out.strip() != "000":
+                    r["http_status"] = http_out.strip()
+                else:
+                    r["http_status"] = "none"
+
+        if json_output:
+            print(json.dumps(results, indent=2))
+            return results
+
+        # Truncate long target strings for display
+        display_target = scan_target if len(scan_target) <= 40 else scan_target[:37] + "..."
+
+        if RICH_AVAILABLE and console:
+            table = Table(title=f"Nmap Scan Results ({display_target})")
+            table.add_column("IP", style="cyan")
+            if ping_scan:
+                if check_http:
+                    table.add_column("Status", style="green")
+                    table.add_column("HTTP", style="yellow")
+                else:
+                    table.add_column("Status", style="green")
+            else:
+                table.add_column("Open Ports", style="green")
+                table.add_column("Services", style="yellow")
+
+            for r in results:
+                if ping_scan:
+                    if check_http:
+                        table.add_row(r["ip"], r.get("status", "alive"), r.get("http_status", "none"))
+                    else:
+                        table.add_row(r["ip"], r.get("status", "alive"))
+                else:
+                    ports_str = ", ".join(str(p["port"]) for p in r["ports"]) if r["ports"] else "none"
+                    services_str = ", ".join(p["service"] for p in r["ports"]) if r["ports"] else "-"
+                    table.add_row(r["ip"], ports_str, services_str)
+            console.print(table)
+        else:
+            print(f"\nNmap scan results for {display_target}:")
+            print("-" * 50)
+            for r in results:
+                if ping_scan:
+                    if check_http:
+                        print(f"{r['ip']}: {r.get('status', 'alive')} (HTTP: {r.get('http_status', 'none')})")
+                    else:
+                        print(f"{r['ip']}: {r.get('status', 'alive')}")
+                else:
+                    ports_str = ", ".join(str(p["port"]) for p in r["ports"]) if r["ports"] else "none"
+                    print(f"{r['ip']}: {ports_str}")
+
+        return results
+
+    def get_local_subnet(self) -> str:
+        """Detect local network subnet."""
+        success, output = self._run_cmd("route get default 2>/dev/null | grep interface")
+        if success and output.strip():
+            iface = output.strip().split()[-1]
+        else:
+            iface = "en0"
+
+        success, output = self._run_cmd(f"ipconfig getifaddr {iface} 2>/dev/null")
+        if success and output.strip():
+            ip_parts = output.strip().split('.')
+            if len(ip_parts) == 4:
+                return f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
+        return "10.0.0.0/24"
+
 
 def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
     """Interactive menu for network management."""
@@ -316,14 +519,20 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
         ("3", "top", "Show top bandwidth consumers"),
         ("4", "kill", "Kill a process by PID"),
         ("5", "lookup", "DNS lookup"),
+        ("6", "arp", "List network devices (ARP)"),
+        ("7", "hosts", "Discover live hosts (nmap -sn)"),
+        ("8", "nmap", "Scan network (nmap)"),
     ]
 
     sort_options = {
         "list": ["port", "process", "pid", "user", "protocol"],
         "established": ["process", "pid", "user", "local", "remote"],
         "top": ["total", "in", "out", "process"],
+        "arp": ["ip", "mac", "interface"],
+        "hosts": ["ip"],
+        "nmap": ["ip", "ports"],
     }
-    current_sort = {"list": "port", "established": "process", "top": "total"}
+    current_sort = {"list": "port", "established": "process", "top": "total", "arp": "ip", "hosts": "ip", "nmap": "ip"}
 
     while True:
         action = cmd_interactive_menu([
@@ -332,6 +541,9 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
             ("3", "top", "Show top bandwidth consumers"),
             ("4", "kill", "Kill a process by PID"),
             ("5", "lookup", "DNS lookup"),
+            ("6", "arp", "List network devices (ARP)"),
+            ("7", "hosts", "Discover live hosts (nmap -sn)"),
+            ("8", "nmap", "Scan network (nmap)"),
             ("s", "sort", "Change sort order"),
         ], title="Network Monitor - Interactive Mode")
 
@@ -371,6 +583,18 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
                 monitor.lookup(host)
             else:
                 print("Host required")
+        elif action == "arp":
+            limit = input("Limit (default 20): ").strip()
+            limit = int(limit) if limit.isdigit() else 20
+            monitor.list_devices_arp(limit=limit, json_output=json_output)
+        elif action == "hosts":
+            target = input("Target subnet (blank for auto-detect): ").strip() or None
+            monitor.nmap_scan(target=target, ports="", json_output=json_output, ping_scan=True)
+        elif action == "nmap":
+            target = input("Target subnet (blank for auto-detect): ").strip() or None
+            ping_only = input("Ping scan only? (y/N): ").strip().lower() == 'y'
+            ports = input("Ports (default 554,80,8080,8899): ").strip() or "554,80,8080,8899"
+            monitor.nmap_scan(target=target, ports=ports, json_output=json_output, ping_scan=ping_only)
 
         input("\nPress Enter to continue...")
 
@@ -378,10 +602,16 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Network Monitor")
-    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "lookup"], help="Action to perform (omit for interactive mode)")
+    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "lookup", "arp", "nmap", "hosts"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--pid", type=int, help="PID for kill command")
     parser.add_argument("--host", help="Host for lookup command")
-    parser.add_argument("--limit", type=int, default=10, help="Limit for top command")
+    parser.add_argument("--limit", type=int, default=20, help="Limit for arp command")
+    parser.add_argument("--target", help="Target subnet for nmap (e.g., 192.168.1.0/24)")
+    parser.add_argument("--ports", default="554,80,8080,8899", help="Ports for nmap scan (default: 554,80,8080,8899)")
+    parser.add_argument("--sudo", action="store_true", help="Use sudo for nmap scan (may be required for full port scan)")
+    parser.add_argument("--scan-type", choices=["default", "cameras"], help="Scan type: default (custom ports) or cameras (RTSP/Web camera ports)")
+    parser.add_argument("--ping-scan", action="store_true", help="Ping scan only (discover live hosts, no port scan)")
+    parser.add_argument("--check-http", action="store_true", help="Check HTTP status on discovered hosts")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -411,6 +641,20 @@ def main():
             print("Error: --host required for lookup")
             sys.exit(1)
         monitor.lookup(args.host)
+    elif args.action == "arp":
+        monitor.list_devices_arp(limit=args.limit, json_output=args.json)
+    elif args.action == "nmap":
+        scan_type = getattr(args, 'scan_type', 'default')
+        ping_scan = getattr(args, 'ping_scan', False)
+        check_http = getattr(args, 'check_http', False)
+        if scan_type == "cameras":
+            ports = "554,80,8080,8899,5541,8000,8554,8888,9000,1900"
+        else:
+            ports = args.ports or "554,80,8080,8899"
+        monitor.nmap_scan(target=args.target, ports=ports, json_output=args.json, sudo=args.sudo, ping_scan=ping_scan, check_http=check_http)
+    elif args.action == "hosts":
+        check_http = getattr(args, 'check_http', False)
+        monitor.nmap_scan(target=args.target, ports="", json_output=args.json, sudo=args.sudo, ping_scan=True, check_http=check_http)
 
 
 if __name__ == "__main__":

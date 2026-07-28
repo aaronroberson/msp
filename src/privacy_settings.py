@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 macos-privacy-cli: A CLI tool for managing macOS privacy and security settings.
 
 This tool allows you to:
@@ -1019,6 +1019,24 @@ ACTION_TO_MODULE = {
 
 def interactive_menu():
     """Interactive menu for privacy/security settings."""
+    from src.splash import make_splash
+    import shutil
+    cols = shutil.get_terminal_size().columns
+    splash = make_splash("CLI")
+    lines = splash.strip('\n').split('\n')
+    max_w = max(len(l) for l in lines)
+    pad = max(0, (cols - max_w) // 2)
+    for line in lines:
+        if line.strip():
+            print(" " * pad + line)
+        else:
+            print()
+    line1 = "  macOS Security Privacy Assistant  v0.1.0"
+    line2 = "  type / for a list of commands"
+    print(" " * max(0, (cols - len(line1)) // 2) + line1)
+    print(" " * max(0, (cols - len(line2)) // 2) + line2)
+    print()
+
     manager = PrivacySettingsManager(verbose="-v" in sys.argv or "--verbose" in sys.argv)
     preset_manager = PresetManager(manager)
     sort_by = "name"

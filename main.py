@@ -33,7 +33,10 @@ Commands:
     doctor             Check dependencies
     tune               System performance tuning
     presets            Manage presets
+
+    tui                Interactive security assistant (xli TUI)
 """
+__version__ = "0.1.0"
 import os
 import sys
 import argparse
@@ -62,9 +65,12 @@ COMMAND_MODULES = {
     "chain": "chain",
     "doctor": "deps",
     "tune": "tune",
+    "tui": "tui",
 }
 
 NO_ACTION_MODULES = {"facts", "llm", "report", "ai"}
+
+CLI_MENU_COMMANDS = {"cli", "console", "menu"}
 
 
 def run_command(module_name: str, command: str, args: list, global_args: dict = None):
@@ -228,9 +234,11 @@ Examples:
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--json", action="store_true", help="JSON output")
+    parser.add_argument("-V", "--version", action="store_true", help="Show version")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination", "state"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination, state")
-    parser.add_argument("--provider", choices=["openai", "ollama", "apfel"], help="LLM provider for ask command")
+    parser.add_argument("--provider", choices=["openai", "ollama", "apfel", "openvino"], help="LLM provider for ask command")
     parser.add_argument("--model", help="LLM model name (default: gpt-4o-mini)")
+    parser.add_argument("--openvino-device", help="OpenVINO device (AUTO, CPU, GPU, NPU, USB)")
     parser.add_argument("--install-completion", action="store_true", help="Install shell completion for bash/zsh")
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
@@ -238,6 +246,10 @@ Examples:
     setup_completion(parser)
     args, unknown_args = parser.parse_known_args()
     args.args.extend(unknown_args)
+
+    if args.version:
+        print(f"msp {__version__}")
+        return
 
     if args.install_completion:
         script = "msp"
@@ -250,17 +262,19 @@ Examples:
         return
 
     if not args.command:
-        # Interactive mode via privacy_settings module
-        sys.argv = ["msp"]
-        if args.json:
-            sys.argv.append("--json")
-        if args.verbose:
-            sys.argv.append("--verbose")
-        from src.privacy_settings import interactive_menu
-        interactive_menu()
+        # Default: launch xli TUI
+        from src.tui_xli import main as tui_main
+        tui_main()
         return
 
     command = args.command.lower()
+
+    # "cli" / "console" / "menu" routes to the old interactive bash menu
+    if command in CLI_MENU_COMMANDS:
+        sys.argv = ["msp"]
+        from src.privacy_settings import interactive_menu
+        interactive_menu()
+        return
 
     # Direct handling for privacy_settings commands (avoid subparser routing issues)
     if command in ("status", "list", "enable", "disable", "preset", "presets", "services"):
@@ -414,12 +428,55 @@ Examples:
             print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
         return
 
+    # Handle config command
+    if command == "config":
+        from src.errors import load_config, save_config
+        action = args.args[0] if args.args else "list"
+        
+        if action == "list":
+            config = load_config()
+            if args.json:
+                import json
+                print(json.dumps(config, indent=2))
+            else:
+                print("Current configuration:")
+                for section, values in config.items():
+                    print(f"\n[{section}]")
+                    for key, value in values.items():
+                        print(f"  {key} = {value}")
+        elif action == "set" and len(args.args) > 2:
+            key = args.args[1]
+            value = args.args[2]
+            # Parse section.key format
+            if "." in key:
+                section, subkey = key.split(".", 1)
+            else:
+                section, subkey = "general", key
+            
+            config = load_config()
+            if section not in config:
+                config[section] = {}
+            config[section][subkey] = value
+            
+            if save_config(config):
+                print(f"Config updated: {section}.{subkey} = {value}")
+            else:
+                print("Failed to save config")
+        else:
+            print("Usage: msp config <list|set section.key value>")
+        return
+
     # Handle ask command specially - pass quoted prompt directly
     if command == "ask":
         from src.ai import AIAnalyzer
         from src.network import NetworkMonitor
 
-        analyzer = AIAnalyzer(verbose=args.verbose, provider=getattr(args, 'provider', None), llm_model=getattr(args, 'model', None))
+        analyzer = AIAnalyzer(
+            verbose=args.verbose,
+            provider=getattr(args, 'provider', None),
+            llm_model=getattr(args, 'model', None),
+            openvino_device=getattr(args, 'openvino_device', None),
+        )
 
         if not args.args:
             # No args - run interactive mode
@@ -529,9 +586,15 @@ Examples:
 
     if command in command_map:
         module_name = command_map[command]
+
+        # TUI always routes to xli-based interactive assistant
+        if module_name == "tui":
+            from src.tui_xli import main as tui_main
+            tui_main()
+            return
+
         # For modules with interactive mode, pass empty action when no args provided
         if not args.args:
-            # No args - run interactive mode
             run_command(module_name, "", [], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
         elif module_name == "report":
             run_command(module_name, "", args.args, None)
@@ -546,7 +609,7 @@ Examples:
             # Pass first arg as action
             run_command(module_name, args.args[0], args.args[1:], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
     else:
-        suggest_command(command, list(COMMAND_MODULES.keys()) + ["status", "list", "enable", "disable", "preset", "services", "snapshot", "sharing", "security", "ask", "ai"])
+        suggest_command(command, list(COMMAND_MODULES.keys()) + ["status", "list", "enable", "disable", "preset", "services", "snapshot", "sharing", "security", "ask", "ai", "config"])
 
 
 if __name__ == "__main__":

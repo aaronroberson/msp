@@ -1,0 +1,7 @@
+{
+    "xli-validate": {
+        "enabled": true,
+        "type": "local",
+        "command": ["xli-validate-mcp"]
+    }
+}

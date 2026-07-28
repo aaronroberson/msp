@@ -11,6 +11,7 @@ requires-python = ">=3.9"
 dependencies = [
   "argcomplete>=3.0.0",
   "rich>=13.0.0",
+  "python-xli>=0.2.0",
 ]
 
 [project.optional-dependencies]
