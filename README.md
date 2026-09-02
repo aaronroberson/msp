@@ -9,6 +9,7 @@ A comprehensive security and privacy CLI for macOS that combines native commands
 - **File Watching** - Real-time filesystem monitoring
 - **Traffic Analysis** - DNS queries, HTTP traffic, packet capture
 - **Security Scanner** - Code signatures, Gatekeeper, heuristic detection
+- **Volume & File Forensics** - External drive inspection, AppleDouble (._*) parsing, extended attribute extraction (quarantine, provenance, AVKit keys), Spotlight store inspection, and local Mac host correlation
 - **AI Integration** - Local AI-powered analysis via `ollama`, **OpenVINO USB acceleration support**
 - **Method Chaining** - Build and run custom monitoring workflows
 - **Dependency Manager** - Auto-install required tools
@@ -199,6 +200,27 @@ msp chain define suspicious "net established | startup audit | scan suspicious"
 msp chain watch daily      # Repeat monitoring with alerts
 msp chain delete <name>    # Delete custom chain
 ```
+
+### Forensics (`msp forensics`)
+Inspect external volumes, USB drives, SD cards, and hidden macOS metadata sidecars.
+
+```bash
+msp forensics                           # Launch interactive menu
+msp forensics scan "/Volumes/NO NAME"   # Scan volume for AppleDoubles & xattrs
+msp forensics correlate "/Volumes/NO NAME"  # Correlate drive evidence against local Mac
+msp forensics spotlight "/Volumes/NO NAME"  # Inspect external Spotlight OS build stores
+msp forensics inspect "/path/to/._file" # Deeply inspect a specific ._* AppleDouble file
+msp forensics clean "/Volumes/NO NAME" --dry-run  # Preview stray artifact cleanup
+msp forensics clean "/Volumes/NO NAME" --force    # Remove stray metadata artifacts (orphaned ._*, .DS_Store)
+```
+
+**Forensic capabilities include:**
+- **AppleDouble (`._*`) Parser**: Reads binary headers, 32-byte FinderInfo, and `ATTR` extended attribute blocks directly.
+- **Quarantine Decoder**: Extracts originating application/agent, hex timestamps, UTC/local date conversion, and UUIDs.
+- **Provenance Decoder**: Extracts process lineage tokens and creation UUIDs.
+- **AVKit Scrubbing Keys**: Extracts thumbnail cache identifiers and AES encryption keys.
+- **Multi-Vector Host Correlator**: Cross-references volume findings against macOS install receipts (`InstallHistory.plist`), LaunchServices SharedFileList recent documents (`.sfl4`), and QuickTime Player sandboxed preferences.
+
 
 ## Presets
 

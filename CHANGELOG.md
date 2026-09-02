@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-09-02
 
 ### Added
 - `remediation_id` and `evidence_paths` metadata to security rules and findings in `src/rules.py`.
@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `nist` preset support.
 - Comprehensive inventory and audit subcommands to `msp startup`.
 - `grant`, `revoke`, and `restore` (placeholder) subcommands to `msp tcc`.
+- New `forensics` module (`src/forensics.py` and `tests/test_forensics.py`) for external volume inspection, AppleDouble (`._*`) binary v2 parsing, `com.apple.quarantine`, `com.apple.provenance`, and `com.apple.avkit` xattr extraction, external Spotlight store inspection, and multi-vector local Mac host correlation.
+- Interactive menu for `msp forensics` with volume selection, artifact scanning, and rogue file cleanup.
 
 ### Changed
 - Refactored `src/rules.py` to use `remediation_id` and `evidence_paths` for better automated remediation.
