@@ -245,7 +245,9 @@ Run `msp doctor` to check and install dependencies.
 | Package | Description | Auto-install |
 |---------|-------------|--------------|
 | fswatch | File system watcher | ✓ |
-| ollama | Local LLM (privacy-first) | ✓ |
+| ollama | Local LLM inference server (privacy-first AI) | ✓ |
+| apfel | Apple Intelligence from CLI (local on-device) | Prompt |
+| exiftool | Image, audio, video metadata & camera forensics | Prompt |
 | processmonitor | Process monitoring (Objective-See) | Prompt |
 | knockknock | Startup scanner (Objective-See) | Prompt |
 | wireshark | Packet analyzer (tshark CLI) | Prompt |

@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive inventory and audit subcommands to `msp startup`.
 - `grant`, `revoke`, and `restore` (placeholder) subcommands to `msp tcc`.
 - New `forensics` module (`src/forensics.py` and `tests/test_forensics.py`) for external volume inspection, AppleDouble (`._*`) binary v2 parsing, `com.apple.quarantine`, `com.apple.provenance`, and `com.apple.avkit` xattr extraction, external Spotlight store inspection, and multi-vector local Mac host correlation.
+- Embedded media EXIF/XMP metadata extraction in `msp forensics inspect` powered by `exiftool`.
+- Integrated `exiftool`, `apfel`, and `ollama` into `deps.json` and `msp doctor` dependency checks.
 - Interactive menu for `msp forensics` with volume selection, artifact scanning, and rogue file cleanup.
 
 ### Changed

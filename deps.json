@@ -78,6 +78,16 @@
       "verify_cmd": "which nmap",
       "note": "Used for network device discovery (msp net nmap)"
     },
+    "exiftool": {
+      "name": "exiftool",
+      "description": "Read and write meta information in files (image/video forensics)",
+      "type": "formula",
+      "required": false,
+      "auto_install": false,
+      "install_cmd": "brew install exiftool",
+      "verify_cmd": "which exiftool",
+      "note": "Used for deep media metadata and camera forensics (msp forensics inspect/scan)"
+    },
     "openvino": {
       "name": "openvino",
       "description": "Intel OpenVINO toolkit for AI acceleration (supports USB NPU devices)",

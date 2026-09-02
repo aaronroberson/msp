@@ -65,6 +65,7 @@ COMMAND_MODULES = {
     "ai": "ai",
     "chain": "chain",
     "doctor": "deps",
+    "deps": "deps",
     "tune": "tune",
     "tui": "tui",
     "forensics": "forensics",
@@ -600,6 +601,13 @@ Examples:
             tui_main()
             return
 
+        # Doctor routes directly to DependencyManager doctor()
+        if command == "doctor":
+            from src.deps import DependencyManager
+            dm = DependencyManager()
+            dm.doctor(verbose=args.verbose)
+            return
+
         # For modules with interactive mode, pass empty action when no args provided
         if not args.args:
             run_command(module_name, "", [], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
@@ -610,8 +618,9 @@ Examples:
         elif module_name == "rules":
             run_command(module_name, "", args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
         elif module_name == "deps":
-            # For deps, use "status" as default action
-            run_command(module_name, "status", args.args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
+            action = args.args[0] if args.args else "status"
+            sub_args = args.args[1:] if args.args else []
+            run_command(module_name, action, sub_args, {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
         else:
             # Pass first arg as action
             run_command(module_name, args.args[0], args.args[1:], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})

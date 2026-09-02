@@ -195,6 +195,48 @@ class ProvenanceParser:
         return res
 
 
+class ExifToolInspector:
+    """Extracts embedded EXIF/XMP/QuickTime metadata using exiftool if available."""
+
+    @staticmethod
+    def available() -> bool:
+        import shutil
+        return shutil.which("exiftool") is not None
+
+    @staticmethod
+    def inspect(file_path: Path | str) -> Dict[str, Any]:
+        p = Path(file_path)
+        if not p.exists():
+            return {"available": False, "error": f"File {file_path} does not exist"}
+        if not ExifToolInspector.available():
+            return {
+                "available": False,
+                "note": "Install exiftool via 'brew install exiftool' for deep media metadata extraction.",
+            }
+        try:
+            r = subprocess.run(
+                ["exiftool", "-j", "-q", str(p)],
+                capture_output=True, text=True, timeout=10
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                data = json.loads(r.stdout.strip())
+                if data and isinstance(data, list):
+                    meta = data[0]
+                    filtered = {}
+                    keys_of_interest = [
+                        "FileType", "MIMEType", "CreateDate", "ModifyDate", "TrackCreateDate", "TrackModifyDate",
+                        "Make", "Model", "Software", "CompressorID", "VideoFrameRate", "ImageSize", "Duration",
+                        "GPSPosition", "GPSLatitude", "GPSLongitude", "DeviceManufacturer", "CameraModelName"
+                    ]
+                    for k, v in meta.items():
+                        if k in keys_of_interest or not k.startswith("Directory"):
+                            filtered[k] = v
+                    return {"available": True, "metadata": filtered}
+        except Exception as e:
+            return {"available": True, "error": str(e)}
+        return {"available": True, "metadata": {}}
+
+
 class SpotlightInspector:
     """Inspects external volume Spotlight stores and FSEvents records."""
 
@@ -587,17 +629,48 @@ How to Use:
                 print()
 
     elif args.subcommand == "inspect":
-        p = AppleDoubleParser(args.file)
-        summary = p.get_summary()
+        target = Path(args.file)
+        # If target is AppleDouble (._*)
+        if target.name.startswith("._"):
+            p = AppleDoubleParser(target)
+            summary = p.get_summary()
+            paired_data_file = target.parent / target.name[2:]
+            if paired_data_file.exists():
+                summary["paired_data_file"] = str(paired_data_file)
+                if ExifToolInspector.available():
+                    summary["exif_metadata"] = ExifToolInspector.inspect(paired_data_file).get("metadata", {})
+        else:
+            # Target is regular data file
+            summary = {"path": str(target), "size": target.stat().st_size if target.exists() else 0}
+            paired_ad = target.parent / f"._{target.name}"
+            if paired_ad.exists():
+                ad_p = AppleDoubleParser(paired_ad)
+                summary["appledouble_sidecar"] = ad_p.get_summary()
+            if ExifToolInspector.available():
+                summary["exif_metadata"] = ExifToolInspector.inspect(target).get("metadata", {})
+
         if args.json:
             print(json.dumps(summary, indent=2))
         else:
-            print(f"=== AppleDouble Deep Inspection: {args.file} ===")
-            print(f"Valid AppleDouble: {summary.get('valid')}")
-            print(f"Size: {summary.get('size')} bytes")
-            print(f"Extended Attributes: {summary.get('xattr_names')}")
-            print("\nParsed Attributes:")
-            print(json.dumps(summary.get("parsed_xattrs", {}), indent=2))
+            print(f"=== Forensic Deep Inspection: {args.file} ===")
+            print(f"File: {summary.get('path', args.file)}")
+            print(f"Size: {summary.get('size', '-')} bytes")
+            if "valid" in summary:
+                print(f"Valid AppleDouble: {summary.get('valid')}")
+                print(f"Extended Attributes: {summary.get('xattr_names')}")
+                print("\nParsed Attributes:")
+                print(json.dumps(summary.get("parsed_xattrs", {}), indent=2))
+            if "appledouble_sidecar" in summary:
+                ad = summary["appledouble_sidecar"]
+                print(f"\nPaired AppleDouble Sidecar: {ad.get('path')}")
+                print(f"Sidecar Size: {ad.get('size')} bytes | Valid: {ad.get('valid')}")
+                print(f"Extended Attributes: {ad.get('xattr_names')}")
+                if ad.get("parsed_xattrs"):
+                    print("Parsed Sidecar Attributes:")
+                    print(json.dumps(ad.get("parsed_xattrs", {}), indent=2))
+            if "exif_metadata" in summary and summary["exif_metadata"]:
+                print("\nEmbedded EXIF/Media Metadata (via ExifTool):")
+                print(json.dumps(summary["exif_metadata"], indent=2))
 
     elif args.subcommand == "correlate":
         res = HostCorrelator.correlate(args.volume)

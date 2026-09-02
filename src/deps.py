@@ -306,32 +306,29 @@ class DependencyManager:
 
 def interactive_menu(manager: DependencyManager, json_output: bool = False):
     """Interactive menu for dependency manager."""
-    actions = [
-        ("1", "status", "Show all dependency status"),
-        ("2", "check", "Check a specific package"),
-        ("3", "install", "Install a package"),
-        ("4", "fix", "Install missing required deps"),
-        ("5", "install-all", "Install all missing packages"),
-    ]
+    if not cmd_interactive_menu:
+        manager.status_table(json_output=json_output)
+        return
 
     sort_options = ["name", "status", "required"]
     current_sort = "name"
 
     while True:
         action = cmd_interactive_menu([
-            ("1", "status", "Show all dependency status"),
-            ("2", "check", "Check a specific package"),
-            ("3", "install", "Install a package"),
-            ("4", "fix", "Install missing required deps"),
-            ("5", "install-all", "Install all missing packages"),
-            ("s", "sort", f"Change sort order (current: {current_sort})"),
-        ], title="Dependency Manager - Interactive Mode")
+            {"name": "📊  Show all dependency status", "value": "status"},
+            {"name": "🩺  Run doctor (health & shell checks)", "value": "doctor"},
+            {"name": "🔍  Check a specific package", "value": "check"},
+            {"name": "📦  Install a package", "value": "install"},
+            {"name": "🔧  Install missing required dependencies", "value": "fix"},
+            {"name": "🚀  Install all missing packages", "value": "install-all"},
+            {"name": f"🔄  Change sort order (current: {current_sort})", "value": "sort"},
+            {"name": "❌  Exit", "value": "exit"},
+        ], title="=== Dependency Manager & System Doctor ===")
 
-        if action is None:
-            print("Goodbye!")
+        if not action or action == "exit":
             break
 
-        if action == "s":
+        if action == "sort":
             sort_items = [(o, o + (" *" if o == current_sort else ""), None) for o in sort_options]
             sort_val = interactive_select(sort_items, title="Sort options")
             if sort_val:
@@ -341,6 +338,8 @@ def interactive_menu(manager: DependencyManager, json_output: bool = False):
 
         if action == "status":
             manager.status_table(json_output=json_output, sort_by=current_sort)
+        elif action == "doctor":
+            manager.doctor()
         elif action == "check":
             name = input("Package name: ").strip()
             if name:
@@ -367,8 +366,8 @@ def interactive_menu(manager: DependencyManager, json_output: bool = False):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="msp Dependency Manager")
-    parser.add_argument("action", nargs="?", choices=["status", "check", "install", "fix", "install-all", ""], help="Action to perform (omit for interactive mode)")
+    parser = argparse.ArgumentParser(description="msp Dependency Manager & Doctor")
+    parser.add_argument("action", nargs="?", choices=["status", "doctor", "check", "install", "fix", "install-all", ""], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--fix", action="store_true", help="Auto-fix issues")
     parser.add_argument("--install", metavar="PKG", help="Install specific package")
@@ -380,21 +379,34 @@ def main():
     manager = DependencyManager()
 
     if not args.action or args.action == "":
-        interactive_menu(manager, args.json)
+        if sys.stdin.isatty():
+            interactive_menu(manager, args.json)
+        else:
+            manager.status_table(json_output=args.json, sort_by=args.sort or "name")
         return
 
-    if args.check:
-        status = manager.check_dep(args.check)
-        print(f"{args.check}: {status.value}")
-        sys.exit(0 if status == DepStatus.INSTALLED else 1)
+    if args.action == "doctor":
+        manager.doctor()
+        return
 
-    if args.install:
-        success, msg = manager.install_dep(args.install)
-        print(msg)
-        sys.exit(0 if success else 1)
+    if args.check or args.action == "check":
+        pkg = args.check or (sys.argv[2] if len(sys.argv) > 2 else "")
+        if pkg:
+            status = manager.check_dep(pkg)
+            print(f"{pkg}: {status.value}")
+            sys.exit(0 if status == DepStatus.INSTALLED else 1)
 
-    if args.fix:
+    if args.install or args.action == "install":
+        pkg = args.install or (sys.argv[2] if len(sys.argv) > 2 else "")
+        if pkg:
+            success, msg = manager.install_dep(pkg)
+            print(msg)
+            sys.exit(0 if success else 1)
+
+    if args.fix or args.action == "fix":
         manager.fix()
+    elif args.action == "install-all":
+        manager.install_all()
     else:
         manager.status_table(json_output=args.json, sort_by=args.sort or "name")
 
