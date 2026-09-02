@@ -1,11 +1,38 @@
-# Local databases
-lancedb/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# History files
-$APFEL_GLOBAL_HISTORY
-
-# Testing caches
+# Caches and environment
 .pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Tool and MCP caches
+.codebase-memory/
+.playwright-mcp/
+.poolside/
+
+# macOS metadata & noise
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local databases and runtime state
+lancedb/
+frigate-setup/config/*.db*
+frigate-setup/config/.vacuum
+frigate-setup/config/*.log
+
+# History and stray files
+$APFEL_GLOBAL_HISTORY
+*.log
 
 # Archived internal design docs
 .docs_archive/
