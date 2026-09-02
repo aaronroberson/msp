@@ -19,6 +19,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -93,6 +95,14 @@ def _discover_providers() -> dict[str, LLMProvider]:
                         if name not in providers:
                             providers[name] = LLMProvider(name=name, api_key=v, base_url=base_url, models=models, env_key=k)
 
+    # An explicit preferred provider (MSP_LLM_PROVIDER) is honored even without a
+    # key present — the TUI will prompt for its API key up front on startup.
+    forced = os.environ.get("MSP_LLM_PROVIDER", "").lower()
+    if forced in key_map:
+        _name, _base_url, _models = key_map[forced]
+        if _name not in providers:
+            providers[_name] = LLMProvider(name=_name, api_key="", base_url=_base_url, models=_models, env_key=forced)
+
     try:
         req = urllib.request.Request("http://localhost:11434/api/tags")
         with urllib.request.urlopen(req, timeout=2) as resp:
@@ -153,7 +163,10 @@ def _pick_model_for_provider(name: str, provider: LLMProvider) -> str:
 def _init_llm_state(providers: dict[str, LLMProvider]) -> None:
     global _llm_provider, _llm_model, _llm_providers
     _llm_providers = providers
-    if "openai" in providers:
+    forced = os.environ.get("MSP_LLM_PROVIDER", "").lower()
+    if forced and forced in providers:
+        _llm_provider = forced
+    elif "openai" in providers:
         _llm_provider = "openai"
     elif "ollama" in providers:
         _llm_provider = "ollama"
@@ -165,6 +178,82 @@ def _init_llm_state(providers: dict[str, LLMProvider]) -> None:
     else:
         _llm_provider = ""
         _llm_model = ""
+
+
+_KEYCHAIN_SERVICE_PREFIX = "msp-"
+
+
+def _restore_keys_from_keychain(providers: dict[str, LLMProvider]) -> None:
+    """Fill any missing provider keys from the macOS keychain (service `msp-<name>`)."""
+    for name, p in providers.items():
+        if p.api_key or name == "ollama" or not p.env_key:
+            continue
+        try:
+            r = subprocess.run(
+                ["security", "find-generic-password", "-s", f"{_KEYCHAIN_SERVICE_PREFIX}{name}", "-w"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                p.api_key = r.stdout.strip()
+                os.environ[p.env_key] = p.api_key
+        except Exception:
+            pass
+
+
+def _save_key_to_keychain(name: str, key: str) -> bool:
+    try:
+        user = os.environ.get("USER", "")
+        r = subprocess.run(
+            ["security", "add-generic-password", "-s", f"{_KEYCHAIN_SERVICE_PREFIX}{name}",
+             "-a", user, "-w", key, "-U"],
+            capture_output=True, timeout=10,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+async def _prompt_for_provider_key(ui: xli.UI, provider: LLMProvider) -> bool:
+    """Up-front, provider-named, masked modal for a missing API key.
+
+    Tells the user which provider + env var is needed, captures the key with
+    masked input (never echoed), and offers to persist it in the macOS keychain.
+    Returns True if a key was set (env + provider state), False if skipped.
+    """
+    name = provider.name
+    env_var = provider.env_key or f"{name.upper()}_API_KEY"
+
+    ui.message("system",
+        f"**{name}** needs an API key (`{env_var}` is not set).\n"
+        f"Enter your {name} API key below — input is masked. "
+        "Press ESC to skip and configure later via `/providers`."
+    )
+    key = await ui.secret_input(f"Enter your {name} API key ({env_var})", title="API Key Required")
+    if not key:
+        ui.note(f"Skipped — set `{env_var}` in your environment, or run `/providers`.")
+        return False
+
+    provider.api_key = key
+    if provider.env_key:
+        os.environ[provider.env_key] = key
+    global _llm_model
+    if not _llm_model:
+        _llm_model = _pick_model_for_provider(name, provider)
+    ui.status.set(provider=_llm_provider or name, model=_llm_model)
+
+    decision = await ui.approve(
+        title="Save to macOS keychain?",
+        body=f"Store the {name} API key so future sessions don't prompt again?",
+        reason="",
+    )
+    if decision in ("approved", "approved_for_session"):
+        if _save_key_to_keychain(name, key):
+            ui.note(f"Saved {name} API key to the macOS keychain.")
+        else:
+            ui.note("Could not save to keychain — key active for this session only.")
+    else:
+        ui.note("Key active for this session only.")
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -221,23 +310,136 @@ def _fmt(obj: Any) -> str:
 # LLM chat (default handler)
 # ---------------------------------------------------------------------------
 
+class _HTTPError(RuntimeError):
+    """Raised when a provider HTTP call fails (auth errors, network, ...)."""
+
+
+def _open_url(req: urllib.request.Request, timeout: int = 90):
+    try:
+        return urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", errors="replace")[:300]
+        except Exception:
+            pass
+        raise _HTTPError(f"HTTP {e.code} from provider{': ' + detail if detail else ''}") from e
+    except urllib.error.URLError as e:
+        raise _HTTPError(f"Network error: {e.reason}") from e
+
+
+def _ask_provider(provider: LLMProvider, prompt: str, context: list[str]) -> str:
+    """Call the selected provider's HTTP API directly (stdlib urllib only).
+
+    Avoids AIAnalyzer's provider chain, which would drop raw getpass/input
+    prompts onto the terminal while the TUI is running.
+    """
+    full = prompt
+    if context:
+        full = f"{prompt}\n\n## Live System Data\n" + "\n".join(context)
+    system = (
+        "You are a macOS security and diagnostics assistant. "
+        "Answer concisely and accurately. When relevant, include terminal commands "
+        "the user can run (prefixed with `$ `). If you reference system data, "
+        "be specific about PIDs, process names, and numbers. "
+        "If nothing abnormal appears, say so — do not invent problems."
+    )
+    base = provider.base_url.rstrip("/")
+
+    if provider.name == "ollama":
+        body = json.dumps({
+            "model": _llm_model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": full},
+            ],
+            "stream": False,
+        }).encode()
+        req = urllib.request.Request(f"{base}/api/chat", data=body,
+                                     headers={"Content-Type": "application/json"})
+        with _open_url(req) as resp:
+            data = json.loads(resp.read())
+        text = data.get("message", {}).get("content", "")
+    elif provider.name == "anthropic":
+        body = json.dumps({
+            "model": _llm_model,
+            "max_tokens": 1024,
+            "system": system,
+            "messages": [{"role": "user", "content": full}],
+        }).encode()
+        req = urllib.request.Request(f"{base}/messages", data=body, headers={
+            "Content-Type": "application/json",
+            "x-api-key": provider.api_key or "",
+            "anthropic-version": "2023-06-01",
+        })
+        with _open_url(req) as resp:
+            data = json.loads(resp.read())
+        text = "\n".join(b.get("text", "") for b in data.get("content", []) if isinstance(b, dict))
+    elif provider.name == "gemini":
+        model = urllib.parse.quote(_llm_model)
+        url = f"{base}/models/{model}:generateContent?key={provider.api_key or ''}"
+        body = json.dumps({
+            "contents": [{"role": "user", "parts": [{"text": system + "\n\n" + full}]}],
+        }).encode()
+        req = urllib.request.Request(url, data=body,
+                                     headers={"Content-Type": "application/json"})
+        with _open_url(req) as resp:
+            data = json.loads(resp.read())
+        parts = []
+        for cand in data.get("candidates", []):
+            for part in cand.get("content", {}).get("parts", []):
+                parts.append(part.get("text", ""))
+        text = "\n".join(parts)
+    else:  # openai-compatible: openai, openrouter, deepseek, groq, together, xai
+        body = json.dumps({
+            "model": _llm_model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": full},
+            ],
+            "stream": False,
+        }).encode()
+        req = urllib.request.Request(f"{base}/chat/completions", data=body, headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {provider.api_key or ''}",
+        })
+        with _open_url(req) as resp:
+            data = json.loads(resp.read())
+        text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    if not text.strip():
+        raise _HTTPError("Provider returned an empty response")
+    return text
+
+
 async def cmd_chat(ui: xli.UI, prompt: str) -> None:
     prompt = prompt.strip()
     if not prompt:
         return
 
     if not _llm_provider:
-        card = ui.tool("chat", status="error", output=(
-            "No AI provider configured.\n"
-            "Set an API key (e.g. `OPENAI_API_KEY`) in your environment or `.env` file, "
-            "or run `/providers` to configure one."
+        ui.tool("chat", status="error", output=(
+            "No AI provider configured — this command needs an API key.\n"
+            "Run `/providers` to select a provider and enter its key, or set one of "
+            "`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, ... in your "
+            "environment or `.env`."
         ))
         return
 
     provider = _llm_providers.get(_llm_provider)
     if not provider:
-        card = ui.tool("chat", status="error", output=f"Provider '{_llm_provider}' not found. Run `/providers`.")
+        ui.tool("chat", status="error", output=f"Provider '{_llm_provider}' not found. Run `/providers`.")
         return
+
+    if not provider.is_configured():
+        got_key = await _prompt_for_provider_key(ui, provider)
+        if not got_key:
+            ui.tool("chat", status="error", output=(
+                f"`{_llm_provider}` has no API key configured.\n"
+                f"Set `{provider.env_key or _llm_provider.upper() + '_API_KEY'}` in your "
+                "environment, or run `/providers` to enter one."
+            ))
+            return
 
     card = ui.tool("chat", status="running", args={"model": _llm_model})
     context_parts = []
@@ -289,49 +491,11 @@ async def cmd_chat(ui: xli.UI, prompt: str) -> None:
         context_parts.append(f"Firewall: {'on' if fw.get('enabled') else 'off'} | Gatekeeper: {'on' if gk.get('enabled') else 'off'}")
 
     try:
-        from src.ai import AIAnalyzer
-        analyzer = AIAnalyzer(verbose=False)
-        system_prompt = (
-            "You are a macOS security and diagnostics assistant. "
-            "Answer concisely and accurately. When relevant, include terminal commands "
-            "the user can run (prefixed with `$ `). If you reference system data, "
-            "be specific about PIDs, process names, and numbers. "
-            "If nothing abnormal appears, say so — do not invent problems."
-        )
-        full_prompt = prompt
-        if context_parts:
-            full_prompt = f"{prompt}\n\n## Live System Data\n" + "\n".join(context_parts)
-        result = analyzer.ask(full_prompt, json_output=False)
-        output = result if result else "(empty response)"
-    except ImportError:
-        try:
-            result = _ask_ollama(provider, prompt, context_parts)
-            output = result if result else "(empty response)"
-        except Exception as e:
-            output = f"LLM call failed: {e}"
+        output = _ask_provider(provider, prompt, context_parts)
     except Exception as e:
         output = f"LLM call failed: {e}"
 
     card.update(status="done", output=output)
-
-
-def _ask_ollama(provider: LLMProvider, prompt: str, context: list[str]) -> str:
-    full = prompt
-    if context:
-        full = f"{prompt}\n\nContext:\n" + "\n".join(context)
-    body = json.dumps({
-        "model": _llm_model,
-        "prompt": f"You are a macOS security expert. Answer concisely:\n\n{full}",
-        "stream": False,
-    }).encode()
-    req = urllib.request.Request(
-        f"{provider.base_url.rstrip('/')}/api/generate",
-        data=body,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        data = json.loads(resp.read())
-        return data.get("response", "").strip()
 
 
 # ---------------------------------------------------------------------------
@@ -579,14 +743,11 @@ async def cmd_providers(ui: xli.UI, args: str) -> None:
         base_url = await ui.input("Base URL", default="https://api.openai.com/v1")
         if base_url is None:
             return
-        api_key = await ui.input("API key (leave blank for none)")
-        if api_key is None:
-            return
         name_hint = base_url.split("//")[1].split(".")[0] if "//" in base_url else "custom"
         name = await ui.input("Provider name", default=name_hint)
         if name is None:
             return
-        providers[name] = LLMProvider(name=name, api_key=api_key or "", base_url=base_url, models=[])
+        providers[name] = LLMProvider(name=name, api_key="", base_url=base_url, models=[])
         selected = name
     else:
         selected = choice.split(" ")[0]
@@ -595,6 +756,11 @@ async def cmd_providers(ui: xli.UI, args: str) -> None:
     global _llm_provider, _llm_model
     _llm_provider = selected
     _llm_providers = providers
+
+    if selected not in ("ollama",) and not provider.is_configured():
+        got_key = await _prompt_for_provider_key(ui, provider)
+        if not got_key:
+            ui.note(f"`{selected}` has no API key — chat will be unavailable until configured.")
 
     models = provider.models[:]
     if provider.api_key and selected not in ("ollama",):
@@ -659,35 +825,31 @@ async def cmd_models(ui: xli.UI, args: str) -> None:
 
 async def cmd_help(ui: xli.UI, args: str) -> None:
     groups = [
-        ("LLM", [
-            ("/ask", "Send to AI (bypasses built-in command matching)"),
-            ("/providers", "Select AI provider (auto-discovers API keys)"),
-            ("/models", "Select model for current provider"),
-        ]),
         ("Security", [
             ("/status", "Security dashboard overview"),
             ("/scan", "Quick security scan"),
             ("/scan deep", "Deep scan"),
             ("/scan suspicious", "Suspicious process scan"),
-        ]),
-        ("Network", [
             ("/net", "Listening ports"),
             ("/net established", "Active connections"),
             ("/net top", "Bandwidth usage"),
             ("/net arp", "Network devices"),
             ("/net nmap", "Port scan (opens Terminal)"),
         ]),
-        ("System", [
+        ("Privacy", [
             ("/startup", "List startup items"),
             ("/startup audit", "Audit startup items"),
             ("/traffic", "Traffic summary"),
             ("/traffic dns", "DNS queries"),
             ("/snapshot", "List snapshots"),
             ("/snapshot capture [name]", "Capture snapshot"),
+        ]),
+        ("Performance", [
             ("/watch [target]", "Monitor (3s intervals × 10 ticks)"),
         ]),
-        ("Utility", [
-            ("/clear", "Clear transcript"),
+        ("Provider & Model", [
+            ("/providers", "Select AI provider (auto-discovers API keys)"),
+            ("/models", "Select model for current provider"),
         ]),
     ]
     lines = ["**msp Commands**\n"]
@@ -696,9 +858,14 @@ async def cmd_help(ui: xli.UI, args: str) -> None:
         for cmd, desc in cmds:
             lines.append(f"  `{cmd}`  — {desc}")
         lines.append("")
-    lines.append("**Exit**")
-    lines.append("  `/q`  — Quit the TUI (also `/quit`, `/exit`)")
+    lines.append("**Help**")
+    lines.append("  `/ask`  — Send to AI (bypasses built-in command matching)")
+    lines.append("  `/clear`  — Clear transcript")
+    lines.append("  `/help`  — Show this help")
     lines += [
+        "",
+        "**Exit**",
+        "  `/q`  — Quit the TUI (also `/quit`, `/exit`)",
         "\n**Tips:**",
         "- Natural language runs matching commands automatically, or falls through to AI",
         "- Force AI with `/ask <question>` to bypass command matching",
@@ -741,6 +908,15 @@ def main():
         app.status.set(provider=_llm_provider, model=_llm_model)
     else:
         app.status.set(provider="no LLM", model="")
+
+    @app.on_ready
+    async def startup_key_check() -> None:
+        # Up-front check: if the default provider needs an API key and doesn't
+        # have one (env, .env, or keychain), prompt with a masked modal.
+        _restore_keys_from_keychain(_llm_providers)
+        p = _llm_providers.get(_llm_provider) if _llm_provider else None
+        if p and p.name != "ollama" and not p.is_configured():
+            await _prompt_for_provider_key(app, p)
 
     @app.command("status", description="Security dashboard overview")
     async def _(ui, args):
@@ -786,12 +962,11 @@ def main():
     async def _(ui, args):
         await cmd_chat(ui, args)
 
-    @app.command("exit", description="Exit the TUI")
-    @app.command("q", description="Exit the TUI")
+    @app.command("q", description="Exit the TUI", aliases=("quit", "exit"))
     async def _(ui, args):
         ui.exit()
 
-    @app.command("help", description="Show available commands")
+    @app.command("help", description="Show available commands", aliases=("?",))
     async def _(ui, args):
         await cmd_help(ui, args)
 
