@@ -26,6 +26,7 @@ Commands:
     remediate          Plan and apply conservative remediations
     report             Generate evidence reports
     workflow           Built-in interrogation workflows
+    forensics          Volume & AppleDouble forensic inspection and correlation
 
     ask                AI-powered analysis (alias: ai)
     chain              Method chaining
@@ -36,7 +37,7 @@ Commands:
 
     tui                Interactive security assistant (xli TUI)
 """
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 import os
 import sys
 import argparse
@@ -66,6 +67,7 @@ COMMAND_MODULES = {
     "doctor": "deps",
     "tune": "tune",
     "tui": "tui",
+    "forensics": "forensics",
 }
 
 NO_ACTION_MODULES = {"facts", "llm", "report", "ai"}
@@ -195,6 +197,7 @@ Commands:
   status, list, enable, disable - Privacy settings
   net, startup, fswatch, traffic - Monitoring
   scan, tcc, interrogate, audit, reason, remediate, report, workflow - Security suite
+  forensics - Volume & AppleDouble forensic inspection and correlation
   ai/ask, chain, doctor, tune - AI, automation & maintenance
 
 Examples:
@@ -224,6 +227,10 @@ Examples:
   msp remediate plan findings.json   Build remediation plan
   msp report --facts facts.json --findings findings.json --format md --output report.md
   msp workflow list                  List built-in workflows
+
+  msp forensics scan "/Volumes/NO NAME"        Scan external volume for AppleDoubles
+  msp forensics correlate "/Volumes/NO NAME"   Correlate volume evidence with Mac host
+  msp forensics spotlight "/Volumes/NO NAME"   Inspect external Spotlight build history
 
   msp ask "what's suspicious?"      AI analysis
   msp chain run daily               Run daily check

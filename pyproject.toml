@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "macos-privacy-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first macOS security and privacy CLI"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -31,6 +31,7 @@ msp-reason = "src.llm:main"
 msp-remediate = "src.remediate:main"
 msp-report = "src.report:main"
 msp-workflow = "src.workflows:main"
+msp-forensics = "src.forensics:main"
 
 [tool.setuptools]
 py-modules = ["main"]
