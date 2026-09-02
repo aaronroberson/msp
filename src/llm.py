@@ -208,15 +208,19 @@ class OllamaProvider:
     If Ollama is unavailable or crashes, falls back to apfel / local heuristic.
     """
 
-    base_url: str = DEFAULT_OLLAMA_BASE_URL
-    model: str = DEFAULT_OLLAMA_MODEL
+    base_url: Optional[str] = None
+    model: Optional[str] = None
     timeout: int = 60
     model_timeout: int = 30
     name: str = "ollama"
 
     def __post_init__(self) -> None:
-        self.base_url = os.environ.get("OLLAMA_BASE_URL", self.base_url).rstrip("/")
-        self.model = os.environ.get("OLLAMA_MODEL", self.model)
+        if self.base_url is None:
+            self.base_url = os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).rstrip("/")
+        else:
+            self.base_url = self.base_url.rstrip("/")
+        if self.model is None:
+            self.model = os.environ.get("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
 
     @classmethod
     def available(cls) -> bool:

@@ -243,7 +243,7 @@ Examples:
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-V", "--version", action="store_true", help="Show version")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination", "state"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination, state")
-    parser.add_argument("--provider", choices=["openai", "ollama", "apfel", "openvino"], help="LLM provider for ask command")
+    parser.add_argument("--provider", choices=["openai", "groq", "deepseek", "openrouter", "together", "ollama", "apfel", "openvino", "custom"], help="LLM provider for ask command")
     parser.add_argument("--model", help="LLM model name (default: gpt-4o-mini)")
     parser.add_argument("--openvino-device", help="OpenVINO device (AUTO, CPU, GPU, NPU, USB)")
     parser.add_argument("--install-completion", action="store_true", help="Install shell completion for bash/zsh")
