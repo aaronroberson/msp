@@ -436,6 +436,27 @@ Examples:
             print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
         return
 
+    # Shell audit & repair command
+    if command == "shell":
+        from src.shell_audit_cli import main as shell_audit_main
+        # Parse shell args: msp shell audit [options] | msp shell repair
+        raw_args = sys.argv[2:] if len(sys.argv) > 2 else []
+        action = raw_args[0] if raw_args else None
+
+        if action == "audit":
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                shell_audit_main(argv=raw_args[1:])
+        elif action == "repair":
+            # Repairs are derived from a fresh audit; --fix-only re-audits then
+            # applies the repairs allowed by --scope (auto-safe by default).
+            shell_audit_main(argv=["--fix-only", *raw_args[1:]])
+        else:
+            # No action - show help/usage
+            print("Usage: msp shell audit [options] | msp shell repair")
+        return
+
     # Handle config command
     if command == "config":
         from src.errors import load_config, save_config

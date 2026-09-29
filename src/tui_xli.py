@@ -666,6 +666,77 @@ async def cmd_traffic(ui: xli.UI, args: str) -> None:
     card.update(status="done", output=output)
 
 
+async def cmd_shell(ui: xli.UI, args: str) -> None:
+    parts = shlex.split(args) if args else []
+    cmd = parts[0] if parts else "audit"
+    card = ui.tool(f"shell {cmd}", status="running", args={})
+
+    if cmd not in ("audit", "fix", "repair"):
+        card.update(
+            status="done",
+            output=(
+                "**Usage:**\n"
+                "  `/shell` or `/shell audit` — audit shell startup, PATH, completions\n"
+                "  `/shell fix` — audit and apply safe repairs"
+            ),
+        )
+        return
+
+    from src.shell_audit_cli import (
+        _apply_all_repairs,
+        _detect_shell,
+        _home,
+        _run_all_audits,
+        _severity_rank,
+    )
+
+    try:
+        findings = _run_all_audits(home=_home(), shells=[_detect_shell()])
+        findings.sort(
+            key=lambda f: (-_severity_rank(f.severity), f.category, f.id)
+        )
+    except Exception as e:
+        card.update(status="error", output=f"Shell audit error: {e}")
+        return
+
+    icon = {"SECURITY": "🔴", "ERROR": "🔴", "WARNING": "🟠", "NOTICE": "🟡", "INFO": "⚪"}
+
+    lines: list[str] = []
+    if findings:
+        lines.append(f"**Shell Audit** — {len(findings)} findings:")
+        for f in findings[:25]:
+            sev = f.severity.upper()
+            ico = icon.get(sev, "⚪")
+            lines.append(f"  {ico} **[{sev}]** {f.category}: {f.title}")
+            if f.summary:
+                lines.append(f"    _{f.summary[:100]}_")
+        if len(findings) > 25:
+            lines.append(f"  _…and {len(findings) - 25} more (see `msp shell audit`)_")
+    else:
+        lines.append("✅ No shell audit findings.")
+
+    if cmd in ("fix", "repair"):
+        if not findings:
+            output = "\n".join(lines)
+        else:
+            results = _apply_all_repairs(findings, dry_run=False, confirm=False)
+            applied = [(ok, msg) for ok, msg in results if ok]
+            advisory = [(ok, msg) for ok, msg in results if not ok]
+            lines.append("")
+            lines.append(f"**Repairs:** {len(applied)} applied, {len(advisory)} skipped")
+            for ok, msg in applied[:15]:
+                lines.append(f"  ✅ {msg}")
+            for ok, msg in advisory[:10]:
+                lines.append(f"  ⏭️ {msg}")
+            output = "\n".join(lines)
+    else:
+        output = "\n".join(lines)
+        if findings:
+            output += "\n\n_Run `/shell fix` to apply safe repairs, or `msp shell audit` for the full CLI._"
+
+    card.update(status="done", output=output)
+
+
 async def cmd_snapshot(ui: xli.UI, args: str) -> None:
     p = get_sys()
     parts = shlex.split(args) if args else []
@@ -839,6 +910,8 @@ async def cmd_help(ui: xli.UI, args: str) -> None:
         ("Privacy", [
             ("/startup", "List startup items"),
             ("/startup audit", "Audit startup items"),
+            ("/shell", "Audit shell startup & PATH"),
+            ("/shell fix", "Audit and apply safe shell repairs"),
             ("/traffic", "Traffic summary"),
             ("/traffic dns", "DNS queries"),
             ("/snapshot", "List snapshots"),
@@ -934,6 +1007,10 @@ def main():
     async def _(ui, args):
         await cmd_startup(ui, args)
 
+    @app.command("shell", description="Shell audit & repair (PATH, zsh startup, completions)")
+    async def _(ui, args):
+        await cmd_shell(ui, args)
+
     @app.command("traffic", description="Traffic analysis")
     async def _(ui, args):
         await cmd_traffic(ui, args)
@@ -981,6 +1058,9 @@ def main():
         "scan suspicious": cmd_scan,
         "startup": cmd_startup,
         "startup audit": cmd_startup,
+        "shell": cmd_shell,
+        "shell audit": cmd_shell,
+        "shell fix": cmd_shell,
         "traffic": cmd_traffic,
         "traffic dns": cmd_traffic,
         "snapshot": cmd_snapshot,
@@ -1000,6 +1080,8 @@ def main():
         (r"suspicious\s+(process|activity|scan)", "scan suspicious"),
         (r"(list|show|what)\s+startup(\s+items?)?(\s+run)?", "startup"),
         (r"audit\s+startup|startup\s+audit", "startup audit"),
+        (r"^shell$|^(shell|path)\s*(startup\s*)?(audit|check|health)|^(audit|check|scan)\s+(my\s+)?(shell|path)|\bpath\s+(health|check)", "shell audit"),
+        (r"^(fix|repair)\s+(my\s+)?(shell|path)|^shell\s*(fix|repair)|\b(fix|repair)\s+(my\s+)?path", "shell fix"),
         (r"traffic\s+summary|summary\s+traffic", "traffic"),
         (r"dns(\s+(lookup|query|config))?", "traffic dns"),
         (r"list\s+snapshots?|show\s+snapshots?|snapshots?\s+list", "snapshot"),
@@ -1026,6 +1108,9 @@ def main():
         "scan suspicious": "For a broader scan try `/scan quick`",
         "startup": "To audit risk try `/startup audit`",
         "startup audit": "To review all items try `/startup`",
+        "shell": "For other startup issues try `/startup audit`; to apply repairs use `/shell fix`",
+        "shell audit": "To apply safe repairs try `/shell fix`, or `msp shell audit` for the full CLI",
+        "shell fix": "To only view findings without changes try `/shell audit`",
         "traffic": "For DNS config try `/traffic dns`",
         "traffic dns": "For traffic summary try `/traffic`",
         "snapshot": "To capture system state try `/snapshot capture <name>`",
