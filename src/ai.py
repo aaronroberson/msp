@@ -471,14 +471,14 @@ def configure_provider_flow() -> Optional[str]:
     print("Choose an inference provider to power msp AI diagnostics:\n")
 
     menu_items = [
-        {"name": "1. OpenAI              (Official API - gpt-4o-mini, gpt-4o, o3-mini)", "value": "openai"},
-        {"name": "2. Groq                (Ultra-fast cloud inference - Llama 3.3 70B)", "value": "groq"},
-        {"name": "3. DeepSeek            (DeepSeek-V3 / DeepSeek-R1 reasoning)", "value": "deepseek"},
-        {"name": "4. OpenRouter          (Multi-model router - Claude 3.5, Gemini, Llama)", "value": "openrouter"},
+        ("openai", "1. OpenAI              (Official API - gpt-4o-mini, gpt-4o, o3-mini)", ""),
+        ("groq", "2. Groq                (Ultra-fast cloud inference - Llama 3.3 70B)", ""),
+        ("deepseek", "3. DeepSeek            (DeepSeek-V3 / DeepSeek-R1 reasoning)", ""),
+        ("openrouter", "4. OpenRouter          (Multi-model router - Claude 3.5, Gemini, Llama)", ""),
         {"name": "5. Together AI         (Open-source cloud models - Llama 3.3, Mixtral)", "value": "together"},
-        {"name": "6. Ollama              (Local on-device inference - private & offline)", "value": "ollama"},
-        {"name": "7. Apple Intelligence  (apfel CLI local on-device)", "value": "apfel"},
-        {"name": "8. Custom Endpoint     (Self-hosted / vLLM / LocalAI / OpenAI-compatible)", "value": "custom"},
+        ("ollama", "6. Ollama              (Local on-device inference - private & offline)", ""),
+        ("apfel", "7. Apple Intelligence  (apfel CLI local on-device)", ""),
+        ("custom", "8. Custom Endpoint     (Self-hosted / vLLM / LocalAI / OpenAI-compatible)", ""),
     ]
 
     selected_provider = None
