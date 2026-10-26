@@ -344,13 +344,14 @@ class Tuner:
     def _check_cache(self) -> None:
         _, out = _run("du -sh ~/Library/Caches 2>/dev/null | cut -f1")
         cache_size = out.strip()
-        if cache_size:
-            self.findings.append(Finding(
-                domain="system", severity="low",
-                title=f"User caches: ~{cache_size}",
-                description=f"Cache directory at ~/Library/Caches. Contents are safe to remove.",
-                fixable=False,
-            ))
+        if not cache_size or cache_size == "timed out":
+            return
+        self.findings.append(Finding(
+            domain="system", severity="low",
+            title=f"User caches: ~{cache_size}",
+            description=f"Cache directory at ~/Library/Caches. Contents are safe to remove.",
+            fixable=False,
+        ))
 
     def _check_launch_daemons(self) -> None:
         _, out = _run("launchctl list 2>/dev/null | grep -v 'com.apple' | wc -l")
