@@ -24,9 +24,9 @@ test = [
 ]
 
 [project.scripts]
-msp = "main:main"
-mac-privacy = "main:main"
-mpc = "main:main"
+msp = "src.main:main"
+mac-privacy = "src.main:main"
+mpc = "src.main:main"
 msp-interrogate = "src.facts:main"
 msp-reason = "src.llm:main"
 msp-remediate = "src.remediate:main"
@@ -35,7 +35,6 @@ msp-workflow = "src.workflows:main"
 msp-forensics = "src.forensics:main"
 
 [tool.setuptools]
-py-modules = ["main"]
 packages = ["src"]
 
 [tool.pytest.ini_options]
