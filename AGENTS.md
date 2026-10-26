@@ -70,6 +70,30 @@ identifier):
 
 ---
 
+## Command Addition Standard (msp CLI)
+
+Adding a new command or subcommand must span all of the following dimensions. A change is not "done" until every applicable dimension is addressed.
+
+| Dimension | Location | Requirement |
+|---|---|---|
+| **CLI routing** | `main.py` | Command routed via `COMMAND_MODULES` or a dedicated `if command == ...` block; appears in `msp --help` epilog. |
+| **Module implementation** | `src/<module>.py` | New action/method added with `--json` support, rich fallback, and `interactive_menu` entry. |
+| **Interactive menu** | `src/<module>.py` `interactive_menu` | New menu item with label + description, wired to the implementation. |
+| **TUI integration** | `src/tui.py` | Surface data in a dashboard widget and/or dedicated screen; add HelpScreen entry. |
+| **Help text** | `main.py` epilog | Command listed with usage example under the appropriate command group. |
+| **Definition of Done** | — | All of the above implemented, files compile (`py_compile`), command runs end-to-end (normal + `--json`), and no regressions in existing command tests. |
+
+Definition of Done for any command/subcommand addition:
+1. CLI: `msp <command> [<subcommand>]` executes and produces correct output.
+2. `--json` flag produces valid JSON when supported.
+3. Interactive menu item exists with an accurate description.
+4. TUI: data surfaced in widget/screen and HelpScreen updated (when TUI-relevant).
+5. Help text: appears in `msp --help` epilog.
+6. `python3 -m py_compile` passes for all modified files.
+7. Manual smoke test of the new command passes.
+
+---
+
 ## Skills (load on demand)
 Relevant skills: `git-conventions`, `feature-implementation`, `changelog-status-sync`,
 `workspace-guardrails`, `codebase-memory`, `ethical-constraints`.

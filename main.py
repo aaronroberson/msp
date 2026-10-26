@@ -237,6 +237,9 @@ Examples:
   msp chain run daily               Run daily check
 
   msp doctor                        Check dependencies
+  msp tune check                    Run all diagnostics
+  msp tune fix                      Apply auto-fixes
+  msp tune top                      Show top CPU/memory, memory pressure, load
         """
     )
 

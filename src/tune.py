@@ -4,6 +4,7 @@
 Commands:
   check       Run all diagnostics (shell + system), show issues
   fix         Apply auto-fixes (--dry-run to preview)
+  top         Show top CPU/memory processes, memory pressure, and load
 """
 
 from __future__ import annotations
@@ -351,6 +352,32 @@ class Tuner:
                 fixable=False,
             ))
 
+    # ── top ────────────────────────────────────────────────
+
+    def top(self, json_output: bool = False) -> dict[str, str]:
+        """Show top CPU/memory processes, memory pressure, and load average."""
+        cmd = (
+            "echo '=== TOP CPU ==='; "
+            "ps axo pcpu,pmem,comm -r | head -12; "
+            "echo '=== TOP MEM ==='; "
+            "ps axo pmem,comm -m | head -12; "
+            "echo '=== PRESSURE ==='; "
+            "memory_pressure -Q 2>/dev/null; "
+            "echo '=== LOAD ==='; "
+            "uptime"
+        )
+        rc, out = _run(cmd)
+        result = {
+            "command": cmd,
+            "returncode": rc,
+            "output": out,
+        }
+        if json_output:
+            print(json.dumps(result, indent=2))
+        else:
+            print(out)
+        return result
+
     # ── fix ────────────────────────────────────────────────
 
     def fix(self, dry_run: bool = False, json_output: bool = False) -> list[dict[str, Any]]:
@@ -483,7 +510,7 @@ def _build_parser() -> argparse.ArgumentParser:
   msp tune fix --dry-run  Preview fixes
         """,
     )
-    p.add_argument("action", nargs="?", choices=["check", "fix", ""], help="check | fix (omit for interactive)")
+    p.add_argument("action", nargs="?", choices=["check", "fix", "top", ""], help="check | fix | top (omit for interactive)")
     p.add_argument("--json", action="store_true", help="JSON output")
     p.add_argument("--dry-run", action="store_true", help="Preview fixes")
     p.add_argument("--verbose", action="store_true", help="Verbose")
@@ -496,6 +523,7 @@ def interactive_menu(tuner: Tuner, json_output: bool = False):
         action = cmd_menu([
             ("1", "check", "Run all diagnostics"),
             ("2", "fix", "Apply auto-fixes"),
+            ("3", "top", "Show top CPU/memory, pressure, load"),
         ], title="msp tune")
         if action is None:
             break
@@ -503,6 +531,8 @@ def interactive_menu(tuner: Tuner, json_output: bool = False):
             tuner.check(json_output=json_output)
         elif action == "fix":
             tuner.fix(dry_run=False, json_output=json_output)
+        elif action == "top":
+            tuner.top(json_output=json_output)
         print()
 
 
@@ -520,6 +550,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         tuner.check(json_output=args.json)
     elif args.action == "fix":
         tuner.fix(dry_run=args.dry_run, json_output=args.json)
+    elif args.action == "top":
+        tuner.top(json_output=args.json)
     return 0
 
 
