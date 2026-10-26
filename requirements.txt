@@ -1,2 +1,4 @@
 rich>=13.0.0
 argcomplete>=3.0.0
+textual>=0.80.0
+python-xli>=0.2.0
