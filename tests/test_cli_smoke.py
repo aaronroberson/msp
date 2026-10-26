@@ -13,7 +13,7 @@ def run_cli(*args):
     env = os.environ.copy()
     env["PYTHONPYCACHEPREFIX"] = "/private/tmp/msp_pycache_tests"
     return subprocess.run(
-        [sys.executable, str(ROOT / "main.py"), *args],
+        [sys.executable, str(ROOT / "src" / "main.py"), *args],
         cwd=ROOT,
         env=env,
         text=True,
@@ -44,14 +44,14 @@ class CLISmokeTest(unittest.TestCase):
             captured.update(kwargs)
             return "/tmp/baseline.json"
 
-        import main
+        from src import main as main_module
 
         with patch.object(SnapshotManager, "capture", fake_capture), patch.object(
             sys,
             "argv",
             ["msp", "snapshot", "capture", "baseline", "--include-network"],
         ):
-            main.main()
+            main_module.main()
 
         self.assertEqual(captured["name"], "baseline")
         self.assertIs(captured["include_network"], True)

@@ -38,12 +38,14 @@ Commands:
     tui                Interactive security assistant (xli TUI)
 """
 __version__ = "0.2.0"
+import logging
 import os
 import sys
 import argparse
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.command import setup_completion, suggest_command
+from src.command import setup_completion, suggest_command, logger
 
 
 COMMAND_MODULES = {
@@ -69,30 +71,50 @@ COMMAND_MODULES = {
     "tune": "tune",
     "tui": "tui",
     "forensics": "forensics",
+    "privacy_settings": "privacy_settings",
 }
 
 NO_ACTION_MODULES = {"facts", "llm", "report", "ai"}
 
 CLI_MENU_COMMANDS = {"cli", "console", "menu"}
 
+# Short command names that map to (module, subcommand) for privacy_settings
+COMMAND_ALIASES = {
+    "status": ("privacy_settings", "status"),
+    "list": ("privacy_settings", "list"),
+    "enable": ("privacy_settings", "enable"),
+    "disable": ("privacy_settings", "disable"),
+    "preset": ("privacy_settings", "preset"),
+    "presets": ("privacy_settings", "preset"),
+    "services": ("privacy_settings", "services"),
+}
 
-def run_command(module_name: str, command: str, args: list, global_args: dict = None):
+
+def run_command(
+    module_name: str,
+    command: str,
+    args: list[str],
+    global_args: Optional[dict] = None,
+):
     """Import and run a command from a module."""
     try:
         module = __import__(f"src.{module_name}", fromlist=["main"])
         # Use a dummy script name so argparse sees args starting from index 1
         # Only add command as action if it's not empty (empty means interactive mode)
         new_argv = ["msp-" + module_name]
-        if command:
-            new_argv.append(command)
-        new_argv.extend(args)
         if global_args:
             if global_args.get("json"):
                 new_argv.append("--json")
             if global_args.get("verbose"):
                 new_argv.append("--verbose")
             if global_args.get("sort"):
-                new_argv.extend(["--sort", global_args.get("sort")])
+                sort_val = global_args.get("sort")
+                if sort_val:
+                    new_argv.extend(["--sort", sort_val])
+        if command:
+            new_argv.append(command)
+        if args:
+            new_argv.extend(args)
         sys.argv = new_argv
         result = module.main()
         if isinstance(result, int):
@@ -100,10 +122,10 @@ def run_command(module_name: str, command: str, args: list, global_args: dict = 
     except SystemExit:
         raise
     except ImportError as e:
-        print(f"Error: Could not load {module_name} module: {e}")
+        logger.error("Could not load %s module: %s", module_name, e)
         sys.exit(1)
     except Exception as e:
-        print(f"Error running {module_name}: {e}")
+        logger.error("Error running %s: %s", module_name, e)
         sys.exit(1)
 
 
@@ -287,59 +309,6 @@ Examples:
         interactive_menu()
         return
 
-    # Direct handling for privacy_settings commands (avoid subparser routing issues)
-    if command in ("status", "list", "enable", "disable", "preset", "presets", "services"):
-        try:
-            from src.privacy_settings import PrivacySettingsManager, PresetManager
-            manager = PrivacySettingsManager(verbose=args.verbose)
-            preset_manager = PresetManager(manager)
-            sort_by = args.sort or "name"
-
-            if command == "status":
-                manager.get_status(json_output=args.json)
-
-            elif command == "list":
-                category = None
-                if args.args and args.args[0] == "--category":
-                    category = args.args[1] if len(args.args) > 1 else None
-                manager.list_settings(category=category, json_output=args.json, sort_by=sort_by)
-
-            elif command in ("enable", "disable"):
-                setting_name = args.args[0] if args.args else None
-                if not setting_name:
-                    print(f"Usage: msp {command} <setting-name>")
-                    return
-                setting = next((s for s in manager.SETTINGS if s.name == setting_name), None)
-                if setting:
-                    if command == "enable":
-                        success = manager.enable_setting(setting)
-                    else:
-                        success = manager.disable_setting(setting)
-                    print(f"{'Enabled' if command == 'enable' else 'Disabled'}: {setting.name}" if success else f"Failed")
-                else:
-                    print(f"Unknown setting: {setting_name}")
-
-            elif command in ("preset", "presets"):
-                if not args.args or args.args[0] == "list":
-                    preset_manager.list_presets(json_output=args.json)
-                elif args.args[0] == "apply":
-                    name = args.args[1] if len(args.args) > 1 else None
-                    dry_run = "--dry-run" in args.args
-                    if name:
-                        preset_manager.apply_preset(name, dry_run=dry_run)
-                    else:
-                        print("Usage: msp preset apply <name>")
-                else:
-                    print(f"Unknown preset action: {args.args[0]}")
-
-            elif command == "services":
-                if not args.args or args.args[0] == "list":
-                    manager.list_services(json_output=args.json)
-
-        except Exception as e:
-            print(f"Error: {e}")
-        return
-
     # Handle sharing command
     if command == "sharing":
         from src.sharing import SharingManager
@@ -350,8 +319,8 @@ Examples:
             sm.show_status(json_output=args.json)
         elif action == "disable" and len(args.args) > 1:
             sm.disable_share(args.args[1])
-        elif action == "disable-guest":
-            sm.disable_guest_access(args.args[1] if len(args.args) > 1 else None)
+        elif action == "disable-guest" and len(args.args) > 1:
+            sm.disable_guest_access(args.args[1])
         elif action == "stop-all":
             sm.disable_all_sharing()
         elif action == "enable" and len(args.args) > 1:
@@ -372,9 +341,9 @@ Examples:
             ss.sleep_display()
         elif action == "computer-sleep":
             ss.sleep_computer()
-        elif action == "set" and len(args.args) > 1:
+        elif action == "set" and len(args.args) > 2:
             key = args.args[1]
-            value = args.args[2] if len(args.args) > 2 else None
+            value = args.args[2]
             ss.set_setting(key, value)
         elif action is None:
             # No action specified - run interactive mode
@@ -616,6 +585,17 @@ Examples:
 
     command_map = COMMAND_MODULES
 
+    # Handle short command aliases (e.g., "msp status" → privacy_settings status)
+    if command in COMMAND_ALIASES:
+        module_name, subcommand = COMMAND_ALIASES[command]
+        run_command(
+            module_name,
+            subcommand,
+            args.args,
+            {"json": args.json, "verbose": args.verbose, "sort": getattr(args, "sort", None)},
+        )
+        return
+
     if command in command_map:
         module_name = command_map[command]
 
@@ -649,7 +629,7 @@ Examples:
             # Pass first arg as action
             run_command(module_name, args.args[0], args.args[1:], {"json": args.json, "verbose": args.verbose, "sort": getattr(args, 'sort', None)})
     else:
-        suggest_command(command, list(COMMAND_MODULES.keys()) + ["status", "list", "enable", "disable", "preset", "services", "snapshot", "sharing", "security", "ask", "ai", "config"])
+        suggest_command(command, list(COMMAND_MODULES.keys()) + list(COMMAND_ALIASES.keys()) + ["snapshot", "sharing", "security", "ask", "ai", "config"])
 
 
 if __name__ == "__main__":

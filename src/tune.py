@@ -49,9 +49,15 @@ class Finding:
     detail: str = ""
 
 
-def _run(cmd: str, timeout: int = 30) -> tuple[int, str]:
+def _run(cmd: str | list[str], timeout: int = 30, shell: bool = True) -> tuple[int, str]:
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        if shell:
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        else:
+            r = subprocess.run(
+                cmd, shell=False, capture_output=True, text=True, timeout=timeout,
+                stderr=subprocess.DEVNULL,
+            )
         return r.returncode, r.stdout + r.stderr
     except subprocess.TimeoutExpired:
         return -1, "timed out"
@@ -279,7 +285,7 @@ class Tuner:
                     fixable=False,
                 ))
 
-        rc, out = _run("sysctl vm.swapusage 2>/dev/null")
+        rc, out = _run(["sysctl", "vm.swapusage"], shell=False)
         swap_match = re.search(r"used = (\d+\.?\d*)([KMGT])", out)
         if swap_match:
             val = float(swap_match.group(1))

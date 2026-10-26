@@ -62,12 +62,12 @@ class NetworkMonitor:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: str | list[str], sudo: bool = False, shell: bool = True) -> tuple[bool, str]:
         try:
-            if sudo:
+            if sudo and isinstance(cmd, str):
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=60
+                cmd, shell=shell, capture_output=True, text=True, timeout=60
             )
             return result.returncode == 0, result.stdout + result.stderr
         except subprocess.TimeoutExpired:
@@ -275,7 +275,9 @@ class NetworkMonitor:
         confirm = ""
         if not force:
             try:
-                success, output = self._run_cmd(f"ps -o comm= -p {pid}")
+                success, output = self._run_cmd(
+                    ["ps", "-o", "comm=", "-p", str(pid)], shell=False
+                )
                 if success and output.strip():
                     confirm = input(f"Kill process {pid} ({output.strip()})? [y/N] ")
             except (ValueError, subprocess.CalledProcessError):

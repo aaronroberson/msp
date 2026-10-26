@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import select
@@ -13,6 +14,18 @@ import time
 import tty
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
+
+logger = logging.getLogger("msp")
+
+
+def setup_logging(verbose: bool = False) -> None:
+    """Configure the msp package logger."""
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
 try:
     import argcomplete
