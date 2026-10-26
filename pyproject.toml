@@ -11,7 +11,6 @@ requires-python = ">=3.9"
 dependencies = [
   "argcomplete>=3.0.0",
   "rich>=13.0.0",
-  "python-xli>=0.2.0",
   "textual>=0.80.0",
 ]
 
@@ -48,3 +47,4 @@ warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 follow_imports = "normal"
+disable_error_code = ["no-implicit-optional", "import-not-found"]

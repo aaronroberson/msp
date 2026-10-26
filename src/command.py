@@ -13,7 +13,7 @@ import termios
 import time
 import tty
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 logger = logging.getLogger("msp")
 
@@ -137,16 +137,16 @@ def run_command(
         return CommandResult(
             command=display_command,
             returncode=completed.returncode,
-            stdout=_redact_value(
+            stdout=cast(str, _redact_value(
                 completed.stdout,
                 sensitive_values=sensitive_values,
                 redact_ips=redact_ips,
-            ),
-            stderr=_redact_value(
+            )),
+            stderr=cast(str, _redact_value(
                 completed.stderr,
                 sensitive_values=sensitive_values,
                 redact_ips=redact_ips,
-            ),
+            )),
             duration=duration,
         )
     except subprocess.TimeoutExpired as exc:
@@ -154,16 +154,16 @@ def run_command(
         return CommandResult(
             command=display_command,
             returncode=124,
-            stdout=_redact_value(
+            stdout=cast(str, _redact_value(
                 _decode_output(exc.stdout),
                 sensitive_values=sensitive_values,
                 redact_ips=redact_ips,
-            ),
-            stderr=_redact_value(
+            )),
+            stderr=cast(str, _redact_value(
                 _decode_output(exc.stderr),
                 sensitive_values=sensitive_values,
                 redact_ips=redact_ips,
-            ),
+            )),
             timed_out=True,
             error="Command timed out",
             duration=duration,

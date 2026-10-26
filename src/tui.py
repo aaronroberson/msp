@@ -26,24 +26,24 @@ try:
     from src.ai import AIAnalyzer
     from src.snapshot import SnapshotManager
 except ImportError:
-    NetworkMonitor = None
-    StartupManager = None
-    SecurityScanner = None
-    TCCManager = None
-    PrivacySettingsManager = None
-    AIAnalyzer = None
-    SnapshotManager = None
+    NetworkMonitor = None  # type: ignore[misc, assignment]
+    StartupManager = None  # type: ignore[misc, assignment]
+    SecurityScanner = None  # type: ignore[misc, assignment]
+    TCCManager = None  # type: ignore[misc, assignment]
+    PrivacySettingsManager = None  # type: ignore[misc, assignment]
+    AIAnalyzer = None  # type: ignore[misc, assignment]
+    SnapshotManager = None  # type: ignore[misc, assignment]
 
 
 class TUIDataProvider:
     """Provides live data from CLI modules for TUI display."""
     
     def __init__(self):
-        self.network = NetworkMonitor() if NetworkMonitor else None
-        self.startup = StartupManager() if StartupManager else None
-        self.scanner = SecurityScanner() if SecurityScanner else None
-        self.tcc = TCCManager() if TCCManager else None
-        self.privacy = PrivacySettingsManager() if PrivacySettingsManager else None
+        self.network = NetworkMonitor() if NetworkMonitor is not None else None
+        self.startup = StartupManager() if StartupManager is not None else None
+        self.scanner = SecurityScanner() if SecurityScanner is not None else None
+        self.tcc = TCCManager() if TCCManager is not None else None
+        self.privacy = PrivacySettingsManager() if PrivacySettingsManager is not None else None
     
     def get_firewall_status(self) -> Dict[str, Any]:
         """Get firewall status with all details."""
@@ -449,7 +449,7 @@ class ScannerScreen(Screen):
     
     def on_mount(self) -> None:
         table = self.query_one("#findings-table", DataTable)
-        table.add_column("Severity", key="severity", style="severity-medium")
+        table.add_column("Severity", key="severity")
         table.add_column("Category", key="category")
         table.add_column("Item", key="item")
         table.add_column("Description", key="description")
@@ -578,7 +578,7 @@ class AIAnalysisScreen(Screen):
         }
         
         # If AI is available, run analysis
-        if AIAnalyzer:
+        if AIAnalyzer is not None:
             try:
                 analyzer = AIAnalyzer(verbose=False)
                 analysis = analyzer.ask(
@@ -628,7 +628,7 @@ class SnapshotScreen(Screen):
     
     def refresh_snapshots(self) -> None:
         """Load snapshots into the table."""
-        if not SnapshotManager:
+        if SnapshotManager is None:
             return
         
         table = self.query_one("#snapshots-table", DataTable)
@@ -653,7 +653,7 @@ class SnapshotScreen(Screen):
     
     def action_create_snapshot(self) -> None:
         """Create a new snapshot."""
-        if SnapshotManager:
+        if SnapshotManager is not None:
             try:
                 manager = SnapshotManager(verbose=False)
                 path = manager.capture()
@@ -735,7 +735,6 @@ class MSApp(App):
     """Main TUI application for msp security dashboard."""
     
     SCREENS = {
-        "default": "dashboard",
         "help": HelpScreen,
         "network": NetworkScreen,
         "startup": StartupScreen,
@@ -812,12 +811,13 @@ class MSApp(App):
         # Set up auto-refresh timer (30 seconds)
         self.set_interval(30.0, self._auto_refresh)
 
-    async def action_refresh(self) -> None:
+    def action_refresh(self) -> None:
         """Refresh all data widgets."""
-        self.query_one("#security").update(_get_security_content())
-        self.query_one("#network").update(_get_network_content())
-        self.query_one("#startup").update(_get_startup_content())
-        self.query_one("#system").update(_get_system_content())
+        from typing import cast
+        self.query_one("#security", Static).update(_get_security_content())
+        self.query_one("#network", Static).update(_get_network_content())
+        self.query_one("#startup", Static).update(_get_startup_content())
+        self.query_one("#system", Static).update(_get_system_content())
 
     def action_focus_security(self) -> None:
         self.query_one("#security").focus()
@@ -842,7 +842,7 @@ class MSApp(App):
         except Exception:
             pass
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         self.exit()
     
     def action_help(self) -> None:
@@ -853,12 +853,13 @@ class MSApp(App):
         """Open search screen."""
         self.push_screen(SearchScreen())
     
-    def _auto_refresh(self) -> None:
+    def _auto_refresh(self) -> float | None:  # type: ignore[override]
         """Auto-refresh data periodically."""
         try:
             self.call_from_thread(self._refresh_thread_safe)
         except Exception:
             pass
+        return 30.0
     
     def _refresh_thread_safe(self) -> None:
         """Thread-safe refresh callback."""

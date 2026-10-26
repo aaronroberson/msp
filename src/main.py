@@ -295,8 +295,8 @@ Examples:
         return
 
     if not args.command:
-        # Default: launch xli TUI
-        from src.tui_xli import main as tui_main
+        # Default: launch Textual TUI
+        from src.tui import main as tui_main
         tui_main()
         return
 
@@ -599,9 +599,9 @@ Examples:
     if command in command_map:
         module_name = command_map[command]
 
-        # TUI always routes to xli-based interactive assistant
+        # TUI always routes to Textual-based interactive assistant
         if module_name == "tui":
-            from src.tui_xli import main as tui_main
+            from src.tui import main as tui_main
             tui_main()
             return
 

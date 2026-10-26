@@ -323,40 +323,6 @@ class FakeUI:
         return card
 
 
-class TestTUIShellCommand(unittest.TestCase):
-    """Acceptance tests for /shell command inside the MSP TUI."""
-
-    def _run(self, args):
-        import asyncio
-        from src.tui_xli import cmd_shell
-
-        ui = FakeUI()
-        asyncio.run(cmd_shell(ui, args))
-        return ui
-
-    def test_shell_audit_renders_findings(self):
-        ui = self._run("audit")
-        self.assertEqual(len(ui.cards), 1)
-        card = ui.cards[0]
-        self.assertEqual(card.status, "done")
-        self.assertIn("Shell Audit", card.output)
-
-    def test_shell_fix_renders_result(self):
-        ui = self._run("fix")
-        self.assertEqual(len(ui.cards), 1)
-        self.assertEqual(ui.cards[0].status, "done")
-
-    def test_shell_default_is_audit(self):
-        ui = self._run("")
-        self.assertEqual(ui.cards[0].status, "done")
-        self.assertIn("Shell Audit", ui.cards[0].output)
-
-    def test_shell_unknown_subcommand_shows_usage(self):
-        ui = self._run("bogus")
-        self.assertEqual(ui.cards[0].status, "done")
-        self.assertIn("Usage", ui.cards[0].output)
-
-
 if __name__ == "__main__":
     unittest.main()
 

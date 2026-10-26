@@ -218,7 +218,12 @@ class Tuner:
                 if e:
                     entries.append(e)
         seen = set()
-        dups = sum(1 for e in entries if e in seen or seen.add(e))
+        dups = 0
+        for e in entries:
+            if e in seen:
+                dups += 1
+            else:
+                seen.add(e)
         if dups:
             self.findings.append(Finding(
                 domain="zsh", severity="low",
@@ -360,7 +365,7 @@ class Tuner:
 
     # ── top ────────────────────────────────────────────────
 
-    def top(self, json_output: bool = False) -> dict[str, str]:
+    def top(self, json_output: bool = False) -> dict[str, Any]:
         """Show top CPU/memory processes, memory pressure, and load average."""
         cmd = (
             "echo '=== TOP CPU ==='; "
