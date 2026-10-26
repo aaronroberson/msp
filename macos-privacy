@@ -3,7 +3,7 @@
 # Usage: ./macos-privacy or ./macos-privacy <command>
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON_SCRIPT="$SCRIPT_DIR/main.py"
+PYTHON_SCRIPT="$SCRIPT_DIR/src/main.py"
 
 # Check for Python 3
 if ! command -v python3 &> /dev/null; then

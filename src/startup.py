@@ -8,10 +8,10 @@ import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 from pathlib import Path
 
-from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command, Item
 
 try:
     from rich.console import Console
@@ -232,39 +232,39 @@ class StartupManager:
                         continue
         return items
 
+    def _deduplicate(self, items: List[StartupItem]) -> List[StartupItem]:
+        """Merge items sharing the same label, preferring plist entries and
+        absorbing running status/pid from launchd observations."""
+        by_label: Dict[str, StartupItem] = {}
+        for item in items:
+            key = item.label
+            existing = by_label.get(key)
+            if existing is None:
+                by_label[key] = item
+                continue
+            # Prefer an entry that has a plist path over a launchd-only entry.
+            if not existing.path and item.path:
+                by_label[key] = item
+                existing = item
+            # Absorb running status / pid from launchd observations.
+            if existing.pid is None and item.pid is not None:
+                existing.pid = item.pid
+                existing.status = item.status
+            if existing.status == "unknown" and item.status != "unknown":
+                existing.status = item.status
+        return list(by_label.values())
+
     def _get_all_items(self) -> List[StartupItem]:
         """Get all startup items without printing."""
         items = []
         items.extend(self._collect_agents())
         items.extend(self._collect_daemons())
         items.extend(self._collect_launchd_items())
-        return items
+        return self._deduplicate(items)
 
     def list_all(self, json_output: bool = False, sort_by: str = "name") -> List[StartupItem]:
         """List all startup items."""
         items = self._get_all_items()
-
-        success, output = self._run_cmd("launchctl list 2>/dev/null")
-        if success and output.strip():
-            for line in output.strip().split('\n')[1:]:
-                parts = line.split(None, 2)
-                if len(parts) >= 3:
-                    try:
-                        pid = int(parts[0]) if parts[0] != "-" else None
-                        status = parts[1]
-                        label = parts[2]
-                        item = StartupItem(
-                            name=label.split(".")[-1] if "." in label else label,
-                            label=label,
-                            path="",
-                            type="launchd",
-                            status=status,
-                            pid=pid
-                        )
-                        items.append(item)
-                    except (ValueError, IndexError):
-                        continue
-
         items = self._sort_items(items, sort_by)
 
         if json_output:
@@ -792,7 +792,8 @@ class StartupManager:
                 "raw": item.get("raw"),
             })
 
-        findings.sort(key=lambda x: {"HIGH": 0, "MEDIUM": 1, "REVIEW": 2, "LOW": 3}.get(x.get("risk"), 4))
+        risk_order = {"HIGH": 0, "MEDIUM": 1, "REVIEW": 2, "LOW": 3}
+        findings.sort(key=lambda x: risk_order.get(str(x.get("risk") or "LOW"), 4))
 
         if json_output:
             print(json.dumps(findings, indent=2))
@@ -1207,13 +1208,15 @@ def main():
         if results and not args.json:
             print(f"\nFound {len(results)} item(s) to review.")
             if interactive:
-                print("\n[bold]Interactive mode - review each item?[/bold]")
+                if console:
+                    print("\n[bold]Interactive mode - review each item?[/bold]")
                 for r in results:
-                    console.print(f"\n[{r['risk']}] {r['item']}")
-                    for reason in r.get('reasons', []):
-                        console.print(f"  └ {reason}")
-                    if r.get('path'):
-                        console.print(f"  Path: {r['path']}")
+                    if console:
+                        console.print(f"\n[{r['risk']}] {r['item']}")
+                        for reason in r.get('reasons', []):
+                            console.print(f"  └ {reason}")
+                        if r.get('path'):
+                            console.print(f"  Path: {r['path']}")
 
                     action = input("  Action? [d]isable, [s]kip, [q]uit: ").strip().lower()
                     if action == 'd':
@@ -1228,30 +1231,31 @@ def main():
         med = [r for r in results if r.get("risk") == "MEDIUM"]
         review = [r for r in results if r.get("risk") == "REVIEW"]
 
-        console.print("\n[bold]Startup Items Summary[/bold]\n")
-        console.print(f"[red]HIGH risk:[/red] {len(high)}")
-        if high:
-            for r in high[:5]:
-                console.print(f"  • {r['item']}")
-            if len(high) > 5:
-                console.print(f"  ... and {len(high)-5} more")
+        if console:
+            console.print("\n[bold]Startup Items Summary[/bold]\n")
+            console.print(f"[red]HIGH risk:[/red] {len(high)}")
+            if high:
+                for r in high[:5]:
+                    console.print(f"  • {r['item']}")
+                if len(high) > 5:
+                    console.print(f"  ... and {len(high)-5} more")
 
-        console.print(f"\n[yellow]MEDIUM risk:[/yellow] {len(med)}")
-        if med:
-            for r in med[:5]:
-                console.print(f"  • {r['item']}")
-            if len(med) > 5:
-                console.print(f"  ... and {len(med)-5} more")
+            console.print(f"\n[yellow]MEDIUM risk:[/yellow] {len(med)}")
+            if med:
+                for r in med[:5]:
+                    console.print(f"  • {r['item']}")
+                if len(med) > 5:
+                    console.print(f"  ... and {len(med)-5} more")
 
-        console.print(f"\n[cyan]REVIEW:[/cyan] {len(review)}")
-        if review:
-            for r in review[:5]:
-                console.print(f"  • {r['item']}")
-            if len(review) > 5:
-                console.print(f"  ... and {len(review)-5} more")
+            console.print(f"\n[cyan]REVIEW:[/cyan] {len(review)}")
+            if review:
+                for r in review[:5]:
+                    console.print(f"  • {r['item']}")
+                if len(review) > 5:
+                    console.print(f"  ... and {len(review)-5} more")
 
-        console.print(f"\n[dim]Total: {len(results)} items need attention[/dim]")
-        console.print("[dim]Run 'msp startup audit --interactive' to review and disable[/dim]")
+            console.print(f"\n[dim]Total: {len(results)} items need attention[/dim]")
+            console.print("[dim]Run 'msp startup audit --interactive' to review and disable[/dim]")
 
     elif args.action == "search":
         if not args.label:
@@ -1260,11 +1264,12 @@ def main():
         search_term = args.label.lower()
         items = manager._get_all_items()
         matches = [i for i in items if search_term in i.label.lower() or search_term in i.name.lower()]
-        console.print(f"\n[bold]Found {len(matches)} items matching '{args.label}'[/bold]\n")
-        for item in matches:
-            console.print(f"  • {item.label}")
-            console.print(f"    Name: {item.name}, PID: {item.pid or '-'}, Status: {item.status}")
-        console.print("\n[dim]Use 'msp startup disable <label>' to disable[/dim]")
+        if console:
+            console.print(f"\n[bold]Found {len(matches)} items matching '{args.label}'[/bold]\n")
+            for item in matches:
+                console.print(f"  • {item.label}")
+                console.print(f"    Name: {item.name}, PID: {item.pid or '-'}, Status: {item.status}")
+            console.print("\n[dim]Use 'msp startup disable <label>' to disable[/dim]")
 
 
 def interactive_menu(manager: StartupManager, json_output: bool = False):
@@ -1297,7 +1302,7 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
             break
 
         if action == "sort":
-            items = [(o, o, None) for o in sort_options]
+            items: List[Item] = cast(List[Item], [(o, o, None) for o in sort_options])
             result = interactive_select(items, title=f"Sort by (current: {current_sort})")
             if result:
                 current_sort = result[0]
@@ -1364,8 +1369,8 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
             term = input("Search term: ").strip()
             if term:
                 search_term = term.lower()
-                items = manager._get_all_items()
-                matches = [i for i in items if search_term in i.label.lower() or search_term in i.name.lower()]
+                all_items = manager._get_all_items()
+                matches = [i for i in all_items if search_term in i.label.lower() or search_term in i.name.lower()]
                 print(f"\nFound {len(matches)} items matching '{term}'\n")
                 for item in matches:
                     print(f"  • {item.label}")
