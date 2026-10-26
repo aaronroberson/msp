@@ -207,6 +207,28 @@ class StartupManager:
                         items.append(item)
         return items
 
+    def _launchd_item_name(self, label: str) -> str:
+        """Extract a meaningful name from a launchd label.
+
+        Application-domain labels look like
+        ``application.<bundle-id>.<numeric-id>[.<uuid>]``; the trailing
+        numeric/UUID components are not useful names, so we keep the
+        bundle-id portion. Other labels fall back to the last dot
+        component.
+        """
+        if label.startswith("application."):
+            rest = label[len("application."):]
+            parts = [p for p in rest.split(".") if p]
+            name_parts = []
+            for part in parts:
+                if part.isdigit() or (part.count("-") == 4 and len(part) >= 32):
+                    break
+                name_parts.append(part)
+            if name_parts:
+                return ".".join(name_parts)
+            return rest
+        return label.split(".")[-1] if "." in label else label
+
     def _collect_launchd_items(self) -> List[StartupItem]:
         """Collect launchd items without printing."""
         items = []
@@ -220,7 +242,7 @@ class StartupManager:
                         status = parts[1]
                         label = parts[2]
                         item = StartupItem(
-                            name=label.split(".")[-1] if "." in label else label,
+                            name=self._launchd_item_name(label),
                             label=label,
                             path="",
                             type="launchd",
@@ -863,7 +885,7 @@ class StartupManager:
                         label = parts[2]
                         if pid and pid > 0:
                             item = StartupItem(
-                                name=label.split(".")[-1] if "." in label else label,
+                                name=self._launchd_item_name(label),
                                 label=label,
                                 path="",
                                 type="launchd",
