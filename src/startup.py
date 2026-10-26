@@ -232,6 +232,12 @@ class StartupManager:
                         continue
         return items
 
+    def _is_apple_system_item(self, item: StartupItem) -> bool:
+        """Return True if the startup item is an Apple system item."""
+        label = item.label or ""
+        path = item.path or ""
+        return label.startswith("com.apple.") or path.startswith("/System/")
+
     def _deduplicate(self, items: List[StartupItem]) -> List[StartupItem]:
         """Merge items sharing the same label, preferring plist entries and
         absorbing running status/pid from launchd observations."""
@@ -262,9 +268,11 @@ class StartupManager:
         items.extend(self._collect_launchd_items())
         return self._deduplicate(items)
 
-    def list_all(self, json_output: bool = False, sort_by: str = "name") -> List[StartupItem]:
+    def list_all(self, json_output: bool = False, sort_by: str = "name", include_system: bool = False) -> List[StartupItem]:
         """List all startup items."""
         items = self._get_all_items()
+        if not include_system:
+            items = [i for i in items if not self._is_apple_system_item(i)]
         items = self._sort_items(items, sort_by)
 
         if json_output:
@@ -1155,6 +1163,7 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive mode")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status"], default="name", help="Sort by: name, label, pid, type, path, status")
+    parser.add_argument("--include-system", action="store_true", help="Include Apple system startup items (default: hidden)")
     setup_completion(parser)
     args = parser.parse_args()
 
@@ -1165,7 +1174,7 @@ def main():
         return
 
     if args.action == "list":
-        manager.list_all(json_output=args.json, sort_by=args.sort)
+        manager.list_all(json_output=args.json, sort_by=args.sort, include_system=args.include_system)
     elif args.action == "agents":
         manager.list_agents(json_output=args.json, sort_by=args.sort)
     elif args.action == "daemons":
