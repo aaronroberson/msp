@@ -445,8 +445,8 @@ class NetworkMonitor:
                 # Use originIp if available, otherwise try to unmask
                 original_ip = r.get("originIp", r["ip"].replace(".*", ""))
                 http_cmd = f"curl -s --connect-timeout 2 -o /dev/null -w '%{{http_code}}' http://{original_ip}/ 2>/dev/null"
-                _, http_out = self._run_cmd(http_cmd)
-                if http_out.strip() and http_out.strip() != "000":
+                success, http_out = self._run_cmd(http_cmd)
+                if success and http_out.strip() and http_out.strip() != "000":
                     r["http_status"] = http_out.strip()
                 else:
                     r["http_status"] = "none"

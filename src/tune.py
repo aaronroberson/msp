@@ -198,8 +198,8 @@ class Tuner:
                 description="Large history slows compinit and search.",
                 fixable=True, fix_cmd="history_trim",
             ))
-        _, file_out = _run(f"file {ZSH_HISTORY}")
-        if "ASCII" not in file_out:
+        rc, file_out = _run(f"file {ZSH_HISTORY}")
+        if rc == 0 and "ASCII" not in file_out:
             self.findings.append(Finding(
                 domain="zsh", severity="high",
                 title="History file corrupted",

@@ -235,8 +235,8 @@ class DependencyManager:
                 lines = int(out.strip()) if out.strip().isdigit() else 0
                 if lines > 100000:
                     shell_issues.append(("MEDIUM", "Large zsh history", f"{lines} lines affects startup/search speed."))
-                _, file_out = self._run_cmd(f"file {history}")
-                if "ASCII" not in file_out:
+                ok, file_out = self._run_cmd(f"file {history}")
+                if ok and "ASCII" not in file_out:
                     shell_issues.append(("HIGH", "Corrupted zsh history", "Run 'msp tune apply' to repair."))
             except Exception:
                 pass
