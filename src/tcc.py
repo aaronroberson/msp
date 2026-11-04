@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -904,7 +905,7 @@ def interactive_menu(manager: TCCManager, json_output: bool = False) -> None:
         except ValueError as exc:
             print(f"Error: {exc}", file=sys.stderr)
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main() -> None:

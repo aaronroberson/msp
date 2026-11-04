@@ -27,6 +27,7 @@ import sys
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from src.command import pause_for_enter
 
 try:
     from src.command import (
@@ -535,7 +536,7 @@ def interactive_menu(json_output: bool = False):
                 p = AppleDoubleParser(fpath)
                 print(json.dumps(p.get_summary(), indent=2))
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

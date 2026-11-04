@@ -11,6 +11,7 @@ from pathlib import Path
 from dataclasses import dataclass, asdict
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -468,7 +469,7 @@ def interactive_menu(manager: ChainManager, json_output: bool = False):
             else:
                 print("File path required")
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

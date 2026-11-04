@@ -8,6 +8,7 @@ import sys
 from typing import Dict, Any
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -248,7 +249,7 @@ def interactive_menu(ss: SecuritySettings, json_output: bool = False):
             else:
                 print("Unknown setting")
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

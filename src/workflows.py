@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from src.command import setup_completion, suggest_command
+from src.command import pause_for_enter
 
 try:
     from .llm import LLMReasoner
@@ -382,7 +383,7 @@ def interactive_menu() -> None:
         if choice == "1":
             rows = list_workflows()
             print(render_text_workflow_list(rows))
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif choice == "2":
             wf_ids = sorted(BUILTIN_WORKFLOWS)
             print("\nAvailable workflows:")
@@ -392,7 +393,7 @@ def interactive_menu() -> None:
             if sel.isdigit() and 1 <= int(sel) <= len(wf_ids):
                 workflow = get_workflow(wf_ids[int(sel) - 1])
                 print(render_text_workflow(workflow))
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif choice == "3":
             wf_ids = sorted(BUILTIN_WORKFLOWS)
             print("\nAvailable workflows:")
@@ -404,7 +405,7 @@ def interactive_menu() -> None:
                 result = run_workflow(wid, dry_run=True, include_reasoning=True)
                 print(render_text_workflow(get_workflow(wid)))
                 print("Dry run: no commands were executed.")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         else:
             print("Invalid choice")
 

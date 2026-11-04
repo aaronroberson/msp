@@ -29,6 +29,7 @@ from src.command import (
     setup_completion,
     suggest_command,
 )
+from src.command import pause_for_enter
 
 try:
     from .network import NetworkMonitor
@@ -533,7 +534,7 @@ def interactive_menu() -> None:
             print("\nCollecting facts across all sections...")
             facts = collect_facts(sections=None, redact=redact)
             write_facts(facts)
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "2":
             print(f"\nCurrent sections: {', '.join(sections)}")
             items = [(s, s, None) for s in DEFAULT_SECTIONS]
@@ -543,7 +544,7 @@ def interactive_menu() -> None:
             print(f"\nCollecting facts for: {', '.join(sections)}")
             facts = collect_facts(sections=sections, redact=redact)
             write_facts(facts)
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "3":
             redact = not redact
             print(f"Redaction {'on' if redact else 'off'}")
@@ -555,7 +556,7 @@ def interactive_menu() -> None:
                 print(f"Facts written to {path}")
             else:
                 print("No path specified")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

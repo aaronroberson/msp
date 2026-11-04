@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
+from src.command import pause_for_enter
 
 try:
     from src.command import (
@@ -737,7 +738,7 @@ def interactive_menu() -> None:
                 print(_human_plan(plan))
             except Exception as e:
                 print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "2":
             path = input("Path to findings JSON file: ").strip()
             if path:
@@ -755,7 +756,7 @@ def interactive_menu() -> None:
                     print(_human_plan(plan))
                 except Exception as e:
                     print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "3":
             path = input("Path to plan JSON file: ").strip()
             if path:
@@ -767,7 +768,7 @@ def interactive_menu() -> None:
                     print(_human_results(results))
                 except Exception as e:
                     print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

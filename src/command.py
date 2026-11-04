@@ -276,20 +276,82 @@ def _error_result(
 Item = Tuple[str, str, Optional[str]]  # (value, label, description)
 
 
+def pause_for_enter(msg: str = "\nPress Enter to continue...") -> None:
+    """Wait for Enter. Ctrl-C/Ctrl-D/EOF return quietly, not a traceback."""
+    try:
+        input(msg)
+    except (KeyboardInterrupt, EOFError):
+        print()
+
+
+def _read_terminal_key(fd: int) -> Optional[str]:
+    """Read one logical keypress from a raw-mode tty.
+
+    Blocks until a key (or EOF) arrives. Maps escape sequences to logical
+    names. Bare ESC stops translating after ``_ESCAPE_TIMEOUT`` seconds so a
+    lone Escape press cannot stall the stream.
+
+    Returns one of: printable text, "UP", "DOWN", "ESC" (bare escape),
+    "IGN" (swallowed escape sequence or unknown byte), "CC" (Ctrl-C),
+    "CD" (Ctrl-D), or None on EOF.
+    """
+    _ESCAPE_TIMEOUT = 0.03
+    while True:
+        try:
+            data = os.read(fd, 1)
+        except OSError:
+            return None
+        if not data:
+            return None  # EOF
+        if data == b"\x1b":
+            # Bare ESC (nothing follows quickly) has cancel semantics. A
+            # recognized arrow sequence maps to a navigation key. Any other
+            # sequence is swallowed ("IGN") so terminals with extra escapes
+            # (e.g. Apple Terminal's ESC O D) can never cancel the menu.
+            tail = b""
+            for _ in range(2):
+                ready, _, _ = select.select([fd], [], [], _ESCAPE_TIMEOUT)
+                if not ready:
+                    break
+                tail += os.read(fd, 1)
+            if not tail:
+                return "ESC"
+            if tail == b"[A":
+                return "UP"
+            if tail == b"[B":
+                return "DOWN"
+            return "IGN"
+        if data == b"\x03":
+            return "CC"
+        if data == b"\x04":
+            return "CD"
+        if data == b"\x7f":  # backspace: ignore
+            continue
+        return data.decode("utf-8", errors="replace")
+
+
 def interactive_select(
     items: List[Item],
     *,
     title: str = "",
     multi: bool = False,
 ) -> Optional[List[str]]:
-    """Arrow-key navigable, Tab-toggle terminal selector.
+    """Arrow-key navigable, Space-toggle terminal selector.
+
+    Keys: ↑/↓ navigate, Space (or Tab) toggle in multi-select, ↵ confirm,
+    ``q``/Esc/Ctrl-C/Ctrl-D cancel. Unknown keys are ignored silently.
+
+    Rendering is raw-mode-safe: every line ends with CRLF and the cursor is
+    always parked one row below the panel between paints, so repaints never
+    creep up or stair-step across the screen.
 
     Args:
         items: list of (value, label, description) tuples.
         title: header displayed above the list.
-        multi: if True, Tab toggles selection and Enter confirms all
-               selected. If False, Enter immediately selects the item
-               under the cursor.
+        multi: if True, Space/Tab toggle selection and Enter confirms all
+               selected items (defaulting to the item under the cursor if
+               none are toggled). If False, Enter immediately selects the
+               item under the cursor.
 
     Returns:
         List of selected values, or None if cancelled.
@@ -303,93 +365,121 @@ def interactive_select(
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
 
-    HIDE = "\033[?25l"
-    SHOW = "\033[?25h"
-    CLR = "\033[2K"
-    BOLD = "\033[1m"
-    RST = "\033[0m"
-    CYN = "\033[36m"
-    GRN = "\033[32m"
-    GRAY = "\033[90m"
+    HIDE = "\x1b[?25l"
+    SHOW = "\x1b[?25h"
+    CLR = "\x1b[2K"
+    BOLD = "\x1b[1m"
+    RST = "\x1b[0m"
+    CYN = "\x1b[36m"
+    GRAY = "\x1b[90m"
+
+    if title:
+        layout_rows = 3 + n  # title + help + spacer + items
+    else:
+        layout_rows = 2 + n  # help + spacer + items
 
     def render() -> str:
+        """Build the panel; every line is CRLF-terminated for raw mode."""
         lines: List[str] = []
         if title:
             lines.append(f"  {BOLD}{title}{RST}")
-        help_text = "(↑↓ navigate, ↵ select, q quit)"
         if multi:
-            help_text = "(↑↓ navigate, ⭾ toggle, ↵ execute, q quit)"
-        lines.append(f"  {GRAY}{help_text}{RST}\n")
+            help_text = "(↑↓ navigate, space toggle, ↵ execute, q/Esc cancel)"
+        else:
+            help_text = "(↑↓ navigate, ↵ select, q/Esc cancel)"
+        lines.append(f"  {GRAY}{help_text}{RST}")
+        lines.append("")  # spacer between help and items
         for i, item in enumerate(items):
             _, label, desc = item
             prefix = "▸" if i == cursor else " "
             if multi:
                 check = "☑" if i in selected else "☐"
-                display = f" {prefix} {CYN if i == cursor else RST}{check} {label}{RST}"
+                display = f"  {CYN if i == cursor else RST}{check} {label}{RST}"
             else:
                 display = f" {prefix} {CYN if i == cursor else RST}{label}{RST}"
             if desc and i == cursor:
                 display += f"  {GRAY}{desc}{RST}"
             lines.append(display)
-        lines.append("")
-        return "\n".join(lines)
+        return "\r\n".join(lines) + "\r\n"
 
-    def count() -> int:
-        return n + 3  # title + help + blank + n items
+    def clear_panel() -> None:
+        """Erase the rendered panel.
+
+        Invariant: on entry and on exit the cursor rests exactly one row
+        below the panel. Steps use LF+CR (not cursor-down) so a panel whose
+        bottom row sits on the last screen row scrolls instead of sticking,
+        which is what keeps repaints anchored.
+        """
+        out = [f"\x1b[{layout_rows}A"]  # rise to the panel's top row
+        for _ in range(layout_rows):
+            out.append(CLR)
+            out.append("\n\r")  # step down; LF scrolls anchor-safely
+        sys.stdout.write("".join(out))
+        sys.stdout.flush()
 
     try:
         tty.setraw(fd)
+    except termios.error:
+        # Not an interactive tty (pipe/file): fall back to numbered prompt.
+        for i, item in enumerate(items, start=1):
+            print(f"  {i}. {item[1]}")
+        try:
+            while True:
+                answer = input("Number (q to cancel): ").strip()
+                if answer in ("q", "esc", ""):
+                    return None
+                if answer.isdigit() and 1 <= int(answer) <= n:
+                    picked = items[int(answer) - 1][0]
+                    return [picked]
+                print("Invalid choice")
+        except (EOFError, KeyboardInterrupt):
+            return None
+    try:
+        painted = False
         sys.stdout.write(HIDE)
         sys.stdout.flush()
 
         while True:
-            rendered = render()
-            sys.stdout.write(rendered)
+            sys.stdout.write(render())
             sys.stdout.flush()
+            painted = True
 
-            raw = b""
-            while True:
-                b = os.read(fd, 1)
-                raw += b
-                if b == b"\x1b":
-                    raw += os.read(fd, 2)
+            key = _read_terminal_key(fd)
+
+            if key in (None, "ESC", "CC", "CD", "q", "Q"):
+                return None
+
+            if key in ("\r", "\n"):
+                if multi:
+                    if not selected:
+                        selected.add(cursor)  # Enter with nothing toggled
+                    break
+                selected.add(cursor)
                 break
 
-            key = raw.decode("utf-8", errors="replace")
-
-            sys.stdout.write(f"\033[{count()}A")
-            for _ in range(count()):
-                sys.stdout.write(CLR)
-                sys.stdout.write("\033[B" if _ < count() - 1 else "")
-            sys.stdout.write(f"\033[{count()}A")
-
-            if key == "\r" or key == "\n":
-                if multi:
-                    if selected:
-                        break
+            if key in (" ", "\t") and multi:
+                if cursor in selected:
+                    selected.remove(cursor)
                 else:
                     selected.add(cursor)
-                    break
-            elif key == "q":
-                selected.clear()
-                break
-            elif key == "\t" or key == " ":
-                if multi:
-                    if cursor in selected:
-                        selected.remove(cursor)
-                    else:
-                        selected.add(cursor)
-            elif key == "\x1b[A" and cursor > 0:
+                clear_panel()
+
+            elif key == "UP" and cursor > 0:
                 cursor -= 1
-            elif key == "\x1b[B" and cursor < n - 1:
+                clear_panel()
+
+            elif key == "DOWN" and cursor < n - 1:
                 cursor += 1
+                clear_panel()
+
+            # Any other key: silent no-op, never repaint.
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        if painted:
+            clear_panel()
+        # TCSANOW, not TCSADRAIN: the DRAIN variants block waiting for the
+        # terminal output queue to drain, which can deadlock on macOS ptys.
+        termios.tcsetattr(fd, termios.TCSANOW, old)
         sys.stdout.write(SHOW)
-        for _ in range(count()):
-            sys.stdout.write(CLR)
-            sys.stdout.write("\n")
-        sys.stdout.write(f"\033[{count()}A")
         sys.stdout.flush()
 
     return [items[i][0] for i in sorted(selected)] if selected else None

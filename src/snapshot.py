@@ -18,6 +18,7 @@ from src.command import (
     interactive_menu as cmd_interactive_menu,
     interactive_select,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -900,7 +901,7 @@ def interactive_menu(manager: SnapshotManager, json_output: bool = False):
             else:
                 print("Snapshot name required")
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

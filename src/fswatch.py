@@ -17,6 +17,7 @@ from src.command import (
     interactive_menu as cmd_interactive_menu,
     interactive_select,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -436,7 +437,7 @@ def interactive_menu(watcher: FileWatcher, json_output: bool = False):
         elif action == "audit":
             watcher.audit(json_output=json_output, sort_by=current_sort["audit"])
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

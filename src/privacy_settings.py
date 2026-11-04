@@ -74,6 +74,7 @@ from typing import Optional, List, Dict, Any, Callable
 from enum import Enum
 
 from .command import HAS_ARGCOMPLETE as ARGCOMPLETE_AVAILABLE, interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -1140,7 +1141,7 @@ def interactive_menu():
                 items = [(pid, p['name'], p['description']) for pid, p in preset_manager.PRESETS.items()]
                 if not items:
                     print("No presets available")
-                    input("\nPress Enter to continue...")
+                    pause_for_enter()
                     continue
                 result = interactive_select(items, title="Select preset to delete")
                 if result:
@@ -1148,18 +1149,18 @@ def interactive_menu():
                 else:
                     print("No preset specified")
 
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         else:
             module_name = ACTION_TO_MODULE.get(action)
             if not module_name:
                 print(f"Unknown module: {action}")
-                input("\nPress Enter to continue...")
+                pause_for_enter()
                 continue
 
             if action in NO_INTERACTIVE_MODULES:
                 print(f"\n'{action}' has no interactive mode. Use it via CLI:")
                 print(f"  msp {action} --help")
-                input("\nPress Enter to continue...")
+                pause_for_enter()
                 continue
 
             _launch_module(module_name)

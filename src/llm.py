@@ -27,6 +27,7 @@ from src.command import (
     setup_completion,
     suggest_command,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -507,7 +508,7 @@ def interactive_menu() -> None:
                 print(json.dumps(result, indent=2, sort_keys=True))
             except Exception as e:
                 print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "2":
             path = input("Path to facts JSON file: ").strip()
             if path:
@@ -516,7 +517,7 @@ def interactive_menu() -> None:
                     print(f"Loaded facts from {path}")
                 except Exception as e:
                     print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "3":
             providers = ["auto", "local", "ollama", "apfel", "openai"]
             items = [(p, p, None) for p in providers]
@@ -529,7 +530,7 @@ def interactive_menu() -> None:
                     print(json.dumps(result, indent=2, sort_keys=True))
                 except Exception as e:
                     print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

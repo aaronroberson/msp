@@ -15,6 +15,7 @@ from src.command import (
     interactive_menu as cmd_interactive_menu,
     interactive_select,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -387,7 +388,7 @@ def interactive_menu(analyzer: TrafficAnalyzer, json_output: bool = False):
             filter_expr = input("BPF filter (optional): ").strip()
             analyzer.stream(duration=duration, filter_expr=filter_expr)
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

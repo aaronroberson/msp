@@ -38,6 +38,7 @@ from src.command import (
     setup_completion,
     suggest_command,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -944,7 +945,7 @@ def interactive_menu(analyzer: AIAnalyzer, json_output: bool = False):
             devs = _openvino_list_devices()
             print(f"\nOpenVINO Devices: {devs if devs else 'none'}")
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

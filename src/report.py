@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from src.command import pause_for_enter
 
 
 BUNDLE_SCHEMA_VERSION = "1.0"
@@ -293,7 +294,7 @@ def interactive_menu() -> None:
                     print("No output path specified")
             except Exception as e:
                 print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "load":
             facts_path = input("Path to facts JSON: ").strip()
             findings_path = input("Path to findings JSON: ").strip()
@@ -316,7 +317,7 @@ def interactive_menu() -> None:
                         print(f"Report written to {output}")
                 except Exception as e:
                     print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

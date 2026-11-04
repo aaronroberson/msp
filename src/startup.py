@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional, cast
 from pathlib import Path
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command, Item
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -1431,7 +1432,7 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
                     for reason in r.get('reasons', []):
                         print(f"  └ {reason}")
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 if __name__ == "__main__":
     main()

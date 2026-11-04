@@ -632,5 +632,18 @@ Examples:
         suggest_command(command, list(COMMAND_MODULES.keys()) + list(COMMAND_ALIASES.keys()) + ["snapshot", "sharing", "security", "ask", "ai", "config"])
 
 
+def console_main() -> None:
+    """Entry point that turns ^C/^D into a clean exit instead of a traceback."""
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        print("Cancelled.")
+        raise SystemExit(130)
+    except EOFError:
+        print()
+        raise SystemExit(130)
+
+
 if __name__ == "__main__":
-    main()
+    console_main()

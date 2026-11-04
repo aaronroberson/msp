@@ -22,6 +22,7 @@ from src.command import (
     setup_completion,
     suggest_command,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -806,7 +807,7 @@ def interactive_menu() -> None:
                 print(findings_to_table(findings))
             else:
                 print("No findings.")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "2":
             path = input("Path to facts JSON file: ").strip()
             if path:
@@ -823,12 +824,12 @@ def interactive_menu() -> None:
                         print("No findings.")
                 except Exception as e:
                     print(f"Error: {e}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
         elif action == "3":
             print("\nAvailable profiles:")
             for pid, pdef in PROFILE_DEFINITIONS.items():
                 print(f"\n  {pid}: {pdef.get('description', '')}")
-            input("\nPress Enter to continue...")
+            pause_for_enter()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

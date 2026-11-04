@@ -15,6 +15,7 @@ from src.command import (
     interactive_menu as cmd_interactive_menu,
     interactive_select,
 )
+from src.command import pause_for_enter
 
 try:
     from rich.console import Console
@@ -522,7 +523,7 @@ def interactive_menu(scanner: SecurityScanner, json_output: bool = False):
             output = output or os.path.expanduser("~/.msp/reports/scan_report.json")
             scanner.generate_report(output)
 
-        input("\nPress Enter to continue...")
+        pause_for_enter()
 
 
 def main():

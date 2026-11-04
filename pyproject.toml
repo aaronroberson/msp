@@ -24,9 +24,9 @@ test = [
 ]
 
 [project.scripts]
-msp = "src.main:main"
-mac-privacy = "src.main:main"
-mpc = "src.main:main"
+msp = "src.main:console_main"
+mac-privacy = "src.main:console_main"
+mpc = "src.main:console_main"
 msp-interrogate = "src.facts:main"
 msp-reason = "src.llm:main"
 msp-remediate = "src.remediate:main"
@@ -42,9 +42,9 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 follow_imports = "normal"
-disable_error_code = ["no-implicit-optional", "import-not-found"]
+disable_error_code = ["import-not-found"]
