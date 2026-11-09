@@ -1,6 +1,8 @@
 import json
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import Request
@@ -10,13 +12,16 @@ from src import ai
 
 class AIBYOKTest(unittest.TestCase):
     def test_config_load_and_save(self):
-        with mock.patch("src.ai.AI_CONFIG_FILE", ai.CONFIG_DIR / "test_ai_config.json"):
-            cfg = {"default_provider": "groq", "providers": {"groq": {"model": "llama-3.3-70b-versatile"}}}
-            ai.save_ai_config(cfg)
-            loaded = ai.load_ai_config()
-            self.assertEqual(loaded["default_provider"], "groq")
-            if (ai.CONFIG_DIR / "test_ai_config.json").exists():
-                (ai.CONFIG_DIR / "test_ai_config.json").unlink()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_dir = Path(temp_dir) / ".msp"
+            config_file = config_dir / "ai_config.json"
+            with mock.patch("src.ai.CONFIG_DIR", config_dir), mock.patch(
+                "src.ai.AI_CONFIG_FILE", config_file
+            ):
+                cfg = {"default_provider": "groq", "providers": {"groq": {"model": "llama-3.3-70b-versatile"}}}
+                self.assertTrue(ai.save_ai_config(cfg))
+                loaded = ai.load_ai_config()
+                self.assertEqual(loaded["default_provider"], "groq")
 
     def test_key_resolution_order(self):
         # 1. Environment variable wins
