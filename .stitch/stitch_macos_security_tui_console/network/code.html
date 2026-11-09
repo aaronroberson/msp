@@ -1,0 +1,355 @@
+<!DOCTYPE html><html lang="en" class="dark"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>msp - Network Sockets &amp; Connections (Textual TUI)</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'accent': '#58A6FF',
+        'primary': '#58A6FF',
+        'on-primary': '#0D1117',
+        'surface': '#0D1117',
+        'on-surface': '#C9D1D9',
+        'surface-variant': '#161B22',
+        'on-surface-variant': '#8B949E',
+        'outline': '#30363D',
+        'outline-focused': '#58A6FF',
+        'success': '#3FB950',
+        'on-success': '#0D1117',
+        'warning': '#D29922',
+        'on-warning': '#0D1117',
+        'error': '#F85149',
+        'on-error': '#262626',
+        'light-primary': '#0969DA',
+        'light-on-primary': '#FFFFFF',
+        'light-surface': '#FFFFFF',
+        'light-on-surface': '#1F2328',
+        'dark-primary': '#58A6FF',
+        'dark-on-primary': '#0D1117',
+        'dark-surface': '#0D1117',
+        'dark-on-surface': '#C9D1D9',
+      },
+      borderRadius: {
+        'sm': '2px',
+        'DEFAULT': '4px',
+        'md': '4px',
+        'lg': '6px',
+        'xl': '8px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '12px',
+        'gutter-lg': '16px',
+        'gutter-xl': '24px',
+        'section': '24px',
+        'page-margin': '12px',
+      },
+      fontFamily: {
+        'display': ['"JetBrains Mono"', 'sans-serif'],
+        'headline': ['"JetBrains Mono"', 'sans-serif'],
+        'body': ['"JetBrains Mono"', 'sans-serif'],
+        'label': ['"JetBrains Mono"', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.2px', fontWeight: '700' }],
+        'display-lg-mobile': ['20px', { lineHeight: '28px', letterSpacing: '-0.1px', fontWeight: '700' }],
+        'headline-lg': ['18px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-lg-mobile': ['16px', { lineHeight: '22px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-md': ['15px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-lg': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-md': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['13px', { lineHeight: '18px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.3px', fontWeight: '600' }],
+      },
+      transitionDuration: {
+        'state-change': '60ms',
+        'surface-enter': '100ms',
+        'surface-exit': '80ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'ease-out',
+        'surface-exit': 'ease-in',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-surface text-on-surface font-body min-h-[1024px] flex flex-col antialiased p-2" data-stitch-vh="min-h-[1024px]===min-h-screen">
+
+  <div class="flex-1 flex flex-col border border-outline rounded bg-surface shadow-2xl overflow-hidden min-h-[960px]">
+
+    <!-- APP HEADER -->
+    <header class="bg-surface-variant border-b border-outline px-3 py-2 flex items-center justify-between font-mono text-body-sm">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 mr-1">
+          <span class="w-3 h-3 rounded-full bg-[#FF5F56] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#FFBD2E] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#27C93F] inline-block"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-primary tracking-wider">[msp]</span>
+          <span class="text-on-surface-variant">macOS Security &amp; Privacy Console</span>
+          <span class="text-label-sm px-1.5 py-0.5 rounded bg-surface border border-outline text-on-surface-variant font-mono">v2.4.0</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-label-sm font-mono">
+        <span class="text-on-surface">lsof network monitor</span>
+        <span class="text-primary tabular-nums">VIEW: NETWORK</span>
+      </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="bg-surface border-b border-outline px-3 py-1.5 flex items-center justify-between text-body-sm font-mono">
+      <div class="flex items-center gap-1">
+        <a href="../dashboard/Dashboard.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[1]</span> <span>Dashboard</span>
+        </a>
+        <a href="../findings/Findings.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[2]</span> <span>Findings</span>
+          <span class="ml-1 px-1 py-0.2 bg-error text-on-error text-label-sm rounded font-bold">2</span>
+        </a>
+        <a href="../network/Network.html" class="px-2.5 py-1 rounded bg-primary text-on-primary font-semibold border border-primary flex items-center gap-1.5">
+          <span class="opacity-75">[3]</span> <span>Network</span>
+        </a>
+        <a href="../startup/Startup.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[4]</span> <span>Startup</span>
+        </a>
+        <a href="../tcc/TCC.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[5]</span> <span>TCC</span>
+        </a>
+        <a href="../privacy/Privacy.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[6]</span> <span>Privacy</span>
+        </a>
+        <a href="../snapshots/Snapshots.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[7]</span> <span>Snapshots</span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-1.5 text-label-sm">
+        <a href="../runner/Runner.html" class="px-2 py-1 bg-surface-variant text-on-surface border border-outline rounded flex items-center gap-1 font-mono">
+          <span class="text-primary font-bold">^R</span> Runner
+        </a>
+        <a href="../palette/Palette.html" class="px-2 py-1 bg-surface-variant text-on-surface border border-outline rounded flex items-center gap-1 font-mono">
+          <span class="text-primary font-bold">^P</span> Palette
+        </a>
+        <a href="../help/Help.html" class="px-2 py-1 bg-surface-variant text-on-surface border border-outline rounded flex items-center gap-1 font-mono">
+          <span class="text-primary font-bold">?</span> Help
+        </a>
+      </div>
+    </nav>
+
+    <!-- MAIN NETWORK CONTENT -->
+    <main class="flex-1 bg-surface p-3 overflow-y-auto space-y-3 font-mono">
+      <!-- Sub-Tab Switcher (Listening vs Established) -->
+      <div class="flex items-center justify-between border-b border-outline pb-2">
+        <div class="flex items-center gap-2">
+          <button id="tab-btn-listen" onclick="switchTab(&#39;listen&#39;)" class="px-3 py-1 rounded bg-primary text-on-primary font-semibold text-label-md border border-primary">
+            [L] Listening Sockets (4)
+          </button>
+          <button id="tab-btn-estab" onclick="switchTab(&#39;estab&#39;)" class="px-3 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface text-label-md border border-outline">
+            [E] Established Connections (6)
+          </button>
+        </div>
+        <div class="text-label-sm text-on-surface-variant">
+          Captured via <code class="text-on-surface">lsof -iTCP -iUDP -n -P</code>
+        </div>
+      </div>
+
+      <!-- Tab 1: Listening Sockets Table -->
+      <div id="tab-listen" class="border border-outline rounded bg-surface-variant overflow-hidden">
+        <table class="w-full text-left border-collapse text-body-sm">
+          <thead>
+            <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+              <th class="py-2 px-3">PROCESS</th>
+              <th class="py-2 px-3">PID</th>
+              <th class="py-2 px-3">USER</th>
+              <th class="py-2 px-3">PROTO</th>
+              <th class="py-2 px-3">BIND ADDRESS</th>
+              <th class="py-2 px-3">STATE</th>
+              <th class="py-2 px-3">SECURITY POSTURE</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline/40">
+            <tr class="bg-error/10 hover:bg-error/20">
+              <td class="py-2 px-3 font-bold text-primary">python3</td>
+              <td class="py-2 px-3 text-on-surface">49210</td>
+              <td class="py-2 px-3 text-on-surface-variant">developer</td>
+              <td class="py-2 px-3 text-warning font-bold">TCP</td>
+              <td class="py-2 px-3 text-error font-bold">0.0.0.0:8080</td>
+              <td class="py-2 px-3 text-error font-semibold">LISTEN</td>
+              <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-error text-on-error text-label-sm font-bold">WILDCARD (PUBLIC EXPOSED)</span></td>
+            </tr>
+            <tr class="hover:bg-surface">
+              <td class="py-2 px-3 font-semibold text-on-surface">sshd</td>
+              <td class="py-2 px-3 text-on-surface">118</td>
+              <td class="py-2 px-3 text-on-surface-variant">root</td>
+              <td class="py-2 px-3 text-on-surface">TCP</td>
+              <td class="py-2 px-3 text-on-surface">127.0.0.1:22</td>
+              <td class="py-2 px-3 text-success">LISTEN</td>
+              <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-success/20 text-success text-label-sm">RESTRICTED TO LOOPBACK</span></td>
+            </tr>
+            <tr class="hover:bg-surface">
+              <td class="py-2 px-3 font-semibold text-on-surface">mDNSResponder</td>
+              <td class="py-2 px-3 text-on-surface">240</td>
+              <td class="py-2 px-3 text-on-surface-variant">_mdnsresponder</td>
+              <td class="py-2 px-3 text-on-surface">UDP</td>
+              <td class="py-2 px-3 text-on-surface">*:5353</td>
+              <td class="py-2 px-3 text-on-surface-variant">LISTEN</td>
+              <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-surface border border-outline text-on-surface-variant text-label-sm">LOCAL MULTICAST (BONJOUR)</span></td>
+            </tr>
+            <tr class="hover:bg-surface">
+              <td class="py-2 px-3 font-semibold text-on-surface">ControlCenter</td>
+              <td class="py-2 px-3 text-on-surface">612</td>
+              <td class="py-2 px-3 text-on-surface-variant">developer</td>
+              <td class="py-2 px-3 text-on-surface">TCP</td>
+              <td class="py-2 px-3 text-on-surface">127.0.0.1:5000</td>
+              <td class="py-2 px-3 text-success">LISTEN</td>
+              <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-success/20 text-success text-label-sm">AIRPLAY RECEIVER (LOOPBACK)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab 2: Established Connections Table -->
+      <div id="tab-estab" class="hidden border border-outline rounded bg-surface-variant overflow-hidden">
+        <table class="w-full text-left border-collapse text-body-sm">
+          <thead>
+            <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+              <th class="py-2 px-3">PROCESS</th>
+              <th class="py-2 px-3">PID</th>
+              <th class="py-2 px-3">LOCAL ENDPOINT</th>
+              <th class="py-2 px-3">REMOTE ENDPOINT</th>
+              <th class="py-2 px-3">HOSTNAME / ASN</th>
+              <th class="py-2 px-3">PROTOCOL</th>
+              <th class="py-2 px-3">STATE</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline/40">
+            <tr class="hover:bg-surface">
+              <td class="py-2 px-3 font-bold text-primary">curl</td>
+              <td class="py-2 px-3 text-on-surface">51922</td>
+              <td class="py-2 px-3 text-on-surface">192.168.1.140:54210</td>
+              <td class="py-2 px-3 text-accent font-semibold">140.82.121.4:443</td>
+              <td class="py-2 px-3 text-on-surface-variant">github.com (AS36459)</td>
+              <td class="py-2 px-3">TCP</td>
+              <td class="py-2 px-3 text-success font-semibold">ESTABLISHED</td>
+            </tr>
+            <tr class="hover:bg-surface">
+              <td class="py-2 px-3 font-semibold text-on-surface">Safari</td>
+              <td class="py-2 px-3 text-on-surface">1204</td>
+              <td class="py-2 px-3 text-on-surface">192.168.1.140:54218</td>
+              <td class="py-2 px-3 text-on-surface">17.253.144.10:443</td>
+              <td class="py-2 px-3 text-on-surface-variant">apple.com (AS714)</td>
+              <td class="py-2 px-3">TCP</td>
+              <td class="py-2 px-3 text-success font-semibold">ESTABLISHED</td>
+            </tr>
+            <tr class="hover:bg-surface">
+              <td class="py-2 px-3 font-semibold text-on-surface">Slack</td>
+              <td class="py-2 px-3 text-on-surface">3129</td>
+              <td class="py-2 px-3 text-on-surface">192.168.1.140:54224</td>
+              <td class="py-2 px-3 text-on-surface">54.230.12.89:443</td>
+              <td class="py-2 px-3 text-on-surface-variant">cloudfront.net (AS16509)</td>
+              <td class="py-2 px-3">TCP</td>
+              <td class="py-2 px-3 text-success font-semibold">ESTABLISHED</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+
+    <!-- BOTTOM COMMAND RUNNER DRAWER (^R) -->
+    <div id="command-runner-drawer" class="border-t-2 border-outline bg-surface-variant flex flex-col font-mono text-body-sm transition-all duration-200 h-64">
+      <div class="px-3 py-1.5 bg-surface border-b border-outline flex items-center justify-between text-label-sm">
+        <div class="flex items-center gap-3">
+          <span class="text-primary font-bold flex items-center gap-1">
+            <span>[^R]</span> SUBPROCESS COMMAND RUNNER &amp; AI CHAT
+          </span>
+          <span id="runner-status-badge" class="px-1.5 py-0.2 rounded bg-surface border border-outline text-on-surface-variant text-label-sm">IDLE</span>
+          <span id="runner-meta" class="text-on-surface-variant">Exit: 0 | Duration: 18ms</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="toggleRunner()" class="text-on-surface-variant hover:text-on-surface text-label-sm">[Esc / ^R Close]</button>
+        </div>
+      </div>
+
+      <div id="runner-output-terminal" class="flex-1 p-2 bg-[#090D12] overflow-y-auto text-body-xs font-mono space-y-0.5 text-on-surface">
+        <div class="text-on-surface-variant">msp terminal runner active on network monitor. Ready for socket queries.</div>
+        <div class="text-on-surface-variant">Try: <span onclick="runCmd(&#39;msp net top&#39;)" class="text-primary hover:underline cursor-pointer">msp net top</span> | <span onclick="runCmd(&#39;msp traffic summary&#39;)" class="text-primary hover:underline cursor-pointer">msp traffic summary</span> | <span onclick="runCmd(&#39;msp traffic dns&#39;)" class="text-accent hover:underline cursor-pointer">msp traffic dns</span></div>
+      </div>
+
+      <div class="p-2 bg-surface border-t border-outline flex items-center gap-2">
+        <span class="text-primary font-bold text-body-sm">&gt;</span>
+        <input id="runner-input" type="text" placeholder="Run network command (e.g. msp net top, msp traffic summary, msp ask &#39;who owns 140.82.121.4&#39;)..." class="flex-1 bg-surface-variant border border-outline rounded px-2.5 py-1 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary text-body-sm font-mono" onkeydown="handleRunnerKey(event)">
+        <button onclick="execRunner()" class="px-3 py-1 rounded bg-primary text-on-primary font-label text-label-sm hover:bg-opacity-90 font-semibold">
+          Run [Enter]
+        </button>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-surface-variant border-t border-outline px-3 py-1.5 flex items-center justify-between font-mono text-label-sm text-on-surface-variant">
+      <div>
+        <span>[L] Listening | [E] Established | [^R] Runner | [r] Rescan Sockets</span>
+      </div>
+      <span>120×36 CHARS</span>
+    </footer>
+  </div>
+
+  <script>
+    function switchTab(t) {
+      const btnL = document.getElementById('tab-btn-listen');
+      const btnE = document.getElementById('tab-btn-estab');
+      const panelL = document.getElementById('tab-listen');
+      const panelE = document.getElementById('tab-estab');
+      if (t === 'listen') {
+        btnL.className = 'px-3 py-1 rounded bg-primary text-on-primary font-semibold text-label-md border border-primary';
+        btnE.className = 'px-3 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface text-label-md border border-outline';
+        panelL.classList.remove('hidden');
+        panelE.classList.add('hidden');
+      } else {
+        btnE.className = 'px-3 py-1 rounded bg-primary text-on-primary font-semibold text-label-md border border-primary';
+        btnL.className = 'px-3 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface text-label-md border border-outline';
+        panelE.classList.remove('hidden');
+        panelL.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'l' || e.key === 'L') switchTab('listen');
+      if (e.key === 'e' || e.key === 'E') switchTab('estab');
+      if (e.key >= '1' && e.key <= '7') {
+        const routes = {
+          '1': '../dashboard/Dashboard.html',
+          '2': '../findings/Findings.html',
+          '3': '../network/Network.html',
+          '4': '../startup/Startup.html',
+          '5': '../tcc/TCC.html',
+          '6': '../privacy/Privacy.html',
+          '7': '../snapshots/Snapshots.html'
+        };
+        window.location.href = routes[e.key];
+      }
+    });
+  </script>
+
+
+</body></html>

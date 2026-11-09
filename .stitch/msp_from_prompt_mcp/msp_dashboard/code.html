@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>msp — macOS Security &amp; Privacy Console</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            canvas: "#0c1322",
+            surface: "#111827",
+            surfaceElevated: "#1a222e",
+            primaryText: "#dce2f7",
+            mutedText: "#8e93a0",
+            accentPrimary: "#0a84ff",
+            success: "#34c759",
+            warning: "#ff9f0a",
+            critical: "#ff3b30",
+            hairline: "#2d323a"
+          },
+          borderRadius: {
+            DEFAULT: "8px",
+            sm: "4px",
+            lg: "12px",
+            full: "9999px"
+          },
+          spacing: {
+            xs: "0.25rem",
+            sm: "0.5rem",
+            md: "0.75rem",
+            lg: "1rem",
+            xl: "1.5rem"
+          },
+          fontFamily: {
+            sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+            mono: ["JetBrains Mono", "SF Mono", "ui-monospace", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+  :root {
+    --canvas: #0c1322;
+    --surface: #111827;
+    --surface-elevated: #1a222e;
+    --primary-text: #dce2f7;
+    --muted-text: #8e93a0;
+    --accent-primary: #0a84ff;
+    --success: #34c759;
+    --warning: #ff9f0a;
+    --critical: #ff3b30;
+    --hairline: #2d323a;
+    --radius-8: 8px;
+    --radius-4: 4px;
+    --font-sans: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: JetBrains Mono, SF Mono, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0;
+    height: 100vh;
+    background: var(--canvas);
+    color: var(--primary-text);
+    font-family: var(--font-sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .nav-rail {
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--hairline);
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.5rem;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .top-bar {
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--hairline);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.75rem;
+    flex-shrink: 0;
+    z-index: 30;
+  }
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-8);
+  }
+  .hairline-border { border: 1px solid var(--hairline); }
+  .text-primary { color: var(--primary-text); }
+  .text-muted { color: var(--muted-text); }
+  .accent-primary { color: var(--accent-primary); }
+  .badge-success { background: rgba(52,199,89,0.1); color: var(--success); border: 1px solid rgba(52,199,89,0.25); }
+  .badge-warning { background: rgba(255,159,10,0.1); color: var(--warning); border: 1px solid rgba(255,159,10,0.25); }
+  .badge-critical { background: rgba(255,59,48,0.1); color: var(--critical); border: 1px solid rgba(255,59,48,0.25); }
+  .pill { border-radius: var(--radius-4); }
+  .table-row { border-bottom: 1px solid var(--hairline); }
+  .table-header { border-bottom: 1px solid var(--hairline); color: var(--muted-text); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .detail-drawer { background: var(--surface-elevated); border-left: 1px solid var(--hairline); }
+  .divider { border-top: 1px solid var(--hairline); margin: 0.75rem 0; }
+  .mono { font-family: var(--font-mono); }
+  .w-progress { width: 92%; }
+  .btn-primary { background: var(--accent-primary); color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 500; padding: 0.5rem 0.875rem; border: none; cursor: pointer; }
+  .btn-ghost { background: transparent; border: 1px solid var(--hairline); color: var(--primary-text); border-radius: 6px; font-size: 12px; padding: 0.5rem 0.875rem; cursor: pointer; }
+  .btn-ghost:hover { background: var(--surface-elevated); }
+  .empty-state { text-align: center; color: var(--muted-text); padding: 3rem 1rem; }
+  .empty-state .mono { color: var(--accent-primary); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #090e18; }
+  ::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+<!-- Top bar -->
+<header class="top-bar">
+  <div class="flex items-center gap-2">
+    <span class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]"></span>
+    <span class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]"></span>
+    <span class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]"></span>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-accent-primary text-lg">security</span>
+    <div class="flex flex-col">
+      <span class="text-sm font-semibold text-primary tracking-tight">macOS Security &amp; Privacy Console</span>
+      <span class="text-xs mono text-muted">v2.4.1-arm64 · PRO</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button class="btn-ghost px-3 py-1.5 text-xs mono">⌘K Palette</button>
+    <button class="btn-ghost px-3 py-1.5 text-xs mono">? Help</button>
+  </div>
+</header>
+
+<div class="flex-1 flex overflow-hidden">
+  <!-- Left rail -->
+  <aside class="nav-rail">
+    <div class="flex flex-col gap-2 px-1 pt-1 pb-1">
+      <div class="flex items-center gap-3 px-2">
+        <span class="material-symbols-outlined text-accent-primary">dashboard</span>
+        <span class="text-sm font-semibold text-primary">Dashboard</span>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-muted">
+        <span class="material-symbols-outlined">lan</span>
+        <span>Network</span>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-muted">
+        <span class="material-symbols-outlined">security</span>
+        <span>Privacy</span>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-muted">
+        <span class="material-symbols-outlined">power_settings_new</span>
+        <span>Startup</span>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-muted">
+        <span class="material-symbols-outlined">radar</span>
+        <span>Scan</span>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-muted">
+        <span class="material-symbols-outlined">terminal</span>
+        <span>Workbench</span>
+      </div>
+    </div>
+    <div class="mt-auto px-1 pt-2 pb-1">
+      <div class="flex items-center gap-3 px-2 text-muted text-xs">
+        <span class="material-symbols-outlined">tune</span>
+        <span>Diagnostics</span>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-muted text-xs">
+        <span class="material-symbols-outlined">settings</span>
+        <span>Settings</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main stage -->
+  <main class="flex-1 flex flex-col overflow-hidden bg-[#090e18]">
+    <div class="overflow-y-auto p-lg">
+      <!-- Posture cards hero row -->
+      <section class="grid grid-cols-1 lg:grid-cols-4 gap-md mb-lg">
+        <div class="surface-card p-md flex flex-col">
+          <div class="flex items-center justify-between mb-sm">
+            <span class="text-xs mono text-muted">firewall</span>
+            <div class="w-2 h-2 rounded-full bg-success"></div>
+          </div>
+          <span class="text-sm font-semibold text-primary">Firewall</span>
+          <span class="text-lg mono text-primary mt-xs">Enabled</span>
+          <span class="text-xs text-muted mt-xs">Last checked · <span class="mono">msp status --posture</span></span>
+        </div>
+        <div class="surface-card p-md flex flex-col">
+          <div class="flex items-center justify-between mb-sm">
+            <span class="text-xs mono text-muted">gatekeeper</span>
+            <div class="w-2 h-2 rounded-full bg-success"></div>
+          </div>
+          <span class="text-sm font-semibold text-primary">Gatekeeper</span>
+          <span class="text-lg mono text-primary mt-xs">Enabled</span>
+          <span class="text-xs text-muted mt-xs">App notarization enforced</span>
+        </div>
+        <div class="surface-card p-md flex flex-col">
+          <div class="flex items-center justify-between mb-sm">
+            <span class="text-xs mono text-muted">filevault</span>
+            <div class="w-2 h-2 rounded-full bg-success"></div>
+          </div>
+          <span class="text-sm font-semibold text-primary">FileVault</span>
+          <span class="text-lg mono text-primary mt-xs">Enabled</span>
+          <span class="text-xs text-muted mt-xs">Volume encryption active</span>
+        </div>
+        <div class="surface-card p-md flex flex-col">
+          <div class="flex items-center justify-between mb-sm">
+            <span class="text-xs mono text-muted">privacy</span>
+            <div class="w-2 h-2 rounded-full bg-warning"></div>
+          </div>
+          <span class="text-sm font-semibold text-primary">Privacy Protection</span>
+          <span class="text-lg mono text-warning mt-xs">Review needed</span>
+          <span class="text-xs text-muted mt-xs">9 TCC grants pending audit</span>
+        </div>
+      </section>
+
+      <!-- Privacy score gauge + vitals strip -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-md mb-lg">
+        <div class="surface-card p-lg flex flex-col items-start justify-between min-h-[200px]">
+          <div>
+            <span class="text-xs mono text-muted">privacy score</span>
+            <span class="text-4xl mono font-bold text-primary mt-xs leading-none">92</span>
+            <span class="text-xs text-muted mt-xs">/100 · posture benchmark</span>
+          </div>
+          <div class="w-full h-2 bg-surface-elevated mt-md rounded-full overflow-hidden">
+            <div class="h-full bg-accent-primary w-progress"></div>
+          </div>
+        </div>
+        <div class="surface-card p-md">
+          <span class="text-xs mono text-muted uppercase tracking-wider">system vitals</span>
+          <div class="grid grid-cols-2 gap-xs mt-md">
+            <div class="flex justify-between">
+              <span class="text-xs text-muted">memory pressure</span>
+              <span class="text-xs mono">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs text-muted">swap usage</span>
+              <span class="text-xs mono">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs text-muted">disk free</span>
+              <span class="text-xs mono">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs text-muted">thermal state</span>
+              <span class="text-xs mono">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs text-muted">uptime</span>
+              <span class="text-xs mono">—</span>
+            </div>
+          </div>
+          <div class="divider mt-md"></div>
+          <span class="text-xs text-muted">Run <span class="mono">msp status --verbose</span> to load vitals</span>
+        </div>
+        <div class="surface-card p-md flex flex-col items-start justify-between">
+          <div>
+            <span class="text-xs mono text-muted uppercase tracking-wider">recent risk events</span>
+            <span class="text-sm font-semibold text-primary mt-xs">No new alerts</span>
+          </div>
+          <div class="empty-state mt-md text-left p-0">
+            <span class="material-symbols-outlined text-muted text-xl">info</span>
+            <p class="text-xs mt-sm">Start a scan to surface risk events.<br><span class="mono">msp scan --quick --json</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-column split: risky startup + network feed -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-md">
+        <div class="surface-card p-md flex flex-col h-full min-h-[300px]">
+          <div class="flex items-center justify-between mb-md">
+            <span class="text-sm font-semibold text-primary">Risky startup items</span>
+            <span class="text-xs mono text-muted">msp startup --audit</span>
+          </div>
+          <div class="flex-1 overflow-y-auto">
+            <div class="table-row py-xs px-sm flex items-center justify-between text-xs">
+              <span class="text-muted">Scanning…</span>
+              <span class="mono text-muted">—</span>
+            </div>
+          </div>
+          <div class="empty-state py-sm">
+            <span class="material-symbols-outlined text-muted">launch</span>
+            <p class="text-xs mt-sm">LaunchDaemons, LaunchAgents, cron.<br><span class="mono">msp startup --tree --json</span></p>
+          </div>
+        </div>
+        <div class="surface-card p-md flex flex-col h-full min-h-[300px]">
+          <div class="flex items-center justify-between mb-md">
+            <span class="text-sm font-semibold text-primary">Recent network connections</span>
+            <span class="text-xs mono text-muted">msp net listen</span>
+          </div>
+          <div class="flex-1 overflow-y-auto">
+            <div class="table-row py-xs px-sm flex items-center justify-between text-xs">
+              <span class="text-muted">Opening socket stream…</span>
+              <span class="mono text-muted">—</span>
+            </div>
+          </div>
+          <div class="empty-state py-sm">
+            <span class="material-symbols-outlined text-muted">lan</span>
+            <p class="text-xs mt-sm">TCP/UDP socket bind tracing.<br><span class="mono">msp network --trace --json</span></p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

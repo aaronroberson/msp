@@ -1,0 +1,233 @@
+<!DOCTYPE html><html lang="en" class="dark"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>msp - Fuzzy Command Palette (Textual TUI)</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'accent': '#58A6FF',
+        'primary': '#58A6FF',
+        'on-primary': '#0D1117',
+        'surface': '#0D1117',
+        'on-surface': '#C9D1D9',
+        'surface-variant': '#161B22',
+        'on-surface-variant': '#8B949E',
+        'outline': '#30363D',
+        'outline-focused': '#58A6FF',
+        'success': '#3FB950',
+        'on-success': '#0D1117',
+        'warning': '#D29922',
+        'on-warning': '#0D1117',
+        'error': '#F85149',
+        'on-error': '#262626',
+        'light-primary': '#0969DA',
+        'light-on-primary': '#FFFFFF',
+        'light-surface': '#FFFFFF',
+        'light-on-surface': '#1F2328',
+        'dark-primary': '#58A6FF',
+        'dark-on-primary': '#0D1117',
+        'dark-surface': '#0D1117',
+        'dark-on-surface': '#C9D1D9',
+      },
+      borderRadius: {
+        'sm': '2px',
+        'DEFAULT': '4px',
+        'md': '4px',
+        'lg': '6px',
+        'xl': '8px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '12px',
+        'gutter-lg': '16px',
+        'gutter-xl': '24px',
+        'section': '24px',
+        'page-margin': '12px',
+      },
+      fontFamily: {
+        'display': ['"JetBrains Mono"', 'sans-serif'],
+        'headline': ['"JetBrains Mono"', 'sans-serif'],
+        'body': ['"JetBrains Mono"', 'sans-serif'],
+        'label': ['"JetBrains Mono"', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.2px', fontWeight: '700' }],
+        'display-lg-mobile': ['20px', { lineHeight: '28px', letterSpacing: '-0.1px', fontWeight: '700' }],
+        'headline-lg': ['18px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-lg-mobile': ['16px', { lineHeight: '22px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-md': ['15px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-lg': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-md': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['13px', { lineHeight: '18px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.3px', fontWeight: '600' }],
+      },
+      transitionDuration: {
+        'state-change': '60ms',
+        'surface-enter': '100ms',
+        'surface-exit': '80ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'ease-out',
+        'surface-exit': 'ease-in',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-surface text-on-surface font-body min-h-[1024px] flex flex-col antialiased p-2" data-stitch-vh="min-h-[1024px]===min-h-screen">
+
+  <div class="flex-1 flex flex-col border border-outline rounded bg-surface shadow-2xl overflow-hidden min-h-[960px] relative">
+
+    <!-- APP HEADER -->
+    <header class="bg-surface-variant border-b border-outline px-3 py-2 flex items-center justify-between font-mono text-body-sm opacity-60">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 mr-1">
+          <span class="w-3 h-3 rounded-full bg-[#FF5F56] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#FFBD2E] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#27C93F] inline-block"></span>
+        </div>
+        <span class="font-bold text-primary">[msp] macOS Security &amp; Privacy Console</span>
+      </div>
+      <span class="text-on-surface-variant">darwin-arm64</span>
+    </header>
+
+    <!-- PALETTE OVERLAY MODAL -->
+    <div class="flex-1 bg-black/75 flex items-start justify-center pt-16 p-4">
+      <div class="bg-surface-variant border-2 border-primary rounded max-w-2xl w-full font-mono text-body-sm shadow-2xl overflow-hidden flex flex-col">
+        <!-- Palette Search Input -->
+        <div class="p-3.5 bg-surface border-b border-outline flex items-center gap-3">
+          <span class="text-primary font-bold text-headline-sm">&gt;</span>
+          <input id="palette-search" type="text" placeholder="Search views, runnable commands, or help documentation..." class="flex-1 bg-transparent text-on-surface placeholder:text-on-surface-variant focus:outline-none text-headline-sm font-mono" oninput="filterPalette(this.value)" autofocus>
+          <a href="../dashboard/Dashboard.html" class="text-label-sm text-on-surface-variant hover:text-on-surface border border-outline px-2 py-0.5 rounded bg-surface-variant">
+            [Esc]
+          </a>
+        </div>
+
+        <!-- Palette Filtered List -->
+        <div id="palette-items" class="max-h-96 overflow-y-auto divide-y divide-outline/30">
+          <a href="../dashboard/Dashboard.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer bg-primary/10">
+            <div class="flex items-center gap-3">
+              <span class="text-primary font-bold text-label-md">VIEW</span>
+              <div>
+                <div class="text-on-surface font-semibold">1. Dashboard</div>
+                <div class="text-on-surface-variant text-body-xs">Security posture cards, listening ports, and system metrics</div>
+              </div>
+            </div>
+            <kbd class="px-1.5 py-0.5 rounded bg-surface border border-outline text-primary text-label-sm">1</kbd>
+          </a>
+
+          <a href="../findings/Findings.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-primary font-bold text-label-md">VIEW</span>
+              <div>
+                <div class="text-on-surface font-semibold">2. Findings</div>
+                <div class="text-on-surface-variant text-body-xs">Filterable security audit items and risk inspections</div>
+              </div>
+            </div>
+            <kbd class="px-1.5 py-0.5 rounded bg-surface border border-outline text-primary text-label-sm">2</kbd>
+          </a>
+
+          <a href="../network/Network.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-primary font-bold text-label-md">VIEW</span>
+              <div>
+                <div class="text-on-surface font-semibold">3. Network</div>
+                <div class="text-on-surface-variant text-body-xs">Listening sockets and established TCP connections via lsof</div>
+              </div>
+            </div>
+            <kbd class="px-1.5 py-0.5 rounded bg-surface border border-outline text-primary text-label-sm">3</kbd>
+          </a>
+
+          <a href="../runner/Runner.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-success font-bold text-label-md">CMD</span>
+              <div>
+                <div class="text-on-surface font-semibold">msp status</div>
+                <div class="text-on-surface-variant text-body-xs">Display overview of macOS firewall, SIP, and disk encryption</div>
+              </div>
+            </div>
+            <span class="text-label-sm text-success font-semibold">Safe (Run)</span>
+          </a>
+
+          <a href="../runner/Runner.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-success font-bold text-label-md">CMD</span>
+              <div>
+                <div class="text-on-surface font-semibold">msp scan quick</div>
+                <div class="text-on-surface-variant text-body-xs">Fast security and privacy audit of core services</div>
+              </div>
+            </div>
+            <span class="text-label-sm text-success font-semibold">Safe (Run)</span>
+          </a>
+
+          <a href="../confirmation/Confirmation.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-primary font-bold text-label-md">CMD</span>
+              <div>
+                <div class="text-on-surface font-semibold">msp preset apply basic</div>
+                <div class="text-on-surface-variant text-body-xs">Applies basic firewall rules and enforces Gatekeeper check</div>
+              </div>
+            </div>
+            <span class="text-label-sm px-1.5 py-0.5 rounded bg-primary text-on-primary font-bold">Needs Confirm</span>
+          </a>
+
+          <a href="../help/Help.html" class="p-item p-3 flex items-center justify-between hover:bg-surface cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-accent font-bold text-label-md">HELP</span>
+              <div>
+                <div class="text-on-surface font-semibold">Keyboard Reference &amp; CLI Usage</div>
+                <div class="text-on-surface-variant text-body-xs">Universal hotkeys and CLI documentation</div>
+              </div>
+            </div>
+            <kbd class="px-1.5 py-0.5 rounded bg-surface border border-outline text-primary text-label-sm">?</kbd>
+          </a>
+        </div>
+
+        <footer class="bg-surface border-t border-outline px-4 py-2 flex items-center justify-between text-label-sm text-on-surface-variant">
+          <span>[↑ / ↓] Select | [Enter] Launch selection</span>
+          <a href="../dashboard/Dashboard.html" class="text-primary hover:underline">Return to Dashboard [Esc]</a>
+        </footer>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function filterPalette(term) {
+      const q = term.toLowerCase().trim();
+      document.querySelectorAll('.p-item').forEach(item => {
+        if (!q || item.innerText.toLowerCase().includes(q)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        window.location.href = '../dashboard/Dashboard.html';
+      }
+    });
+  </script>
+
+
+</body></html>

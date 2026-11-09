@@ -1,0 +1,1858 @@
+<!DOCTYPE html><html lang="en" class="dark"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>msp - macOS Security &amp; Privacy Console (Textual TUI)</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'accent': '#58A6FF',
+        'primary': '#58A6FF',
+        'on-primary': '#0D1117',
+        'surface': '#0D1117',
+        'on-surface': '#C9D1D9',
+        'surface-variant': '#161B22',
+        'on-surface-variant': '#8B949E',
+        'outline': '#30363D',
+        'outline-focused': '#58A6FF',
+        'success': '#3FB950',
+        'on-success': '#0D1117',
+        'warning': '#D29922',
+        'on-warning': '#0D1117',
+        'error': '#F85149',
+        'on-error': '#262626',
+        'light-primary': '#0969DA',
+        'light-on-primary': '#FFFFFF',
+        'light-surface': '#FFFFFF',
+        'light-on-surface': '#1F2328',
+        'dark-primary': '#58A6FF',
+        'dark-on-primary': '#0D1117',
+        'dark-surface': '#0D1117',
+        'dark-on-surface': '#C9D1D9',
+      },
+      borderRadius: {
+        'sm': '2px',
+        'DEFAULT': '4px',
+        'md': '4px',
+        'lg': '6px',
+        'xl': '8px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '12px',
+        'gutter-lg': '16px',
+        'gutter-xl': '24px',
+        'section': '24px',
+        'page-margin': '12px',
+      },
+      fontFamily: {
+        'display': ['"JetBrains Mono"', 'sans-serif'],
+        'headline': ['"JetBrains Mono"', 'sans-serif'],
+        'body': ['"JetBrains Mono"', 'sans-serif'],
+        'label': ['"JetBrains Mono"', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.2px', fontWeight: '700' }],
+        'display-lg-mobile': ['20px', { lineHeight: '28px', letterSpacing: '-0.1px', fontWeight: '700' }],
+        'headline-lg': ['18px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-lg-mobile': ['16px', { lineHeight: '22px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-md': ['15px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-lg': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-md': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['13px', { lineHeight: '18px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.3px', fontWeight: '600' }],
+      },
+      transitionDuration: {
+        'state-change': '60ms',
+        'surface-enter': '100ms',
+        'surface-exit': '80ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'ease-out',
+        'surface-exit': 'ease-in',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    /* Real terminal styling accents */
+    ::selection {
+      background-color: #58A6FF;
+      color: #0D1117;
+    }
+    /* Scrollbar tailored for dark terminal */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0D1117;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #30363D;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #58A6FF;
+    }
+    .terminal-cursor::after {
+      content: "█";
+      animation: blink 1s step-start infinite;
+      margin-left: 2px;
+      color: #58A6FF;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body min-h-[1024px] flex flex-col antialiased select-none overflow-x-hidden p-2" data-stitch-vh="min-h-[1024px]===min-h-screen">
+
+  <!-- TERMINAL FRAME CONTAINER -->
+  <div class="flex-1 flex flex-col border border-outline rounded bg-surface shadow-2xl overflow-hidden min-h-[960px]">
+
+    <!-- 1. TERMINAL APP HEADER (Textual Header widget) -->
+    <header class="bg-surface-variant border-b border-outline px-3 py-2 flex items-center justify-between font-mono text-body-sm">
+      <div class="flex items-center gap-3">
+        <!-- Terminal Window Dots -->
+        <div class="flex items-center gap-1.5 mr-1">
+          <span class="w-3 h-3 rounded-full bg-[#FF5F56] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#FFBD2E] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#27C93F] inline-block"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-primary tracking-wider">[msp]</span>
+          <span class="text-on-surface-variant">macOS Security &amp; Privacy Console</span>
+          <span class="text-label-sm px-1.5 py-0.5 rounded bg-surface border border-outline text-on-surface-variant font-mono">v2.4.0</span>
+        </div>
+      </div>
+
+      <!-- Quick status indicator & host info -->
+      <div class="flex items-center gap-4 text-label-sm">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-success"></span>
+          <span class="text-on-surface">darwin-arm64</span>
+          <span class="text-on-surface-variant">(macOS 15.2 Sequoia)</span>
+        </div>
+        <div class="text-on-surface-variant border-l border-outline pl-3 flex items-center gap-2">
+          <span>UPTIME: <span class="text-on-surface tabular-nums">4d 18h 22m</span></span>
+          <span id="header-clock" class="text-primary tabular-nums">11:37:11 PST</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. TOP VIEW TABS (Numeric View Navigation: 1-7, Runner, Palette, Help) -->
+    <nav class="bg-surface border-b border-outline px-3 py-1.5 flex items-center justify-between text-body-sm font-mono overflow-x-auto">
+      <div class="flex items-center gap-1">
+        <button id="nav-btn-dashboard" onclick="switchView(&#39;dashboard&#39;)" class="nav-tab px-2.5 py-1 rounded bg-primary text-on-primary font-semibold border border-primary flex items-center gap-1.5 transition-state-change">
+          <span class="opacity-75">[1]</span>
+          <span data-design-text-token="label-md">Dashboard</span>
+        </button>
+        <button id="nav-btn-findings" onclick="switchView(&#39;findings&#39;)" class="nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change">
+          <span class="text-outline">[2]</span>
+          <span data-design-text-token="label-md">Findings</span>
+          <span class="ml-1 px-1 py-0.2 bg-error text-on-error text-label-sm rounded font-bold">2</span>
+        </button>
+        <button id="nav-btn-network" onclick="switchView(&#39;network&#39;)" class="nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change">
+          <span class="text-outline">[3]</span>
+          <span data-design-text-token="label-md">Network</span>
+        </button>
+        <button id="nav-btn-startup" onclick="switchView(&#39;startup&#39;)" class="nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change">
+          <span class="text-outline">[4]</span>
+          <span data-design-text-token="label-md">Startup</span>
+        </button>
+        <button id="nav-btn-tcc" onclick="switchView(&#39;tcc&#39;)" class="nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change">
+          <span class="text-outline">[5]</span>
+          <span data-design-text-token="label-md">TCC</span>
+        </button>
+        <button id="nav-btn-privacy" onclick="switchView(&#39;privacy&#39;)" class="nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change">
+          <span class="text-outline">[6]</span>
+          <span data-design-text-token="label-md">Privacy</span>
+        </button>
+        <button id="nav-btn-snapshots" onclick="switchView(&#39;snapshots&#39;)" class="nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change">
+          <span class="text-outline">[7]</span>
+          <span data-design-text-token="label-md">Snapshots</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-1.5 text-label-sm">
+        <button onclick="toggleCommandRunner()" class="px-2 py-1 bg-surface-variant text-on-surface hover:border-primary border border-outline rounded flex items-center gap-1 font-mono">
+          <span class="text-primary font-bold">^R</span> Runner
+        </button>
+        <button onclick="openCommandPalette()" class="px-2 py-1 bg-surface-variant text-on-surface hover:border-primary border border-outline rounded flex items-center gap-1 font-mono">
+          <span class="text-primary font-bold">^P</span> Palette
+        </button>
+        <button onclick="openHelpModal()" class="px-2 py-1 bg-surface-variant text-on-surface hover:border-primary border border-outline rounded flex items-center gap-1 font-mono">
+          <span class="text-primary font-bold">?</span> Help
+        </button>
+      </div>
+    </nav>
+
+    <!-- 3. MAIN TERMINAL WORKSPACE (Dynamic View Switcher) -->
+    <main class="flex-1 bg-surface p-3 overflow-y-auto relative">
+
+      <!-- ================= VIEW 1: DASHBOARD ================= -->
+      <div id="view-dashboard" class="space-y-3">
+        <!-- Top Banner: Security Posture Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <!-- Card 1: Firewall -->
+          <article data-component-id="card-elevated" class="bg-surface-variant border border-outline rounded p-3 flex flex-col justify-between hover:border-primary transition-state-change">
+            <header class="flex items-center justify-between border-b border-outline pb-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-success"></span>
+                <h3 class="font-headline text-headline-md text-on-surface font-semibold tracking-wide">FIREWALL</h3>
+              </div>
+              <span class="text-label-sm px-1.5 py-0.5 rounded bg-success/10 text-success border border-success/30 font-mono font-bold">ACTIVE</span>
+            </header>
+            <div class="space-y-1.5 text-body-sm py-1 font-mono">
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Stealth Mode:</span>
+                <span class="text-success font-semibold">Enabled</span>
+              </div>
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Block All Incoming:</span>
+                <span class="text-on-surface">Off (Selective)</span>
+              </div>
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Application rules:</span>
+                <span class="text-on-surface">14 signed / 0 unsigned</span>
+              </div>
+            </div>
+            <footer class="mt-2 pt-2 border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant font-mono">
+              <span>socketfilterfw: running</span>
+              <button onclick="switchView(&#39;privacy&#39;)" class="text-primary hover:underline">[Inspect 6]</button>
+            </footer>
+          </article>
+
+          <!-- Card 2: Gatekeeper -->
+          <article data-component-id="card-elevated" class="bg-surface-variant border border-warning/60 rounded p-3 flex flex-col justify-between hover:border-warning transition-state-change">
+            <header class="flex items-center justify-between border-b border-outline pb-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-warning"></span>
+                <h3 class="font-headline text-headline-md text-on-surface font-semibold tracking-wide">GATEKEEPER</h3>
+              </div>
+              <span class="text-label-sm px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30 font-mono font-bold">RELAXED</span>
+            </header>
+            <div class="space-y-1.5 text-body-sm py-1 font-mono">
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Assessment:</span>
+                <span class="text-warning font-semibold">spctl enabled</span>
+              </div>
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Allow Sources:</span>
+                <span class="text-on-surface">App Store + Identified Devs</span>
+              </div>
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Notarization check:</span>
+                <span class="text-success">Active</span>
+              </div>
+            </div>
+            <footer class="mt-2 pt-2 border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant font-mono">
+              <span>Policy: Standard</span>
+              <button onclick="switchView(&#39;privacy&#39;)" class="text-primary hover:underline">[Inspect 6]</button>
+            </footer>
+          </article>
+
+          <!-- Card 3: FileVault -->
+          <article data-component-id="card-elevated" class="bg-surface-variant border border-outline rounded p-3 flex flex-col justify-between hover:border-primary transition-state-change">
+            <header class="flex items-center justify-between border-b border-outline pb-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-success"></span>
+                <h3 class="font-headline text-headline-md text-on-surface font-semibold tracking-wide">FILEVAULT</h3>
+              </div>
+              <span class="text-label-sm px-1.5 py-0.5 rounded bg-success/10 text-success border border-success/30 font-mono font-bold">ENCRYPTED</span>
+            </header>
+            <div class="space-y-1.5 text-body-sm py-1 font-mono">
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Volume:</span>
+                <span class="text-on-surface">APFS (XTS-AES-128)</span>
+              </div>
+              <div class="flex justify-between text-on-surface-variant">
+                <span>System Data:</span>
+                <span class="text-success font-semibold">Fully Encrypted</span>
+              </div>
+              <div class="flex justify-between text-on-surface-variant">
+                <span>Recovery Key:</span>
+                <span class="text-on-surface">Escrowed (Local + iCloud)</span>
+              </div>
+            </div>
+            <footer class="mt-2 pt-2 border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant font-mono">
+              <span>fdesetup: Status On</span>
+              <button onclick="switchView(&#39;privacy&#39;)" class="text-primary hover:underline">[Inspect 6]</button>
+            </footer>
+          </article>
+        </div>
+
+        <!-- Middle Row: Listening Ports & Active Connections Quick View + Startup Summary -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          
+          <!-- Column 1 & 2: Quick Network & Findings Snapshot -->
+          <div class="lg:col-span-2 space-y-3">
+            <!-- Listening Ports Snippet Table -->
+            <div class="bg-surface-variant border border-outline rounded p-3 font-mono">
+              <div class="flex items-center justify-between border-b border-outline pb-2 mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary font-bold">&gt;</span>
+                  <span class="font-semibold text-on-surface text-label-md uppercase">Top Listening Sockets</span>
+                  <span class="text-label-sm text-on-surface-variant">(4 ports open)</span>
+                </div>
+                <button onclick="switchView(&#39;network&#39;)" class="text-primary hover:underline text-label-sm">View All in [3] Network →</button>
+              </div>
+              <table class="w-full text-left text-body-sm">
+                <thead>
+                  <tr class="text-on-surface-variant text-label-sm border-b border-outline/50">
+                    <th class="py-1 px-2">PROTO</th>
+                    <th class="py-1 px-2">BIND ADDRESS</th>
+                    <th class="py-1 px-2">PROCESS</th>
+                    <th class="py-1 px-2">PID</th>
+                    <th class="py-1 px-2">SCOPE</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/30">
+                  <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-8080&#39;)">
+                    <td class="py-1 px-2 text-warning font-semibold">TCP</td>
+                    <td class="py-1 px-2 text-primary font-bold">0.0.0.0:8080</td>
+                    <td class="py-1 px-2 text-on-surface">python3</td>
+                    <td class="py-1 px-2 text-on-surface-variant">49210</td>
+                    <td class="py-1 px-2"><span class="px-1.5 py-0.2 rounded bg-error/20 text-error text-label-sm">PUBLIC ALL</span></td>
+                  </tr>
+                  <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-22&#39;)">
+                    <td class="py-1 px-2 text-on-surface">TCP</td>
+                    <td class="py-1 px-2 text-on-surface">127.0.0.1:22</td>
+                    <td class="py-1 px-2 text-on-surface">sshd-keygen</td>
+                    <td class="py-1 px-2 text-on-surface-variant">118</td>
+                    <td class="py-1 px-2 text-success">Loopback</td>
+                  </tr>
+                  <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-53&#39;)">
+                    <td class="py-1 px-2 text-on-surface">UDP</td>
+                    <td class="py-1 px-2 text-on-surface">127.0.0.53:53</td>
+                    <td class="py-1 px-2 text-on-surface">mDNSResponder</td>
+                    <td class="py-1 px-2 text-on-surface-variant">240</td>
+                    <td class="py-1 px-2 text-success">Internal DNS</td>
+                  </tr>
+                  <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-5000&#39;)">
+                    <td class="py-1 px-2 text-on-surface">TCP</td>
+                    <td class="py-1 px-2 text-on-surface">127.0.0.1:5000</td>
+                    <td class="py-1 px-2 text-on-surface">ControlCenter</td>
+                    <td class="py-1 px-2 text-on-surface-variant">612</td>
+                    <td class="py-1 px-2 text-on-surface-variant">AirPlay Svc</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Active High Severity Findings Summary -->
+            <div class="bg-surface-variant border border-outline rounded p-3 font-mono">
+              <div class="flex items-center justify-between border-b border-outline pb-2 mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-error font-bold">!</span>
+                  <span class="font-semibold text-on-surface text-label-md uppercase">Active Review Items (Findings)</span>
+                </div>
+                <button onclick="switchView(&#39;findings&#39;)" class="text-primary hover:underline text-label-sm">Manage in [2] Findings →</button>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-start justify-between p-2 rounded bg-surface border border-outline hover:border-primary cursor-pointer" onclick="showRecordDetail(&#39;SEC-NET-082&#39;)">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="px-1.5 py-0.2 rounded bg-error text-on-error text-label-sm font-bold">HIGH</span>
+                      <span class="text-primary font-semibold text-body-sm">SEC-NET-082: External Wildcard Listener</span>
+                    </div>
+                    <p class="text-body-sm text-on-surface-variant">`python3` listening on 0.0.0.0:8080 exposed to external network interfaces.</p>
+                  </div>
+                  <span class="text-label-sm text-on-surface-variant">[Enter] Inspect</span>
+                </div>
+
+                <div class="flex items-start justify-between p-2 rounded bg-surface border border-outline hover:border-warning cursor-pointer" onclick="showRecordDetail(&#39;SEC-TCC-019&#39;)">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="px-1.5 py-0.2 rounded bg-warning text-on-warning text-label-sm font-bold">WARN</span>
+                      <span class="text-warning font-semibold text-body-sm">SEC-TCC-019: ScreenCapture Granted to Unsigned Script</span>
+                    </div>
+                    <p class="text-body-sm text-on-surface-variant">Legacy developer tool retains screen capture permissions in TCC database.</p>
+                  </div>
+                  <span class="text-label-sm text-on-surface-variant">[Enter] Inspect</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 3: System Health, Disk, Swap & Startup Snapshot -->
+          <div class="space-y-3 font-mono">
+            <!-- System Stats & Telemetry -->
+            <div class="bg-surface-variant border border-outline rounded p-3">
+              <header class="border-b border-outline pb-2 mb-2 flex items-center justify-between">
+                <span class="font-semibold text-label-md text-on-surface uppercase">System Telemetry</span>
+                <span class="text-label-sm text-success font-semibold">HEALTHY</span>
+              </header>
+              <div class="space-y-2 text-body-sm">
+                <div>
+                  <div class="flex justify-between text-on-surface-variant mb-1">
+                    <span>APFS Macintosh HD (Root):</span>
+                    <span class="text-on-surface">342 GB / 494 GB (69%)</span>
+                  </div>
+                  <div class="w-full h-2 bg-surface rounded overflow-hidden border border-outline">
+                    <div class="h-full bg-primary" style="width: 69%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-on-surface-variant mb-1">
+                    <span>Memory Pressure:</span>
+                    <span class="text-success font-semibold">18% (Normal)</span>
+                  </div>
+                  <div class="w-full h-2 bg-surface rounded overflow-hidden border border-outline">
+                    <div class="h-full bg-success" style="width: 18%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-on-surface-variant mb-1">
+                    <span>Swap Usage:</span>
+                    <span class="text-on-surface">128 MB / 4096 MB (3%)</span>
+                  </div>
+                  <div class="w-full h-2 bg-surface rounded overflow-hidden border border-outline">
+                    <div class="h-full bg-accent" style="width: 3%"></div>
+                  </div>
+                </div>
+
+                <div class="pt-2 border-t border-outline flex justify-between text-label-sm text-on-surface-variant">
+                  <span>Load Average:</span>
+                  <span class="text-on-surface">1.42, 1.38, 1.15</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Startup Items Health Card -->
+            <div class="bg-surface-variant border border-outline rounded p-3">
+              <header class="border-b border-outline pb-2 mb-2 flex items-center justify-between">
+                <span class="font-semibold text-label-md text-on-surface uppercase">Startup Daemons</span>
+                <button onclick="switchView(&#39;startup&#39;)" class="text-primary hover:underline text-label-sm">[4] Audit →</button>
+              </header>
+              <div class="space-y-1.5 text-body-sm">
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>LaunchAgents (/Library):</span>
+                  <span class="text-on-surface font-semibold">8 items</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>LaunchDaemons (/Library):</span>
+                  <span class="text-on-surface font-semibold">12 items</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>User Agents (~/Library):</span>
+                  <span class="text-on-surface font-semibold">4 items</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>Unverified Signature:</span>
+                  <span class="text-warning font-semibold">1 item (Review)</span>
+                </div>
+              </div>
+              <footer class="mt-2 pt-2 border-t border-outline text-label-sm text-on-surface-variant">
+                <span>Restrained risk assessment active.</span>
+              </footer>
+            </div>
+
+            <!-- State Demonstration Controls -->
+            <div class="bg-surface-variant border border-outline rounded p-2.5 text-label-sm">
+              <div class="text-on-surface-variant font-semibold mb-1.5 flex items-center justify-between">
+                <span>DASHBOARD STATE:</span>
+                <span id="current-state-indicator" class="text-success font-mono font-bold">READY (LOADED)</span>
+              </div>
+              <div class="grid grid-cols-4 gap-1">
+                <button id="btn-state-loaded" onclick="setDashboardState(&#39;loaded&#39;)" class="px-1.5 py-1 rounded bg-primary text-on-primary font-semibold text-center border border-primary">Ready</button>
+                <button id="btn-state-loading" onclick="setDashboardState(&#39;loading&#39;)" class="px-1.5 py-1 rounded bg-surface border border-outline text-on-surface hover:border-primary text-center">Loading</button>
+                <button id="btn-state-empty" onclick="setDashboardState(&#39;empty&#39;)" class="px-1.5 py-1 rounded bg-surface border border-outline text-on-surface hover:border-primary text-center">Empty</button>
+                <button id="btn-state-error" onclick="setDashboardState(&#39;error&#39;)" class="px-1.5 py-1 rounded bg-surface border border-outline text-on-surface hover:border-error text-center">Error</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= DASHBOARD STATE OVERLAYS (LOADING, EMPTY, ERROR) ================= -->
+      <div id="dashboard-loading-view" class="hidden p-10 border border-outline rounded bg-surface-variant font-mono text-center space-y-4">
+        <div class="inline-flex items-center justify-center p-3 rounded-full bg-surface border border-outline text-primary text-headline-lg animate-spin">
+          ◜
+        </div>
+        <div>
+          <div class="text-primary font-bold text-headline-md tracking-wider">⠋ INTERROGATING MACOS SECURITY SUBSYSTEMS...</div>
+          <p class="text-on-surface-variant text-body-sm mt-1">Collecting normalized facts from socketfilterfw, spctl, fdesetup, launchctl, and lsof.</p>
+        </div>
+        <div class="max-w-md mx-auto bg-surface border border-outline rounded p-3 text-left space-y-1.5 text-body-xs">
+          <div class="text-success flex items-center gap-2"><span>[✓]</span> Querying APFS Volume encryption keys (fdesetup status)</div>
+          <div class="text-success flex items-center gap-2"><span>[✓]</span> Inspecting Gatekeeper notarization status (spctl)</div>
+          <div class="text-primary flex items-center gap-2 animate-pulse"><span>[⠋]</span> Parsing listening sockets &amp; established TCP flows (lsof)...</div>
+          <div class="text-on-surface-variant flex items-center gap-2"><span>[·]</span> Querying TCC SQLite database (kTCCServiceScreenCapture)...</div>
+        </div>
+        <div class="pt-2">
+          <button onclick="setDashboardState(&#39;loaded&#39;)" class="px-3 py-1 bg-surface border border-outline hover:border-primary rounded text-label-sm text-on-surface">
+            Simulate Complete [Ready]
+          </button>
+        </div>
+      </div>
+
+      <div id="dashboard-empty-view" class="hidden p-8 border border-outline rounded bg-surface-variant font-mono space-y-4">
+        <div class="flex items-center justify-between border-b border-outline pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-accent font-bold">[EMPTY / CLEAN STATE]</span>
+            <h3 class="font-headline text-headline-md text-on-surface font-semibold">Zero Outstanding Findings or Active Threats</h3>
+          </div>
+          <span class="px-2 py-0.5 rounded bg-success/20 text-success text-label-sm font-bold">ALL BENCHMARKS PASS</span>
+        </div>
+        <p class="text-on-surface-variant text-body-sm">
+          No external listening sockets, unverified startup items, or untrusted TCC entries were discovered on this Mac host.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-body-sm">
+          <div class="bg-surface p-3 rounded border border-outline space-y-1">
+            <div class="text-success font-bold">✓ Network Hardened</div>
+            <div class="text-on-surface-variant text-body-xs">0 wildcard public sockets. All ports bound to 127.0.0.1.</div>
+          </div>
+          <div class="bg-surface p-3 rounded border border-outline space-y-1">
+            <div class="text-success font-bold">✓ Startup Inventory Pristine</div>
+            <div class="text-on-surface-variant text-body-xs">All LaunchAgents &amp; LaunchDaemons verified with Apple Team IDs.</div>
+          </div>
+          <div class="bg-surface p-3 rounded border border-outline space-y-1">
+            <div class="text-success font-bold">✓ TCC Privileges Minimal</div>
+            <div class="text-on-surface-variant text-body-xs">No orphaned or unsigned applications hold privacy grants.</div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between pt-3 border-t border-outline text-label-sm">
+          <span class="text-on-surface-variant">Baseline snapshot captured and archived.</span>
+          <div class="flex gap-2">
+            <button onclick="runPresetExample(&#39;msp scan deep&#39;)" class="px-3 py-1 bg-surface border border-outline hover:border-primary text-on-surface rounded">Run Deep Scan</button>
+            <button onclick="setDashboardState(&#39;loaded&#39;)" class="px-3 py-1 bg-primary text-on-primary rounded font-semibold">Return to Normal View</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dashboard-error-view" class="hidden p-6 border-2 border-error rounded bg-surface-variant font-mono space-y-3">
+        <div class="flex items-center justify-between border-b border-error/40 pb-2">
+          <div class="flex items-center gap-2 text-error font-bold text-headline-md">
+            <span>[ERROR: EPERM / SUBPROCESS 1]</span>
+            <span>Elevation Required to Read Security Database</span>
+          </div>
+          <span class="px-2 py-0.5 rounded bg-error text-on-error text-label-sm font-bold">EXIT 1</span>
+        </div>
+        <p class="text-on-surface text-body-sm">
+          The subprocess command runner failed to inspect the system TCC database at <code class="text-error bg-surface px-1 py-0.5 rounded">/Library/Application Support/com.apple.TCC/TCC.db</code> because the terminal application lacks Full Disk Access (FDA).
+        </p>
+        <div class="bg-[#090D12] p-3 rounded border border-outline font-mono text-body-xs text-on-surface space-y-1">
+          <div class="text-error font-bold">$ lsof -iTCP -sTCP:LISTEN &amp;&amp; sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db</div>
+          <div class="text-on-surface-variant">sqlite3: Error: unable to open database file: Operation not permitted</div>
+          <div class="text-warning">Diagnosis: macOS System Integrity Protection (SIP) blocks raw TCC reads without FDA entitlement.</div>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-outline text-label-sm">
+          <span class="text-on-surface-variant">Remedy: System Settings &gt; Privacy &amp; Security &gt; Full Disk Access &gt; Enable Terminal.</span>
+          <div class="flex gap-2">
+            <button onclick="requestCommandConfirmation(&#39;msp doctor&#39;)" class="px-3 py-1 bg-surface border border-outline hover:border-primary text-on-surface rounded">Run msp doctor</button>
+            <button onclick="setDashboardState(&#39;loaded&#39;)" class="px-3 py-1 bg-error text-on-error rounded font-semibold">Dismiss &amp; Recover [r]</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 2: FINDINGS ================= -->
+      <div id="view-findings" class="hidden space-y-3 font-mono">
+        <!-- Findings Filter Toolbar -->
+        <div class="bg-surface-variant border border-outline rounded p-2.5 flex flex-wrap items-center justify-between gap-2 text-body-sm">
+          <div class="flex items-center gap-2 flex-1 min-w-[280px]">
+            <span class="text-primary font-bold">[/]</span>
+            <input id="findings-filter-input" type="text" placeholder="Filter findings by severity, category, or keyword..." class="flex-1 bg-surface border border-outline rounded px-2.5 py-1 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary text-body-sm" oninput="filterFindingsTable(this.value)">
+          </div>
+          <div class="flex items-center gap-1.5 text-label-sm">
+            <span class="text-on-surface-variant">Filter:</span>
+            <button onclick="filterBySeverity(&#39;ALL&#39;)" class="px-2 py-0.5 rounded bg-primary text-on-primary font-semibold border border-primary sev-btn" data-sev="ALL">All (5)</button>
+            <button onclick="filterBySeverity(&#39;HIGH&#39;)" class="px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface sev-btn" data-sev="HIGH">High (1)</button>
+            <button onclick="filterBySeverity(&#39;WARN&#39;)" class="px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface sev-btn" data-sev="WARN">Warn (2)</button>
+            <button onclick="filterBySeverity(&#39;INFO&#39;)" class="px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface sev-btn" data-sev="INFO">Info (2)</button>
+          </div>
+        </div>
+
+        <!-- Findings Interactive Table -->
+        <div class="border border-outline rounded bg-surface-variant overflow-hidden">
+          <table id="findings-table" class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase tracking-wider">
+                <th class="py-2 px-3 w-8 text-center">SEL</th>
+                <th class="py-2 px-3 w-20">SEVERITY</th>
+                <th class="py-2 px-3 w-28">CATEGORY</th>
+                <th class="py-2 px-3 w-48">ITEM</th>
+                <th class="py-2 px-3">DESCRIPTION</th>
+                <th class="py-2 px-3 w-24 text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="findings-tbody" class="divide-y divide-outline/40">
+              <!-- Row 1 -->
+              <tr data-sev="HIGH" onclick="selectFindingRow(this, &#39;SEC-NET-082&#39;)" class="finding-row bg-primary/10 border-l-2 border-l-primary cursor-pointer hover:bg-primary/20">
+                <td class="py-2 px-3 text-primary font-bold text-center indicator">&gt;</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-error text-on-error font-bold text-label-sm">HIGH</span></td>
+                <td class="py-2 px-3 text-on-surface">Network</td>
+                <td class="py-2 px-3 font-semibold text-primary">0.0.0.0:8080</td>
+                <td class="py-2 px-3 text-on-surface">Unencrypted web socket bound to all interfaces (python3 script)</td>
+                <td class="py-2 px-3 text-right"><span class="text-label-sm text-primary underline">[Enter]</span></td>
+              </tr>
+              <!-- Row 2 -->
+              <tr data-sev="WARN" onclick="selectFindingRow(this, &#39;SEC-TCC-019&#39;)" class="finding-row border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-warning text-on-warning font-bold text-label-sm">WARN</span></td>
+                <td class="py-2 px-3 text-on-surface">TCC</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">ScreenCapture</td>
+                <td class="py-2 px-3 text-on-surface-variant">Legacy developer tool retains system screen recording privileges</td>
+                <td class="py-2 px-3 text-right"><span class="text-label-sm text-on-surface-variant">[Enter]</span></td>
+              </tr>
+              <!-- Row 3 -->
+              <tr data-sev="WARN" onclick="selectFindingRow(this, &#39;SEC-START-004&#39;)" class="finding-row border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-warning text-on-warning font-bold text-label-sm">WARN</span></td>
+                <td class="py-2 px-3 text-on-surface">Startup</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">com.acme.telemetry</td>
+                <td class="py-2 px-3 text-on-surface-variant">Ad-hoc signed LaunchDaemon in /Library/LaunchDaemons without team identifier</td>
+                <td class="py-2 px-3 text-right"><span class="text-label-sm text-on-surface-variant">[Enter]</span></td>
+              </tr>
+              <!-- Row 4 -->
+              <tr data-sev="INFO" onclick="selectFindingRow(this, &#39;SEC-FW-001&#39;)" class="finding-row border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-success text-on-success font-bold text-label-sm">INFO</span></td>
+                <td class="py-2 px-3 text-on-surface">Firewall</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">StealthMode</td>
+                <td class="py-2 px-3 text-on-surface-variant">ICMP ping response drop enabled via socketfilterfw</td>
+                <td class="py-2 px-3 text-right"><span class="text-label-sm text-on-surface-variant">[Enter]</span></td>
+              </tr>
+              <!-- Row 5 -->
+              <tr data-sev="INFO" onclick="selectFindingRow(this, &#39;SEC-FV-002&#39;)" class="finding-row border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-success text-on-success font-bold text-label-sm">INFO</span></td>
+                <td class="py-2 px-3 text-on-surface">Storage</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">FileVault Volume</td>
+                <td class="py-2 px-3 text-on-surface-variant">APFS Container encrypted with cryptographic hardware enclave</td>
+                <td class="py-2 px-3 text-right"><span class="text-label-sm text-on-surface-variant">[Enter]</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <footer class="px-3 py-1.5 bg-surface border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant">
+            <span>Showing <span id="findings-count" class="text-on-surface font-semibold">5</span> findings | [j/k] Navigate Rows</span>
+            <span>Press <kbd class="px-1 py-0.5 rounded bg-surface-variant text-primary border border-outline">Enter</kbd> or click to open full record detail modal</span>
+          </footer>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 3: NETWORK ================= -->
+      <div id="view-network" class="hidden space-y-3 font-mono">
+        <!-- Sub-tabs: Listening Ports vs Established Connections -->
+        <div class="flex items-center justify-between border-b border-outline pb-2">
+          <div class="flex items-center gap-2">
+            <button id="net-subtab-listen" onclick="switchNetworkSubtab(&#39;listen&#39;)" class="px-3 py-1 rounded bg-primary text-on-primary font-semibold text-label-md border border-primary">
+              [L] Listening Ports (4)
+            </button>
+            <button id="net-subtab-estab" onclick="switchNetworkSubtab(&#39;estab&#39;)" class="px-3 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface text-label-md border border-outline">
+              [E] Established Connections (6)
+            </button>
+          </div>
+          <span class="text-label-sm text-on-surface-variant">Data source: `lsof -iTCP -iUDP -n -P`</span>
+        </div>
+
+        <!-- Listening Ports Table -->
+        <div id="net-panel-listen" class="border border-outline rounded bg-surface-variant overflow-hidden">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+                <th class="py-2 px-3">PROCESS</th>
+                <th class="py-2 px-3">PID</th>
+                <th class="py-2 px-3">USER</th>
+                <th class="py-2 px-3">PROTO</th>
+                <th class="py-2 px-3">LOCAL ADDRESS</th>
+                <th class="py-2 px-3">STATE</th>
+                <th class="py-2 px-3 text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/40">
+              <tr class="hover:bg-surface cursor-pointer bg-error/10" onclick="showRecordDetail(&#39;port-8080&#39;)">
+                <td class="py-2 px-3 font-semibold text-primary">python3</td>
+                <td class="py-2 px-3 text-on-surface">49210</td>
+                <td class="py-2 px-3 text-on-surface-variant">developer</td>
+                <td class="py-2 px-3 text-warning font-bold">TCP</td>
+                <td class="py-2 px-3 text-error font-bold">0.0.0.0:8080</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.2 rounded bg-error/20 text-error font-semibold">LISTEN (WILDCARD)</span></td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-22&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">sshd</td>
+                <td class="py-2 px-3 text-on-surface">118</td>
+                <td class="py-2 px-3 text-on-surface-variant">root</td>
+                <td class="py-2 px-3 text-on-surface">TCP</td>
+                <td class="py-2 px-3 text-on-surface">127.0.0.1:22</td>
+                <td class="py-2 px-3 text-success">LISTEN (LOOPBACK)</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-53&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">mDNSResponder</td>
+                <td class="py-2 px-3 text-on-surface">240</td>
+                <td class="py-2 px-3 text-on-surface-variant">_mdnsresponder</td>
+                <td class="py-2 px-3 text-on-surface">UDP</td>
+                <td class="py-2 px-3 text-on-surface">*:5353</td>
+                <td class="py-2 px-3 text-on-surface-variant">LISTEN</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;port-5000&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">ControlCenter</td>
+                <td class="py-2 px-3 text-on-surface">612</td>
+                <td class="py-2 px-3 text-on-surface-variant">developer</td>
+                <td class="py-2 px-3 text-on-surface">TCP</td>
+                <td class="py-2 px-3 text-on-surface">127.0.0.1:5000</td>
+                <td class="py-2 px-3 text-success">LISTEN (LOOPBACK)</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Established Connections Table -->
+        <div id="net-panel-estab" class="hidden border border-outline rounded bg-surface-variant overflow-hidden">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+                <th class="py-2 px-3">PROCESS</th>
+                <th class="py-2 px-3">PID</th>
+                <th class="py-2 px-3">USER</th>
+                <th class="py-2 px-3">LOCAL ADDRESS</th>
+                <th class="py-2 px-3">REMOTE ADDRESS</th>
+                <th class="py-2 px-3">PROTOCOL</th>
+                <th class="py-2 px-3">STATE</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/40">
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;conn-1&#39;)">
+                <td class="py-2 px-3 font-semibold text-primary">curl</td>
+                <td class="py-2 px-3 text-on-surface">51922</td>
+                <td class="py-2 px-3 text-on-surface-variant">developer</td>
+                <td class="py-2 px-3 text-on-surface">192.168.1.140:54210</td>
+                <td class="py-2 px-3 text-accent font-semibold">140.82.121.4:443 (github)</td>
+                <td class="py-2 px-3">TCP</td>
+                <td class="py-2 px-3 text-success">ESTABLISHED</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;conn-2&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">Safari</td>
+                <td class="py-2 px-3 text-on-surface">1204</td>
+                <td class="py-2 px-3 text-on-surface-variant">developer</td>
+                <td class="py-2 px-3 text-on-surface">192.168.1.140:54218</td>
+                <td class="py-2 px-3 text-on-surface">17.253.144.10:443 (apple)</td>
+                <td class="py-2 px-3">TCP</td>
+                <td class="py-2 px-3 text-success">ESTABLISHED</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;conn-3&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">Slack</td>
+                <td class="py-2 px-3 text-on-surface">3129</td>
+                <td class="py-2 px-3 text-on-surface-variant">developer</td>
+                <td class="py-2 px-3 text-on-surface">192.168.1.140:54224</td>
+                <td class="py-2 px-3 text-on-surface">54.230.12.89:443 (aws)</td>
+                <td class="py-2 px-3">TCP</td>
+                <td class="py-2 px-3 text-success">ESTABLISHED</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 4: STARTUP ================= -->
+      <div id="view-startup" class="hidden space-y-3 font-mono">
+        <div class="bg-surface-variant border border-outline rounded p-3 text-body-sm">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-headline text-headline-md text-on-surface font-semibold">Startup Items &amp; Persistence Inventory</h3>
+            <span class="text-label-sm text-on-surface-variant">Restrained Risk Assessment Model</span>
+          </div>
+          <p class="text-on-surface-variant text-body-sm">
+            Items are classified based on code signatures, notarization verification, and origin path. A non-standard name alone is never flagged as malicious.
+          </p>
+        </div>
+
+        <div class="border border-outline rounded bg-surface-variant overflow-hidden">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+                <th class="py-2 px-3">LABEL</th>
+                <th class="py-2 px-3">TYPE</th>
+                <th class="py-2 px-3">LOCATION</th>
+                <th class="py-2 px-3">SIGNATURE &amp; DEVELOPER</th>
+                <th class="py-2 px-3">STATUS</th>
+                <th class="py-2 px-3">RISK ASSESSMENT</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/40">
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;start-telemetry&#39;)">
+                <td class="py-2 px-3 font-semibold text-warning">com.acme.telemetry</td>
+                <td class="py-2 px-3 text-on-surface">Daemon</td>
+                <td class="py-2 px-3 text-on-surface-variant">/Library/LaunchDaemons/</td>
+                <td class="py-2 px-3 text-on-surface">Ad-hoc signed (No Team ID)</td>
+                <td class="py-2 px-3 text-on-surface">Loaded</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.2 rounded bg-warning/20 text-warning text-label-sm font-semibold">REVIEW NEEDED</span></td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;start-docker&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">com.docker.vmnetd</td>
+                <td class="py-2 px-3 text-on-surface">Daemon</td>
+                <td class="py-2 px-3 text-on-surface-variant">/Library/PrivilegedHelperTools/</td>
+                <td class="py-2 px-3 text-success">Apple Notarized (Docker Inc)</td>
+                <td class="py-2 px-3 text-on-surface">Running</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.2 rounded bg-success/20 text-success text-label-sm font-semibold">VERIFIED</span></td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;start-1pass&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">2BUA8C4S2C.com.1password</td>
+                <td class="py-2 px-3 text-on-surface">Agent</td>
+                <td class="py-2 px-3 text-on-surface-variant">~/Library/LaunchAgents/</td>
+                <td class="py-2 px-3 text-success">Apple Notarized (AgileBits)</td>
+                <td class="py-2 px-3 text-on-surface">Running</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.2 rounded bg-success/20 text-success text-label-sm font-semibold">VERIFIED</span></td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;start-homebrew&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">homebrew.mxcl.postgresql</td>
+                <td class="py-2 px-3 text-on-surface">Agent</td>
+                <td class="py-2 px-3 text-on-surface-variant">~/Library/LaunchAgents/</td>
+                <td class="py-2 px-3 text-on-surface">Local Homebrew build</td>
+                <td class="py-2 px-3 text-on-surface">Running</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.2 rounded bg-primary/20 text-primary text-label-sm font-semibold">LOW / USER TOOL</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <footer class="px-3 py-1.5 bg-surface border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant">
+            <span>4 items registered in launchctl | [Enter] View full service definition plist</span>
+            <span>No state modification inline</span>
+          </footer>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 5: TCC (PRIVACY PERMISSIONS) ================= -->
+      <div id="view-tcc" class="hidden space-y-3 font-mono">
+        <div class="bg-surface-variant border border-outline rounded p-3 text-body-sm flex items-center justify-between">
+          <div>
+            <h3 class="font-headline text-headline-md text-on-surface font-semibold">macOS TCC Permission Database</h3>
+            <p class="text-on-surface-variant text-body-sm">Transparency, Consent, and Control entries queried from user and system domains.</p>
+          </div>
+          <span class="text-label-sm px-2 py-1 rounded bg-surface border border-outline text-on-surface-variant">Read-only SQLite query</span>
+        </div>
+
+        <div class="border border-outline rounded bg-surface-variant overflow-hidden">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+                <th class="py-2 px-3">SERVICE</th>
+                <th class="py-2 px-3">APPLICATION / CLIENT</th>
+                <th class="py-2 px-3">AUTHORIZATION</th>
+                <th class="py-2 px-3">SOURCE DOMAIN</th>
+                <th class="py-2 px-3">LAST MODIFIED</th>
+                <th class="py-2 px-3 text-right">INSPECT</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/40">
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;tcc-screencapture&#39;)">
+                <td class="py-2 px-3 font-semibold text-warning">kTCCServiceScreenCapture</td>
+                <td class="py-2 px-3 text-primary font-bold">com.apple.Terminal</td>
+                <td class="py-2 px-3 text-success font-semibold">Granted (User Prompt)</td>
+                <td class="py-2 px-3 text-on-surface-variant">User (~/Library/Application Support)</td>
+                <td class="py-2 px-3 text-on-surface-variant">2026-10-14 09:22</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;tcc-microphone&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">kTCCServiceMicrophone</td>
+                <td class="py-2 px-3 text-on-surface">us.zoom.xos</td>
+                <td class="py-2 px-3 text-success font-semibold">Granted</td>
+                <td class="py-2 px-3 text-on-surface-variant">System (/Library)</td>
+                <td class="py-2 px-3 text-on-surface-variant">2026-11-01 14:10</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;tcc-camera&#39;)">
+                <td class="py-2 px-3 font-semibold text-on-surface">kTCCServiceCamera</td>
+                <td class="py-2 px-3 text-on-surface">com.tinyspeck.slackmacgap</td>
+                <td class="py-2 px-3 text-error font-semibold">Denied</td>
+                <td class="py-2 px-3 text-on-surface-variant">User (~/Library)</td>
+                <td class="py-2 px-3 text-on-surface-variant">2026-09-02 11:05</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;tcc-fda&#39;)">
+                <td class="py-2 px-3 font-semibold text-primary">kTCCServiceSystemPolicyAllFiles</td>
+                <td class="py-2 px-3 text-on-surface">com.colliderli.iina</td>
+                <td class="py-2 px-3 text-success font-semibold">Granted (Full Disk Access)</td>
+                <td class="py-2 px-3 text-on-surface-variant">System (/Library)</td>
+                <td class="py-2 px-3 text-on-surface-variant">2026-08-19 16:44</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+            </tbody>
+          </table>
+          <footer class="px-3 py-1.5 bg-surface border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant">
+            <span>4 client privacy records | Use command runner to invoke `tccutil` if changes needed</span>
+            <span>[Enter] Inspect binary signature</span>
+          </footer>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 6: PRIVACY DEEP-DIVE ================= -->
+      <div id="view-privacy" class="hidden space-y-3 font-mono">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <!-- Deep Dive 1: Firewall Detailed -->
+          <div class="bg-surface-variant border border-outline rounded p-3 space-y-2">
+            <div class="border-b border-outline pb-2 flex items-center justify-between">
+              <span class="font-semibold text-on-surface text-label-md">APPLICATION FIREWALL (ALF)</span>
+              <span class="text-success text-label-sm font-bold">STRICT</span>
+            </div>
+            <div class="text-body-sm space-y-1.5 text-on-surface-variant">
+              <div>Global State: <span class="text-success font-bold">1 (Enabled)</span></div>
+              <div>Stealth Mode: <span class="text-success font-bold">1 (Drop ICMP)</span></div>
+              <div>Logging: <span class="text-on-surface">/var/log/appfirewall.log</span></div>
+              <div>Signed binaries auto-allow: <span class="text-on-surface">Apple only</span></div>
+            </div>
+            <div class="pt-2 border-t border-outline flex justify-between text-label-sm">
+              <button onclick="requestCommandConfirmation(&#39;msp preset apply strict&#39;)" class="text-primary hover:underline">Apply Strict Preset</button>
+              <button onclick="requestCommandConfirmation(&#39;msp preset apply basic&#39;)" class="text-on-surface-variant hover:underline">Basic Preset</button>
+            </div>
+          </div>
+
+          <!-- Deep Dive 2: Gatekeeper Detailed -->
+          <div class="bg-surface-variant border border-outline rounded p-3 space-y-2">
+            <div class="border-b border-outline pb-2 flex items-center justify-between">
+              <span class="font-semibold text-on-surface text-label-md">GATEKEEPER &amp; XPROTECT</span>
+              <span class="text-warning text-label-sm font-bold">STANDBY</span>
+            </div>
+            <div class="text-body-sm space-y-1.5 text-on-surface-variant">
+              <div>spctl status: <span class="text-success font-bold">assessments enabled</span></div>
+              <div>XProtect version: <span class="text-on-surface">5281.0 (Current)</span></div>
+              <div>XProtect Remediator: <span class="text-success">Active daemon</span></div>
+              <div>Quarantine flag persistence: <span class="text-success">Enforced</span></div>
+            </div>
+            <div class="pt-2 border-t border-outline flex justify-between text-label-sm">
+              <button onclick="requestCommandConfirmation(&#39;msp scan deep&#39;)" class="text-primary hover:underline">Launch Deep Scan</button>
+              <button onclick="requestCommandConfirmation(&#39;msp tune check&#39;)" class="text-on-surface-variant hover:underline">Diagnostics</button>
+            </div>
+          </div>
+
+          <!-- Deep Dive 3: FileVault & Hardware Security -->
+          <div class="bg-surface-variant border border-outline rounded p-3 space-y-2">
+            <div class="border-b border-outline pb-2 flex items-center justify-between">
+              <span class="font-semibold text-on-surface text-label-md">FILEVAULT &amp; ENCLAVE</span>
+              <span class="text-success text-label-sm font-bold">SECURED</span>
+            </div>
+            <div class="text-body-sm space-y-1.5 text-on-surface-variant">
+              <div>Secure Boot: <span class="text-success font-bold">Full Security</span></div>
+              <div>System Integrity (SIP): <span class="text-success font-bold">Enabled</span></div>
+              <div>Sealed System Volume (SSV): <span class="text-success">Verified</span></div>
+              <div>FileVault: <span class="text-success font-bold">On (APFS Container 1)</span></div>
+            </div>
+            <div class="pt-2 border-t border-outline flex justify-between text-label-sm">
+              <button onclick="switchView(&#39;snapshots&#39;)" class="text-primary hover:underline">Compare Snapshots</button>
+              <span class="text-on-surface-variant text-label-sm">Tamper-Proof</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 7: SNAPSHOTS ================= -->
+      <div id="view-snapshots" class="hidden space-y-3 font-mono">
+        <div class="bg-surface-variant border border-outline rounded p-3 text-body-sm flex items-center justify-between">
+          <div>
+            <h3 class="font-headline text-headline-md text-on-surface font-semibold">Security State Snapshots</h3>
+            <p class="text-on-surface-variant text-body-sm">Historical points-in-time capturing system facts, open sockets, and TCC permissions.</p>
+          </div>
+          <button onclick="requestCommandConfirmation(&#39;msp interrogate --json&#39;)" class="px-3 py-1 rounded bg-primary text-on-primary text-label-md font-semibold hover:bg-opacity-90">
+            [+] Capture Snapshot
+          </button>
+        </div>
+
+        <div class="border border-outline rounded bg-surface-variant overflow-hidden">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase">
+                <th class="py-2 px-3">SNAPSHOT ID</th>
+                <th class="py-2 px-3">TIMESTAMP</th>
+                <th class="py-2 px-3">FIREWALL</th>
+                <th class="py-2 px-3">GATEKEEPER</th>
+                <th class="py-2 px-3">FILEVAULT</th>
+                <th class="py-2 px-3">PORTS</th>
+                <th class="py-2 px-3 text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/40">
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;snap-003&#39;)">
+                <td class="py-2 px-3 font-bold text-primary">snap-20261108-current</td>
+                <td class="py-2 px-3 text-on-surface">2026-11-08 11:30:00 PST</td>
+                <td class="py-2 px-3 text-success">Active</td>
+                <td class="py-2 px-3 text-warning">Relaxed</td>
+                <td class="py-2 px-3 text-success">On</td>
+                <td class="py-2 px-3 text-error">4 (1 external)</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;snap-002&#39;)">
+                <td class="py-2 px-3 font-bold text-on-surface">snap-20261107-1845</td>
+                <td class="py-2 px-3 text-on-surface">2026-11-07 18:45:12 PST</td>
+                <td class="py-2 px-3 text-success">Active</td>
+                <td class="py-2 px-3 text-success">Strict</td>
+                <td class="py-2 px-3 text-success">On</td>
+                <td class="py-2 px-3 text-success">3 (0 external)</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+              <tr class="hover:bg-surface cursor-pointer" onclick="showRecordDetail(&#39;snap-001&#39;)">
+                <td class="py-2 px-3 font-bold text-on-surface">snap-20261025-baseline</td>
+                <td class="py-2 px-3 text-on-surface">2026-10-25 09:12:04 PST</td>
+                <td class="py-2 px-3 text-success">Active</td>
+                <td class="py-2 px-3 text-success">Strict</td>
+                <td class="py-2 px-3 text-success">On</td>
+                <td class="py-2 px-3 text-success">2 (0 external)</td>
+                <td class="py-2 px-3 text-right text-primary">[Inspect]</td>
+              </tr>
+            </tbody>
+          </table>
+          <footer class="px-3 py-1.5 bg-surface border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant">
+            <span>3 snapshots archived locally in `~/.msp/snapshots/`</span>
+            <span>Diff comparison available via `msp reason --facts ...`</span>
+          </footer>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- 4. BOTTOM COMMAND RUNNER DRAWER (^R) (Togglable or floating) -->
+    <div id="command-runner-drawer" class="border-t-2 border-outline bg-surface-variant flex flex-col font-mono text-body-sm transition-all duration-200 h-64">
+      <!-- Runner Header -->
+      <div class="px-3 py-1.5 bg-surface border-b border-outline flex items-center justify-between text-label-sm">
+        <div class="flex items-center gap-3">
+          <span class="text-primary font-bold flex items-center gap-1">
+            <span>[^R]</span> SUBPROCESS COMMAND RUNNER
+          </span>
+          <span id="runner-status-badge" class="px-1.5 py-0.2 rounded bg-surface border border-outline text-on-surface-variant text-label-sm">IDLE</span>
+          <span id="runner-meta" class="text-on-surface-variant">Exit: 0 | Duration: 42ms</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="toggleCommandRunner()" class="text-on-surface-variant hover:text-on-surface text-label-sm">[Esc / ^R Close]</button>
+        </div>
+      </div>
+
+      <!-- Runner Console Output Terminal -->
+      <div id="runner-output-terminal" class="flex-1 p-2 bg-[#090D12] overflow-y-auto text-body-xs font-mono space-y-0.5 text-on-surface">
+        <div class="text-on-surface-variant">msp terminal runner initialized. Ready for commands.</div>
+        <div class="text-on-surface-variant">Try examples: <span onclick="runPresetExample(&#39;msp status&#39;)" class="text-primary hover:underline cursor-pointer">msp status</span> | <span onclick="runPresetExample(&#39;msp net list&#39;)" class="text-primary hover:underline cursor-pointer">msp net list</span> | <span onclick="runPresetExample(&#39;msp scan quick&#39;)" class="text-primary hover:underline cursor-pointer">msp scan quick</span></div>
+        <div class="text-on-surface-variant">Note: system-changing commands trigger confirmation safety gate.</div>
+      </div>
+
+      <!-- Command Input Bar -->
+      <div class="p-2 bg-surface border-t border-outline flex items-center gap-2">
+        <span class="text-primary font-bold text-body-sm">&gt;</span>
+        <input id="runner-input" type="text" placeholder="Enter command (e.g. msp status, msp net list, msp preset apply basic)..." class="flex-1 bg-surface-variant border border-outline rounded px-2.5 py-1 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary text-body-sm font-mono" onkeydown="handleRunnerKeydown(event)">
+        <button onclick="executeRunnerInput()" class="px-3 py-1 rounded bg-primary text-on-primary font-label text-label-sm hover:bg-opacity-90 font-semibold">
+          Run [Enter]
+        </button>
+        <button onclick="interruptRunningCommand()" class="px-2 py-1 rounded bg-surface text-error border border-error/50 hover:bg-error hover:text-white text-label-sm">
+          ^C Stop
+        </button>
+      </div>
+    </div>
+
+    <!-- 5. TERMINAL FOOTER / KEYBOARD STATUS BAR (Textual Footer Widget) -->
+    <footer class="bg-surface-variant border-t border-outline px-3 py-1.5 flex items-center justify-between font-mono text-label-sm text-on-surface-variant">
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">1-7</kbd> Views</span>
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">^P</kbd> Palette</span>
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">^R</kbd> Runner</span>
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">/</kbd> Filter</span>
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">r</kbd> Refresh</span>
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">?</kbd> Help</span>
+        <span class="flex items-center gap-1"><kbd class="bg-surface border border-outline px-1 rounded text-primary">q</kbd> Quit</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="terminal-grid-dimension" class="text-on-surface-variant">120×36 CHARS</span>
+        <span class="text-outline">|</span>
+        <span class="text-success">● CONNECTED</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ================= MODAL OVERLAYS ================= -->
+
+  <!-- MODAL 1: RECORD DETAIL VIEW (ESC / q dismissable) -->
+  <div id="modal-detail" class="fixed inset-0 bg-black/70 backdrop-none z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface-variant border-2 border-primary rounded max-w-xl w-full font-mono text-body-sm shadow-2xl overflow-hidden flex flex-col">
+      <header class="bg-surface border-b border-outline px-4 py-2 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-primary font-bold">[DETAIL]</span>
+          <h2 id="modal-detail-title" class="font-headline text-headline-md text-on-surface font-semibold">Record Inspection</h2>
+        </div>
+        <button onclick="closeDetailModal()" class="text-on-surface-variant hover:text-on-surface text-label-sm border border-outline px-1.5 py-0.5 rounded bg-surface">
+          [q / Esc]
+        </button>
+      </header>
+
+      <div id="modal-detail-content" class="p-4 space-y-2 text-body-sm max-h-[716px] overflow-y-auto" data-stitch-vh="max-h-[716px]===max-h-[70vh]">
+        <!-- Content injected dynamically -->
+      </div>
+
+      <footer class="bg-surface border-t border-outline px-4 py-2 flex items-center justify-between text-label-sm text-on-surface-variant">
+        <span>Press <kbd class="px-1 py-0.5 bg-surface-variant border border-outline text-primary">Esc</kbd> or <kbd class="px-1 py-0.5 bg-surface-variant border border-outline text-primary">q</kbd> to return</span>
+        <button onclick="closeDetailModal()" class="px-3 py-1 rounded bg-surface text-on-surface border border-outline hover:border-primary">
+          Dismiss
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CONFIRMATION DIALOG (Required for state-changing commands) -->
+  <div id="modal-confirm" class="fixed inset-0 bg-black/75 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface-variant border-2 border-warning rounded max-w-md w-full font-mono text-body-sm shadow-2xl overflow-hidden flex flex-col">
+      <header class="bg-surface border-b border-warning/50 px-4 py-2.5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-warning font-bold text-headline-md">[!]</span>
+          <h2 class="font-headline text-headline-md text-on-surface font-semibold">Confirmation Required</h2>
+        </div>
+        <span class="text-label-sm text-warning font-mono">SAFETY GATE</span>
+      </header>
+
+      <div class="p-4 space-y-3">
+        <p class="text-on-surface text-body-sm">
+          You are about to execute a system-modifying operation. This will alter local macOS security or stored state:
+        </p>
+
+        <div class="p-2.5 bg-surface rounded border border-outline text-primary font-bold text-body-sm break-all font-mono" id="confirm-cmd-text">
+          msp preset apply basic
+        </div>
+
+        <div class="text-body-xs text-on-surface-variant border-l-2 border-warning pl-2 space-y-1">
+          <div>• Modifies application firewall configuration via socketfilterfw</div>
+          <div>• Enforces Gatekeeper assessment rules</div>
+          <div>• Subprocess runner requires administrator/console context</div>
+        </div>
+      </div>
+
+      <footer class="bg-surface border-t border-outline px-4 py-2.5 flex items-center justify-end gap-3 text-label-md">
+        <button onclick="cancelConfirmation()" class="px-3 py-1 rounded bg-surface text-on-surface-variant hover:text-on-surface border border-outline">
+          [Esc] Cancel
+        </button>
+        <button onclick="proceedConfirmation()" class="px-3 py-1 rounded bg-warning text-on-warning font-bold hover:bg-opacity-90">
+          [Enter] Confirm &amp; Run
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL 3: FUZZY COMMAND PALETTE (^P) -->
+  <div id="modal-palette" class="fixed inset-0 bg-black/70 z-50 hidden flex items-start justify-center pt-20 p-4">
+    <div class="bg-surface-variant border-2 border-primary rounded max-w-xl w-full font-mono text-body-sm shadow-2xl overflow-hidden flex flex-col">
+      <div class="p-3 bg-surface border-b border-outline flex items-center gap-2">
+        <span class="text-primary font-bold">&gt;</span>
+        <input id="palette-input" type="text" placeholder="Search views, runnable commands, or help (fuzzy matching)..." class="flex-1 bg-transparent text-on-surface placeholder:text-on-surface-variant focus:outline-none text-body-md font-mono" oninput="filterPaletteResults(this.value)" onkeydown="handlePaletteKeydown(event)">
+        <span class="text-label-sm text-on-surface-variant">[Esc to close]</span>
+      </div>
+
+      <div id="palette-list" class="max-h-80 overflow-y-auto divide-y divide-outline/30">
+        <!-- Palette item 1 -->
+        <div onclick="selectPaletteItem(&#39;view&#39;, &#39;dashboard&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer bg-primary/10">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">VIEW:</span>
+            <span class="text-on-surface font-semibold">1. Dashboard</span>
+            <span class="text-on-surface-variant text-label-sm">Postures, sockets &amp; system overview</span>
+          </div>
+          <span class="text-label-sm text-primary font-bold">1</span>
+        </div>
+        <!-- Palette item 2 -->
+        <div onclick="selectPaletteItem(&#39;view&#39;, &#39;findings&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">VIEW:</span>
+            <span class="text-on-surface font-semibold">2. Findings</span>
+            <span class="text-on-surface-variant text-label-sm">Security review and audit list</span>
+          </div>
+          <span class="text-label-sm text-outline">2</span>
+        </div>
+        <!-- Palette item 3 -->
+        <div onclick="selectPaletteItem(&#39;view&#39;, &#39;network&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">VIEW:</span>
+            <span class="text-on-surface font-semibold">3. Network</span>
+            <span class="text-on-surface-variant text-label-sm">Listening sockets &amp; connections</span>
+          </div>
+          <span class="text-label-sm text-outline">3</span>
+        </div>
+        <!-- Palette item 4 -->
+        <div onclick="selectPaletteItem(&#39;cmd&#39;, &#39;msp status&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2">
+            <span class="text-success font-bold">CMD:</span>
+            <span class="text-on-surface font-semibold">msp status</span>
+            <span class="text-on-surface-variant text-label-sm">Print macOS security status</span>
+          </div>
+          <span class="text-label-sm text-success">Safe</span>
+        </div>
+        <!-- Palette item 5 -->
+        <div onclick="selectPaletteItem(&#39;cmd&#39;, &#39;msp scan quick&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2">
+            <span class="text-success font-bold">CMD:</span>
+            <span class="text-on-surface font-semibold">msp scan quick</span>
+            <span class="text-on-surface-variant text-label-sm">Fast posture analysis</span>
+          </div>
+          <span class="text-label-sm text-success">Safe</span>
+        </div>
+        <!-- Palette item 6 -->
+        <div onclick="selectPaletteItem(&#39;confirm-cmd&#39;, &#39;msp preset apply basic&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2">
+            <span class="text-warning font-bold">CMD:</span>
+            <span class="text-warning font-semibold">msp preset apply basic</span>
+            <span class="text-on-surface-variant text-label-sm">Applies basic firewall &amp; gatekeeper</span>
+          </div>
+          <span class="text-label-sm text-warning font-bold">Needs Confirm</span>
+        </div>
+        <!-- Palette item 7 -->
+        <div onclick="selectPaletteItem(&#39;help&#39;, &#39;&#39;)" class="palette-item px-3 py-2 flex items-center justify-between hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2">
+            <span class="text-accent font-bold">HELP:</span>
+            <span class="text-on-surface font-semibold">Keyboard Reference &amp; Docs</span>
+          </div>
+          <span class="text-label-sm text-outline">?</span>
+        </div>
+      </div>
+
+      <footer class="bg-surface border-t border-outline px-3 py-1.5 flex items-center justify-between text-label-sm text-on-surface-variant">
+        <span>[↑/↓] Select | [Enter] Launch</span>
+        <span>[Esc] Dismiss</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL 4: HELP KEYBOARD REFERENCE (?) -->
+  <div id="modal-help" class="fixed inset-0 bg-black/75 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface-variant border-2 border-primary rounded max-w-lg w-full font-mono text-body-sm shadow-2xl overflow-hidden flex flex-col">
+      <header class="bg-surface border-b border-outline px-4 py-2.5 flex items-center justify-between">
+        <h2 class="font-headline text-headline-md text-primary font-semibold">msp Terminal Keyboard Reference</h2>
+        <button onclick="closeHelpModal()" class="text-on-surface-variant hover:text-on-surface text-label-sm border border-outline px-1.5 py-0.5 rounded bg-surface">
+          [Esc]
+        </button>
+      </header>
+
+      <div class="p-4 space-y-3 text-body-sm">
+        <div class="border-b border-outline pb-2">
+          <div class="text-primary font-bold mb-1 text-label-sm">GLOBAL NAVIGATION</div>
+          <div class="grid grid-cols-2 gap-1 text-on-surface">
+            <div><kbd class="text-primary font-bold">1-7</kbd> : Switch primary views</div>
+            <div><kbd class="text-primary font-bold">Ctrl+P</kbd> : Command Palette</div>
+            <div><kbd class="text-primary font-bold">Ctrl+R</kbd> : Toggle Command Runner</div>
+            <div><kbd class="text-primary font-bold">r</kbd> : Refresh current view</div>
+            <div><kbd class="text-primary font-bold">?</kbd> : Open this reference</div>
+            <div><kbd class="text-primary font-bold">q / Esc</kbd> : Dismiss dialog / quit</div>
+          </div>
+        </div>
+
+        <div class="border-b border-outline pb-2">
+          <div class="text-primary font-bold mb-1 text-label-sm">TABLE &amp; LIST BROWSING</div>
+          <div class="grid grid-cols-2 gap-1 text-on-surface">
+            <div><kbd class="text-primary font-bold">j / Down</kbd> : Move down row</div>
+            <div><kbd class="text-primary font-bold">k / Up</kbd> : Move up row</div>
+            <div><kbd class="text-primary font-bold">Enter</kbd> : Inspect selected row</div>
+            <div><kbd class="text-primary font-bold">/</kbd> : Focus table search filter</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-primary font-bold mb-1 text-label-sm">COMMAND RUNNER</div>
+          <div class="grid grid-cols-2 gap-1 text-on-surface">
+            <div><kbd class="text-primary font-bold">Up / Down</kbd> : Browse command history</div>
+            <div><kbd class="text-primary font-bold">Ctrl+C</kbd> : Interrupt running process</div>
+            <div><kbd class="text-primary font-bold">Enter</kbd> : Execute input</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="bg-surface border-t border-outline px-4 py-2 flex justify-end">
+        <button onclick="closeHelpModal()" class="px-3 py-1 rounded bg-primary text-on-primary font-label text-label-sm font-semibold">
+          Dismiss [Esc]
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC & WORKFLOW ROUTING -->
+  <script>
+    // System State Data Store
+    let currentView = 'dashboard';
+    let commandHistory = [
+      'msp status',
+      'msp net list',
+      'msp scan quick',
+      'msp startup list'
+    ];
+    let historyIndex = -1;
+    let isCommandRunning = false;
+    let pendingConfirmationCommand = '';
+
+    // Record Database for Inspection
+    const recordDB = {
+      'SEC-NET-082': {
+        title: 'Finding: SEC-NET-082 (External Wildcard Listener)',
+        fields: {
+          'Severity': '<span class="text-error font-bold">HIGH</span>',
+          'Category': 'Network Security',
+          'Target Socket': '0.0.0.0:8080 (IPv4 TCP LISTEN)',
+          'Process Name': 'python3',
+          'PID': '49210',
+          'User Context': 'developer (UID 501)',
+          'Binary Path': '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3',
+          'Arguments': 'python3 -m http.server 8080 --bind 0.0.0.0',
+          'Risk Rationale': 'Socket binds to INADDR_ANY, exposing internal files to external LAN/WAN interfaces without authentication.',
+          'Recommended Remediation': 'Terminate process or bind server specifically to localhost (127.0.0.1).'
+        }
+      },
+      'SEC-TCC-019': {
+        title: 'Finding: SEC-TCC-019 (ScreenCapture Permission)',
+        fields: {
+          'Severity': '<span class="text-warning font-bold">WARN</span>',
+          'Category': 'TCC Privacy',
+          'Entitlement': 'kTCCServiceScreenCapture',
+          'Client Identifier': 'com.apple.Terminal',
+          'Authorization': 'Granted via Prompt',
+          'Database Domain': 'User (~/Library/Application Support/com.apple.TCC/TCC.db)',
+          'Risk Rationale': 'Any shell process spawned inside Terminal inherits ability to record display frames.',
+          'Remediation': 'Revoke via System Settings -> Privacy & Security -> Screen Recording or `tccutil reset ScreenCapture com.apple.Terminal`.'
+        }
+      },
+      'SEC-START-004': {
+        title: 'Finding: SEC-START-004 (Unsigned LaunchDaemon)',
+        fields: {
+          'Severity': '<span class="text-warning font-bold">WARN</span>',
+          'Category': 'Startup & Persistence',
+          'Item Label': 'com.acme.telemetry',
+          'Location': '/Library/LaunchDaemons/com.acme.telemetry.plist',
+          'Program Binary': '/usr/local/bin/acme-agent',
+          'Code Signature': 'Ad-hoc signature only (No Apple Developer Team ID)',
+          'Risk Rationale': 'Restrained assessment: daemon lacks verifiable developer notarization. Non-standard build.',
+          'Remediation': 'Verify source origin with package manager or remove plist if unrecognized.'
+        }
+      },
+      'SEC-FW-001': {
+        title: 'Finding: SEC-FW-001 (Stealth Mode State)',
+        fields: {
+          'Severity': '<span class="text-success font-bold">INFO</span>',
+          'Category': 'Firewall',
+          'Property': 'Stealth Mode',
+          'Current State': 'Enabled (1)',
+          'Subsystem': '/usr/libexec/ApplicationFirewall/socketfilterfw',
+          'Assessment': 'Complies with CIS macOS Benchmark rule 2.3.1.'
+        }
+      },
+      'SEC-FV-002': {
+        title: 'Finding: SEC-FV-002 (FileVault Storage Encryption)',
+        fields: {
+          'Severity': '<span class="text-success font-bold">INFO</span>',
+          'Category': 'Storage',
+          'Property': 'FileVault 2',
+          'Volume': '/System/Volumes/Data (APFS)',
+          'Cipher': 'XTS-AES 128-bit',
+          'Hardware': 'Apple Silicon Secure Enclave Processor (SEP)',
+          'Assessment': 'Complies with CIS macOS Benchmark rule 2.5.1.'
+        }
+      },
+      'port-8080': {
+        title: 'Socket Detail: 0.0.0.0:8080',
+        fields: {
+          'Protocol': 'TCP',
+          'State': 'LISTEN',
+          'Local Endpoint': '0.0.0.0:8080',
+          'Process': 'python3 (PID 49210)',
+          'Parent PID': 'launchd (1)',
+          'User': 'developer',
+          'FD': '4u (IPv4)',
+          'Audit Rule': 'Flagged by `msp net list`: Wildcard public listener'
+        }
+      },
+      'port-22': {
+        title: 'Socket Detail: 127.0.0.1:22 (SSH)',
+        fields: {
+          'Protocol': 'TCP',
+          'State': 'LISTEN',
+          'Local Endpoint': '127.0.0.1:22',
+          'Process': 'sshd-keygen (PID 118)',
+          'User': 'root',
+          'Scope': 'Loopback Only (Safe)'
+        }
+      },
+      'snap-003': {
+        title: 'Snapshot Detail: snap-20261108-current',
+        fields: {
+          'Timestamp': '2026-11-08 11:30:00 PST',
+          'macOS Version': '15.2 (24C101)',
+          'Firewall Active': 'true (Stealth ON)',
+          'Gatekeeper spctl': 'enabled (developer-mode)',
+          'FileVault Status': 'On (APFS Data Encrypted)',
+          'Open Ports Count': '4',
+          'Stored Path': '~/.msp/snapshots/snap-20261108-current.json'
+        }
+      }
+    };
+
+    // 1. VIEW SWITCHING
+    function switchView(viewName) {
+      currentView = viewName;
+      const views = ['dashboard', 'findings', 'network', 'startup', 'tcc', 'privacy', 'snapshots'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        const btn = document.getElementById(`nav-btn-${v}`);
+        if (v === viewName) {
+          if (el) el.classList.remove('hidden');
+          if (btn) {
+            btn.className = "nav-tab px-2.5 py-1 rounded bg-primary text-on-primary font-semibold border border-primary flex items-center gap-1.5 transition-state-change";
+          }
+        } else {
+          if (el) el.classList.add('hidden');
+          if (btn) {
+            btn.className = "nav-tab px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5 transition-state-change";
+          }
+        }
+      });
+    }
+
+    // 2. NETWORK SUB-TABS
+    function switchNetworkSubtab(tab) {
+      const listenTab = document.getElementById('net-subtab-listen');
+      const estabTab = document.getElementById('net-subtab-estab');
+      const listenPanel = document.getElementById('net-panel-listen');
+      const estabPanel = document.getElementById('net-panel-estab');
+
+      if (tab === 'listen') {
+        listenTab.className = "px-3 py-1 rounded bg-primary text-on-primary font-semibold text-label-md border border-primary";
+        estabTab.className = "px-3 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface text-label-md border border-outline";
+        listenPanel.classList.remove('hidden');
+        estabPanel.classList.add('hidden');
+      } else {
+        estabTab.className = "px-3 py-1 rounded bg-primary text-on-primary font-semibold text-label-md border border-primary";
+        listenTab.className = "px-3 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface text-label-md border border-outline";
+        estabPanel.classList.remove('hidden');
+        listenPanel.classList.add('hidden');
+      }
+    }
+
+    // 3. RECORD DETAIL MODAL
+    function showRecordDetail(recordId) {
+      const rec = recordDB[recordId] || {
+        title: `Record: ${recordId}`,
+        fields: { 'Identifier': recordId, 'Status': 'Captured by msp system scanner' }
+      };
+
+      document.getElementById('modal-detail-title').innerText = rec.title;
+      const contentEl = document.getElementById('modal-detail-content');
+      contentEl.innerHTML = '';
+
+      for (const [key, val] of Object.entries(rec.fields)) {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-3 py-1.5 border-b border-outline/30';
+        row.innerHTML = `
+          <span class="text-on-surface-variant font-medium">${key}:</span>
+          <span class="col-span-2 text-on-surface text-body-sm break-all">${val}</span>
+        `;
+        contentEl.appendChild(row);
+      }
+
+      document.getElementById('modal-detail').classList.remove('hidden');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('modal-detail').classList.add('hidden');
+    }
+
+    // 4. CONFIRMATION DIALOG FOR STATE-CHANGING OPERATIONS
+    function requestCommandConfirmation(command) {
+      pendingConfirmationCommand = command;
+      document.getElementById('confirm-cmd-text').innerText = command;
+      document.getElementById('modal-confirm').classList.remove('hidden');
+    }
+
+    function cancelConfirmation() {
+      document.getElementById('modal-confirm').classList.add('hidden');
+      logToRunner(`[Action Cancelled] Execution of \`${pendingConfirmationCommand}\` aborted by user.`, 'text-on-surface-variant');
+      pendingConfirmationCommand = '';
+    }
+
+    function proceedConfirmation() {
+      document.getElementById('modal-confirm').classList.add('hidden');
+      const cmd = pendingConfirmationCommand;
+      pendingConfirmationCommand = '';
+      executeCommand(cmd, true);
+    }
+
+    // 5. COMMAND PALETTE (^P)
+    function openCommandPalette() {
+      document.getElementById('modal-palette').classList.remove('hidden');
+      const input = document.getElementById('palette-input');
+      input.value = '';
+      filterPaletteResults('');
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function closeCommandPalette() {
+      document.getElementById('modal-palette').classList.add('hidden');
+    }
+
+    function filterPaletteResults(query) {
+      const q = query.toLowerCase().trim();
+      const items = document.querySelectorAll('.palette-item');
+      items.forEach(item => {
+        if (!q || item.innerText.toLowerCase().includes(q)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    function selectPaletteItem(type, target) {
+      closeCommandPalette();
+      if (type === 'view') {
+        switchView(target);
+      } else if (type === 'cmd') {
+        executeCommand(target);
+      } else if (type === 'confirm-cmd') {
+        requestCommandConfirmation(target);
+      } else if (type === 'help') {
+        openHelpModal();
+      }
+    }
+
+    function handlePaletteKeydown(e) {
+      if (e.key === 'Escape') {
+        closeCommandPalette();
+      }
+    }
+
+    // 6. HELP MODAL (?)
+    function openHelpModal() {
+      document.getElementById('modal-help').classList.remove('hidden');
+    }
+
+    function closeHelpModal() {
+      document.getElementById('modal-help').classList.add('hidden');
+    }
+
+    // 7. SUBPROCESS COMMAND RUNNER (^R)
+    function toggleCommandRunner() {
+      const runner = document.getElementById('command-runner-drawer');
+      if (runner.classList.contains('hidden')) {
+        runner.classList.remove('hidden');
+        document.getElementById('runner-input').focus();
+      } else {
+        runner.classList.add('hidden');
+      }
+    }
+
+    function logToRunner(msg, colorClass = 'text-on-surface') {
+      const term = document.getElementById('runner-output-terminal');
+      const row = document.createElement('div');
+      row.className = `${colorClass} font-mono`;
+      row.innerHTML = msg;
+      term.appendChild(row);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function executeRunnerInput() {
+      const input = document.getElementById('runner-input');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+      commandHistory.push(cmd);
+      historyIndex = commandHistory.length;
+
+      // Check if command modifies state and needs confirmation
+      const stateChangingPrefixes = [
+        'msp preset apply',
+        'msp remediate',
+        'msp tune fix',
+        'msp enable',
+        'msp disable'
+      ];
+      const needsConfirmation = stateChangingPrefixes.some(prefix => cmd.startsWith(prefix));
+
+      if (needsConfirmation) {
+        requestCommandConfirmation(cmd);
+      } else {
+        executeCommand(cmd);
+      }
+    }
+
+    function runPresetExample(cmd) {
+      document.getElementById('runner-input').value = cmd;
+      executeRunnerInput();
+    }
+
+    function executeCommand(cmd, confirmed = false) {
+      // Ensure runner is open
+      const runner = document.getElementById('command-runner-drawer');
+      runner.classList.remove('hidden');
+
+      logToRunner(`<span class="text-primary font-bold">&gt; ${cmd}</span>`);
+      const statusBadge = document.getElementById('runner-status-badge');
+      const meta = document.getElementById('runner-meta');
+      statusBadge.innerText = 'RUNNING';
+      statusBadge.className = 'px-1.5 py-0.2 rounded bg-warning text-on-warning font-bold text-label-sm';
+      isCommandRunning = true;
+
+      const startTime = performance.now();
+
+      setTimeout(() => {
+        if (!isCommandRunning) return; // interrupted
+        isCommandRunning = false;
+        const duration = Math.round(performance.now() - startTime);
+
+        statusBadge.innerText = 'COMPLETED';
+        statusBadge.className = 'px-1.5 py-0.2 rounded bg-success text-on-success font-bold text-label-sm';
+        meta.innerText = `Exit: 0 | Duration: ${duration}ms`;
+
+        // Output responses
+        if (cmd === 'msp status') {
+          logToRunner('Security Status:');
+          logToRunner('  Firewall:       <span class="text-success">Enabled (Stealth Mode)</span>');
+          logToRunner('  Gatekeeper:     <span class="text-warning">spctl enabled (Standard Devs)</span>');
+          logToRunner('  FileVault:      <span class="text-success">On (Encrypted Data Container)</span>');
+          logToRunner('  SIP:            <span class="text-success">Enabled</span>');
+          logToRunner('  Secure Boot:    <span class="text-success">Full Security (Apple Silicon)</span>');
+        } else if (cmd === 'msp net list') {
+          logToRunner('Listening Ports (lsof):');
+          logToRunner('  TCP  0.0.0.0:8080      python3 (PID 49210) <span class="text-error font-bold">[WARN: External Wildcard]</span>');
+          logToRunner('  TCP  127.0.0.1:22       sshd-keygen (PID 118)');
+          logToRunner('  UDP  127.0.0.53:53     mDNSResponder (PID 240)');
+        } else if (cmd === 'msp scan quick') {
+          logToRunner('Running fast audit...');
+          logToRunner('  [✓] Verified System Integrity Protection status');
+          logToRunner('  [✓] Checked APFS disk encryption cryptographic keys');
+          logToRunner('  [!] Found 1 wildcard TCP listener (0.0.0.0:8080)');
+          logToRunner('  [!] Found 1 ad-hoc LaunchDaemon in /Library/LaunchDaemons');
+          logToRunner('Scan finished in 184ms: 2 review items identified.');
+        } else if (cmd.startsWith('msp preset apply')) {
+          logToRunner(`<span class="text-success font-bold">[SUCCESS]</span> Applied preset \`${cmd.replace('msp preset apply ', '')}\`. System security configuration updated.`);
+          logToRunner('  &bull; Firewall rules verified');
+          logToRunner('  &bull; Gatekeeper policy re-evaluated');
+        } else if (cmd.startsWith('msp interrogate')) {
+          logToRunner('{"schema": "msp.facts.v2", "timestamp": "' + new Date().toISOString() + '", "status": "collected"}');
+          logToRunner('Snapshot successfully recorded.');
+        } else {
+          logToRunner(`Executed: ${cmd} (PID ${Math.floor(10000 + Math.random() * 80000)})`);
+          logToRunner('Command executed successfully with status 0.');
+        }
+      }, 500);
+    }
+
+    function interruptRunningCommand() {
+      if (isCommandRunning) {
+        isCommandRunning = false;
+        const statusBadge = document.getElementById('runner-status-badge');
+        statusBadge.innerText = 'INTERRUPTED';
+        statusBadge.className = 'px-1.5 py-0.2 rounded bg-error text-on-error font-bold text-label-sm';
+        logToRunner('<span class="text-error font-bold">^C Process interrupted by SIGINT (Exit: 130)</span>');
+      } else {
+        logToRunner('<span class="text-on-surface-variant">No command currently running to interrupt.</span>');
+      }
+    }
+
+    function handleRunnerKeydown(e) {
+      if (e.key === 'Enter') {
+        executeRunnerInput();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (historyIndex > 0) {
+          historyIndex--;
+          e.target.value = commandHistory[historyIndex] || '';
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          e.target.value = commandHistory[historyIndex] || '';
+        } else {
+          historyIndex = commandHistory.length;
+          e.target.value = '';
+        }
+      } else if (e.ctrlKey && e.key === 'c') {
+        interruptRunningCommand();
+      }
+    }
+
+    // 8. TABLE SELECTION & FILTERING
+    function selectFindingRow(rowEl, recordId) {
+      document.querySelectorAll('.finding-row').forEach(r => {
+        r.classList.remove('bg-primary/10', 'border-l-primary');
+        r.classList.add('border-l-transparent');
+        r.querySelector('.indicator').innerText = ' ';
+      });
+      rowEl.classList.add('bg-primary/10', 'border-l-primary');
+      rowEl.classList.remove('border-l-transparent');
+      rowEl.querySelector('.indicator').innerText = '>';
+
+      showRecordDetail(recordId);
+    }
+
+    function filterFindingsTable(query) {
+      const q = query.toLowerCase().trim();
+      const rows = document.querySelectorAll('#findings-tbody tr');
+      let visibleCount = 0;
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (!q || text.includes(q)) {
+          row.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+      document.getElementById('findings-count').innerText = visibleCount;
+    }
+
+    function filterBySeverity(sev) {
+      document.querySelectorAll('.sev-btn').forEach(b => {
+        if (b.dataset.sev === sev) {
+          b.className = 'px-2 py-0.5 rounded bg-primary text-on-primary font-semibold border border-primary sev-btn';
+        } else {
+          b.className = 'px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface sev-btn';
+        }
+      });
+
+      const rows = document.querySelectorAll('#findings-tbody tr');
+      let visibleCount = 0;
+      rows.forEach(row => {
+        if (sev === 'ALL' || row.dataset.sev === sev) {
+          row.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+      document.getElementById('findings-count').innerText = visibleCount;
+    }
+
+    // 9. PROTOTYPE STATE TESTER (Empty / Loading / Error / Loaded)
+    function setDashboardState(state) {
+      const dbView = document.getElementById('view-dashboard');
+      const loadingView = document.getElementById('dashboard-loading-view');
+      const emptyView = document.getElementById('dashboard-empty-view');
+      const errorView = document.getElementById('dashboard-error-view');
+      const stateIndicator = document.getElementById('current-state-indicator');
+
+      // Reset button styles
+      ['loaded', 'loading', 'empty', 'error'].forEach(s => {
+        const btn = document.getElementById(`btn-state-${s}`);
+        if (btn) {
+          if (s === state) {
+            btn.className = "px-1.5 py-1 rounded bg-primary text-on-primary font-semibold text-center border border-primary";
+          } else {
+            btn.className = "px-1.5 py-1 rounded bg-surface border border-outline text-on-surface hover:border-primary text-center";
+          }
+        }
+      });
+
+      // Hide all state panels
+      if (loadingView) loadingView.classList.add('hidden');
+      if (emptyView) emptyView.classList.add('hidden');
+      if (errorView) errorView.classList.add('hidden');
+
+      if (state === 'loaded') {
+        dbView.classList.remove('hidden');
+        if (stateIndicator) {
+          stateIndicator.innerText = 'READY (LOADED)';
+          stateIndicator.className = 'text-success font-mono font-bold';
+        }
+      } else if (state === 'loading') {
+        dbView.classList.add('hidden');
+        loadingView.classList.remove('hidden');
+        if (stateIndicator) {
+          stateIndicator.innerText = 'POLLING FACTS...';
+          stateIndicator.className = 'text-primary font-mono font-bold animate-pulse';
+        }
+      } else if (state === 'empty') {
+        dbView.classList.add('hidden');
+        emptyView.classList.remove('hidden');
+        if (stateIndicator) {
+          stateIndicator.innerText = 'EMPTY / 0 FINDINGS';
+          stateIndicator.className = 'text-accent font-mono font-bold';
+        }
+      } else if (state === 'error') {
+        dbView.classList.add('hidden');
+        errorView.classList.remove('hidden');
+        if (stateIndicator) {
+          stateIndicator.innerText = 'ERROR / EPERM';
+          stateIndicator.className = 'text-error font-mono font-bold';
+        }
+      }
+    }
+
+    // 10. GLOBAL KEYBOARD SHORTCUT DISPATCHER
+    window.addEventListener('keydown', (e) => {
+      // Don't intercept if typing inside an input element (unless special control keys)
+      const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+
+      if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        openCommandPalette();
+        return;
+      }
+      if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        toggleCommandRunner();
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (!document.getElementById('modal-confirm').classList.contains('hidden')) {
+          cancelConfirmation();
+          return;
+        }
+        if (!document.getElementById('modal-detail').classList.contains('hidden')) {
+          closeDetailModal();
+          return;
+        }
+        if (!document.getElementById('modal-palette').classList.contains('hidden')) {
+          closeCommandPalette();
+          return;
+        }
+        if (!document.getElementById('modal-help').classList.contains('hidden')) {
+          closeHelpModal();
+          return;
+        }
+        return;
+      }
+
+      if (isInput) return;
+
+      // Numeric view switching 1-7
+      if (e.key >= '1' && e.key <= '7') {
+        const viewMap = {
+          '1': 'dashboard',
+          '2': 'findings',
+          '3': 'network',
+          '4': 'startup',
+          '5': 'tcc',
+          '6': 'privacy',
+          '7': 'snapshots'
+        };
+        switchView(viewMap[e.key]);
+      } else if (e.key === '?' || e.key === 'h') {
+        openHelpModal();
+      } else if (e.key === 'q') {
+        if (!document.getElementById('modal-detail').classList.contains('hidden')) {
+          closeDetailModal();
+        }
+      } else if (e.key === '/') {
+        e.preventDefault();
+        if (currentView === 'findings') {
+          const input = document.getElementById('findings-filter-input');
+          if (input) input.focus();
+        } else {
+          openCommandPalette();
+        }
+      } else if (e.key === 'r') {
+        logToRunner('[Refresh] Polling live macOS security posture facts...');
+      }
+    });
+  </script>
+
+
+</body></html>

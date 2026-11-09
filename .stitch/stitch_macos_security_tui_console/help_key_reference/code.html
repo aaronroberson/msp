@@ -1,0 +1,203 @@
+<!DOCTYPE html><html lang="en" class="dark"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>msp - Keyboard Reference &amp; Keybindings (Textual TUI)</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'accent': '#58A6FF',
+        'primary': '#58A6FF',
+        'on-primary': '#0D1117',
+        'surface': '#0D1117',
+        'on-surface': '#C9D1D9',
+        'surface-variant': '#161B22',
+        'on-surface-variant': '#8B949E',
+        'outline': '#30363D',
+        'outline-focused': '#58A6FF',
+        'success': '#3FB950',
+        'on-success': '#0D1117',
+        'warning': '#D29922',
+        'on-warning': '#0D1117',
+        'error': '#F85149',
+        'on-error': '#262626',
+        'light-primary': '#0969DA',
+        'light-on-primary': '#FFFFFF',
+        'light-surface': '#FFFFFF',
+        'light-on-surface': '#1F2328',
+        'dark-primary': '#58A6FF',
+        'dark-on-primary': '#0D1117',
+        'dark-surface': '#0D1117',
+        'dark-on-surface': '#C9D1D9',
+      },
+      borderRadius: {
+        'sm': '2px',
+        'DEFAULT': '4px',
+        'md': '4px',
+        'lg': '6px',
+        'xl': '8px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '12px',
+        'gutter-lg': '16px',
+        'gutter-xl': '24px',
+        'section': '24px',
+        'page-margin': '12px',
+      },
+      fontFamily: {
+        'display': ['"JetBrains Mono"', 'sans-serif'],
+        'headline': ['"JetBrains Mono"', 'sans-serif'],
+        'body': ['"JetBrains Mono"', 'sans-serif'],
+        'label': ['"JetBrains Mono"', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.2px', fontWeight: '700' }],
+        'display-lg-mobile': ['20px', { lineHeight: '28px', letterSpacing: '-0.1px', fontWeight: '700' }],
+        'headline-lg': ['18px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-lg-mobile': ['16px', { lineHeight: '22px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-md': ['15px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-lg': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-md': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['13px', { lineHeight: '18px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.3px', fontWeight: '600' }],
+      },
+      transitionDuration: {
+        'state-change': '60ms',
+        'surface-enter': '100ms',
+        'surface-exit': '80ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'ease-out',
+        'surface-exit': 'ease-in',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-surface text-on-surface font-body min-h-[1024px] flex flex-col antialiased p-2" data-stitch-vh="min-h-[1024px]===min-h-screen">
+
+  <div class="flex-1 flex flex-col border border-outline rounded bg-surface shadow-2xl overflow-hidden min-h-[960px] relative">
+
+    <!-- APP HEADER -->
+    <header class="bg-surface-variant border-b border-outline px-3 py-2 flex items-center justify-between font-mono text-body-sm opacity-60">
+      <span class="font-bold text-primary">[msp] macOS Security &amp; Privacy Console</span>
+      <span class="text-on-surface-variant">darwin-arm64</span>
+    </header>
+
+    <!-- HELP MODAL CENTERING CONTAINER -->
+    <div class="flex-1 bg-black/75 flex items-center justify-center p-4">
+      <div class="bg-surface-variant border-2 border-primary rounded max-w-xl w-full font-mono text-body-sm shadow-2xl overflow-hidden flex flex-col">
+        <!-- Header -->
+        <header class="bg-surface border-b border-outline px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold text-headline-md">[?]</span>
+            <h2 class="font-headline text-headline-md text-primary font-semibold">msp Terminal Keyboard Reference</h2>
+          </div>
+          <a href="../dashboard/Dashboard.html" class="text-label-sm border border-outline px-2 py-0.5 rounded bg-surface hover:text-primary">
+            [Esc]
+          </a>
+        </header>
+
+        <!-- Body -->
+        <div class="p-4 space-y-4 text-body-sm">
+          <div>
+            <div class="text-primary font-bold mb-1.5 text-label-sm uppercase tracking-wider">PRIMARY VIEW SWITCHING</div>
+            <div class="grid grid-cols-2 gap-2 text-on-surface">
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Dashboard</span> <kbd class="text-primary font-bold">1</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Findings</span> <kbd class="text-primary font-bold">2</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Network</span> <kbd class="text-primary font-bold">3</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Startup Items</span> <kbd class="text-primary font-bold">4</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>TCC Permissions</span> <kbd class="text-primary font-bold">5</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Privacy Deep-Dive</span> <kbd class="text-primary font-bold">6</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Snapshots</span> <kbd class="text-primary font-bold">7</kbd>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-primary font-bold mb-1.5 text-label-sm uppercase tracking-wider">GLOBAL ACCELERATORS</div>
+            <div class="grid grid-cols-2 gap-2 text-on-surface">
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Command Palette</span> <kbd class="text-primary font-bold">Ctrl+P</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Command Runner</span> <kbd class="text-primary font-bold">Ctrl+R</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Search / Filter</span> <kbd class="text-primary font-bold">/</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Refresh Data</span> <kbd class="text-primary font-bold">r</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Dismiss / Back</span> <kbd class="text-primary font-bold">q / Esc</kbd>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-primary font-bold mb-1.5 text-label-sm uppercase tracking-wider">RUNNER PROCESS CONTROL</div>
+            <div class="grid grid-cols-2 gap-2 text-on-surface">
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Browse History</span> <kbd class="text-primary font-bold">↑ / ↓</kbd>
+              </div>
+              <div class="flex items-center justify-between bg-surface p-1.5 rounded border border-outline">
+                <span>Send SIGINT</span> <kbd class="text-primary font-bold">Ctrl+C</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-surface border-t border-outline px-4 py-2.5 flex items-center justify-between text-label-sm">
+          <span class="text-on-surface-variant">Press <kbd class="text-primary">Esc</kbd> to return</span>
+          <a href="../dashboard/Dashboard.html" class="px-3 py-1 bg-primary text-on-primary rounded font-bold font-label">
+            Done [Esc]
+          </a>
+        </footer>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        window.location.href = '../dashboard/Dashboard.html';
+      }
+    });
+  </script>
+
+
+</body></html>

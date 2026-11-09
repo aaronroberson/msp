@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>msp — Scan &amp; Findings | macOS Security &amp; Privacy Console</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            canvas: "#0c1322",
+            surface: "#111827",
+            surfaceElevated: "#1a222e",
+            primaryText: "#dce2f7",
+            mutedText: "#8e93a0",
+            accentPrimary: "#0a84ff",
+            success: "#34c759",
+            warning: "#ff9f0a",
+            critical: "#ff3b30",
+            hairline: "#2d323a"
+          },
+          borderRadius: { DEFAULT: "8px", sm: "4px", lg: "12px", full: "9999px" },
+          spacing: { xs: "0.25rem", sm: "0.5rem", md: "0.75rem", lg: "1rem", xl: "1.5rem" },
+          fontFamily: { sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"], mono: ["JetBrains Mono", "SF Mono", "ui-monospace", "monospace"] }
+        }
+      }
+    }
+  </script>
+<style>
+  :root {
+    --canvas: #0c1322;
+    --surface: #111827;
+    --surface-elevated: #1a222e;
+    --primary-text: #dce2f7;
+    --muted-text: #8e93a0;
+    --accent-primary: #0a84ff;
+    --success: #34c759;
+    --warning: #ff9f0a;
+    --critical: #ff3b30;
+    --hairline: #2d323a;
+    --radius-8: 8px;
+    --radius-4: 4px;
+    --font-sans: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: JetBrains Mono, SF Mono, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0;
+    height: 100vh;
+    background: var(--canvas);
+    color: var(--primary-text);
+    font-family: var(--font-sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .nav-rail { width: 240px; background: var(--surface); border-right: 1px solid var(--hairline); display: flex; flex-direction: column; padding: 0.75rem 0.5rem; flex-shrink: 0; user-select: none; }
+  .top-bar { height: 48px; background: var(--surface); border-bottom: 1px solid var(--hairline); display: flex; align-items: center; justify-content: space-between; padding: 0 0.75rem; flex-shrink: 0; z-index: 30; }
+  .surface-card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-8); }
+  .hairline-border { border: 1px solid var(--hairline); }
+  .text-primary { color: var(--primary-text); }
+  .text-muted { color: var(--muted-text); }
+  .accent-primary { color: var(--accent-primary); }
+  .badge-success { background: rgba(52,199,89,0.1); color: var(--success); border: 1px solid rgba(52,199,89,0.25); }
+  .badge-warning { background: rgba(255,159,10,0.1); color: var(--warning); border: 1px solid rgba(255,159,10,0.25); }
+  .badge-critical { background: rgba(255,59,48,0.1); color: var(--critical); border: 1px solid rgba(255,59,48,0.25); }
+  .pill { border-radius: var(--radius-4); }
+  .table-row { border-bottom: 1px solid var(--hairline); }
+  .table-header { border-bottom: 1px solid var(--hairline); color: var(--muted-text); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .detail-drawer { background: var(--surface-elevated); border-left: 1px solid var(--hairline); }
+  .divider { border-top: 1px solid var(--hairline); margin: 0.75rem 0; }
+  .mono { font-family: var(--font-mono); }
+  .btn-primary { background: var(--accent-primary); color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 500; padding: 0.5rem 0.875rem; border: none; cursor: pointer; }
+  .btn-ghost { background: transparent; border: 1px solid var(--hairline); color: var(--primary-text); border-radius: 6px; font-size: 12px; padding: 0.5rem 0.875rem; cursor: pointer; }
+  .btn-ghost:hover { background: var(--surface-elevated); }
+  .chip { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface-elevated); border: 1px solid var(--hairline); border-radius: var(--radius-4); padding: 0.25rem 0.625rem; font-size: 11px; font-family: var(--font-mono); color: var(--muted-text); cursor: pointer; }
+  .chip:hover { background: var(--surface-elevated); }
+  .chip.active { background: var(--accent-primary); color: #ffffff; border-color: var(--accent-primary); }
+  .empty-state { text-align: center; color: var(--muted-text); padding: 3rem 1rem; }
+  .empty-state .mono { color: var(--accent-primary); }
+  .detail-drawer { position: fixed; right: 0; top: 48px; bottom: 0; width: 460px; background: var(--surface-elevated); border-left: 1px solid var(--hairline); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.2s ease; z-index: 40; }
+  .detail-drawer.open { transform: translateX(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #090e18; }
+  ::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+<header class="top-bar">
+  <div class="flex items-center gap-2">
+    <span class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]"></span>
+    <span class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]"></span>
+    <span class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]"></span>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-accent-primary text-lg">radar</span>
+    <div class="flex flex-col">
+      <span class="text-sm font-semibold text-primary tracking-tight">Scan &amp; Findings</span>
+      <span class="text-xs mono text-muted">YARA engine · msp scan --quick --json</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button class="btn-ghost px-3 py-1.5 text-xs mono">⌘K Palette</button>
+    <button class="btn-ghost px-3 py-1.5 text-xs mono">? Help</button>
+  </div>
+</header>
+
+<div class="flex-1 flex overflow-hidden">
+  <aside class="nav-rail">
+    <div class="flex flex-col gap-2 px-1 pt-1 pb-1">
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">dashboard</span><span>Dashboard</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">lan</span><span>Network</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">security</span><span>Privacy</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">power_settings_new</span><span>Startup</span></div>
+      <div class="flex items-center gap-3 px-2"><span class="material-symbols-outlined text-accent-primary">radar</span><span class="text-primary font-semibold">Scan</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">terminal</span><span>Workbench</span></div>
+    </div>
+    <div class="mt-auto px-1 pt-2 pb-1">
+      <div class="flex items-center gap-3 px-2 text-muted text-xs"><span class="material-symbols-outlined">tune</span><span>Diagnostics</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted text-xs"><span class="material-symbols-outlined">settings</span><span>Settings</span></div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col overflow-hidden bg-[#090e18]">
+    <div class="overflow-y-auto p-lg">
+      <!-- Scan config -->
+      <div class="surface-card p-md mb-lg">
+        <div class="flex items-center gap-2 mb-md">
+          <span class="material-symbols-outlined text-accent-primary text-sm">tune</span>
+          <span class="text-sm font-semibold text-primary">Scan Configuration</span>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-md mb-md">
+          <div>
+            <span class="text-xs mono text-muted uppercase tracking-wider">scan profile</span>
+            <div class="flex flex-col gap-xs mt-xs">
+              <label class="flex items-center gap-sm cursor-pointer"><input type="radio" name="profile" checked class="accent-primary"><span class="text-xs">Quick <span class="text-xs text-muted">~45s</span></span></label>
+              <label class="flex items-center gap-sm cursor-pointer"><input type="radio" name="profile"><span class="text-xs">Deep <span class="text-xs text-muted">~14m</span></span></label>
+              <label class="flex items-center gap-sm cursor-pointer"><input type="radio" name="profile"><span class="text-xs">Suspicious</span></label>
+            </div>
+            <span class="text-xs text-muted mt-xs">High-entropy binaries, unsigned dylibs, SIP exceptions, cron &amp; launchd anomalies.</span>
+          </div>
+          <div>
+            <span class="text-xs mono text-muted uppercase tracking-wider">file target / scope</span>
+            <div class="mt-xs">
+              <input type="text" placeholder="/Library/LaunchDaemons, ~/Library/Application Support, /private/tmp" class="w-full bg-surface-elevated border border-hairline rounded-sm px-2 py-1 text-xs mono outline-none">
+            </div>
+            <button class="btn-ghost text-xs mt-sm px-2 py-1">Browse / Custom Target…</button>
+          </div>
+          <div>
+            <span class="text-xs mono text-muted uppercase tracking-wider">parameters</span>
+            <div class="mt-xs flex flex-col gap-xs">
+              <label class="flex items-center gap-sm"><input type="checkbox"><span class="text-xs">Scan KEXTs</span></label>
+              <label class="flex items-center gap-sm"><input type="checkbox"><span class="text-xs">Follow symlinks</span></label>
+              <label class="flex items-center gap-sm"><input type="checkbox"><span class="text-xs">Verify notarization service</span></label>
+              <label class="flex items-center gap-sm"><input type="checkbox"><span class="text-xs">De-quarantine sandbox analysis</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-sm mt-md">
+          <button class="btn-primary text-xs px-3 py-1.5">Start scan <span class="mono">⌘↵</span></button>
+          <span class="text-xs text-muted">engine: <span class="mono">idle</span></span>
+        </div>
+      </div>
+
+      <!-- Stats + findings table -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-sm mb-lg">
+        <div class="surface-card p-sm">
+          <span class="text-xs mono text-muted">all</span>
+          <span class="text-lg mono text-primary">—</span>
+        </div>
+        <div class="surface-card p-sm">
+          <span class="text-xs mono text-muted">critical</span>
+          <span class="text-lg mono text-critical">—</span>
+        </div>
+        <div class="surface-card p-sm">
+          <span class="text-xs mono text-muted">warning</span>
+          <span class="text-lg mono text-warning">—</span>
+        </div>
+        <div class="surface-card p-sm lg:hidden">
+          <span class="text-xs mono text-muted">info</span>
+          <span class="text-lg mono text-muted">—</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-sm mb-sm">
+        <span class="text-xs font-semibold text-muted uppercase tracking-wider">sort by:</span>
+        <span class="chip active">Severity (High to Low)</span>
+      </div>
+
+      <div class="surface-card flex-1 min-h-[300px]">
+        <div class="table-header grid grid-cols-[auto_1fr_auto_auto_auto_auto] px-sm py-xs gap-xs">
+          <span>severity</span><span>finding title &amp; detection</span><span>affected path</span><span>category</span><span>status</span><span>action</span>
+        </div>
+        <div class="flex-1 overflow-y-auto" id="findings-table-body">
+          <div class="empty-state p-sm text-left">
+            <span class="material-symbols-outlined text-muted text-lg">radar</span>
+            <p class="text-xs mt-sm">No findings loaded.<br><span class="mono text-accent-primary">msp scan --quick --json</span> to populate results.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remediation drawer -->
+      <div class="detail-drawer" id="findings-detail">
+        <div class="p-sm border-b border-hairline flex items-center justify-between">
+          <span class="text-sm font-semibold text-primary">remediation plan</span>
+          <button class="btn-ghost text-xs px-2 py-1.5" onclick="document.getElementById('findings-detail').classList.remove('open')"><span class="material-symbols-outlined text-xs">close</span></button>
+        </div>
+        <div class="p-md flex-1 overflow-y-auto" id="findings-detail-body">
+          <div class="empty-state p-0 text-left">
+            <span class="material-symbols-outlined text-muted">build</span>
+            <p class="text-xs mt-sm">Select a finding to view its remediation plan.<br>Plans execute via <span class="mono">msp remediate apply <finding-id></span>.</p>
+          </div>
+        </div>
+        <div class="p-sm border-t border-hairline">
+          <button class="btn-primary text-xs w-full" disabled>Apply fix</button>
+          <button class="btn-ghost text-xs w-full mt-sm">Explain</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

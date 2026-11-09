@@ -7,6 +7,7 @@ import plistlib
 import shlex
 import subprocess
 import sys
+from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, cast
 from pathlib import Path
@@ -847,12 +848,14 @@ class StartupManager:
         """Disable a startup item."""
         user_domain = f"gui/{os.getuid()}"
 
-        success, _ = self._run_cmd(f"launchctl bootout {user_domain}/{label} 2>/dev/null")
+        self._run_cmd(f"launchctl disable {user_domain}/{shlex.quote(label)} 2>/dev/null")
+
+        success, _ = self._run_cmd(f"launchctl bootout {user_domain}/{shlex.quote(label)} 2>/dev/null")
         if success:
             print(f"Disabled: {label}")
             return True
 
-        success, _ = self._run_cmd(f"sudo launchctl bootout system/{label} 2>/dev/null", sudo=True)
+        success, _ = self._run_cmd(f"launchctl bootout system/{shlex.quote(label)} 2>/dev/null", sudo=True)
         if success:
             print(f"Disabled (system): {label}")
             return True
@@ -863,14 +866,124 @@ class StartupManager:
     def enable(self, label: str) -> bool:
         """Enable a startup item."""
         user_domain = f"gui/{os.getuid()}"
-
-        success, _ = self._run_cmd(f"launchctl bootstrap {user_domain} {label} 2>/dev/null")
+        agent_path = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+        if not agent_path.is_file():
+            print(f"Current-user LaunchAgent not found: {label}")
+            return False
+        self._run_cmd(f"launchctl enable {user_domain}/{shlex.quote(label)}")
+        success, _ = self._run_cmd(f"launchctl bootstrap {user_domain} {shlex.quote(str(agent_path))}")
         if success:
             print(f"Enabled: {label}")
             return True
 
         print(f"Could not enable: {label}")
         return False
+
+    def set_agent_enabled(self, label: str, enabled: bool) -> Dict[str, Any]:
+        """Enable or disable only a LaunchAgent in the current user's folder."""
+        if not label or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_" for ch in label):
+            raise ValueError("Invalid LaunchAgent label")
+        path = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+        if not path.is_file():
+            raise FileNotFoundError(f"Current-user LaunchAgent not found: {label}")
+        domain = f"gui/{os.getuid()}"
+        action = "enable" if enabled else "disable"
+        result = subprocess.run(["launchctl", action, f"{domain}/{label}"], capture_output=True, text=True, check=False)
+        if result.returncode:
+            raise RuntimeError((result.stderr + result.stdout).strip() or f"Could not {action} LaunchAgent")
+        if enabled:
+            bootstrap = subprocess.run(["launchctl", "bootstrap", domain, str(path)], capture_output=True, text=True, check=False)
+            if bootstrap.returncode and "already bootstrapped" not in (bootstrap.stderr + bootstrap.stdout).lower():
+                raise RuntimeError((bootstrap.stderr + bootstrap.stdout).strip() or "LaunchAgent is enabled but could not be started")
+        else:
+            subprocess.run(["launchctl", "bootout", f"{domain}/{label}"], capture_output=True, text=True, check=False)
+        return {"ok": True, "label": label, "enabled": enabled, "scope": "current user"}
+
+    def managed_items(self) -> Dict[str, Any]:
+        """Return current-user Login Items and LaunchAgents for actionable UI."""
+        home = Path.home()
+        launchctl = subprocess.run(["launchctl", "list"], capture_output=True, text=True, check=False)
+        loaded_labels = {line.split()[-1] for line in launchctl.stdout.splitlines()[1:] if line.split()}
+        agents = []
+        for path in sorted((home / "Library" / "LaunchAgents").glob("*.plist")):
+            metadata = self._read_plist_metadata(str(path))
+            label = metadata.get("label", path.stem)
+            agents.append({"name": label, "label": label, "path": str(path), "type": "agent", "status": "loaded" if label in loaded_labels else "not loaded", "metadata": metadata})
+        access_errors = []
+        try:
+            login_items = self.login_item_action("list")["items"]
+        except (OSError, RuntimeError) as exc:
+            login_items = [{"name": "Login Items", "label": "Login Items", "path": "", "type": "unavailable", "status": "Unavailable"}]
+            access_errors.append(str(exc))
+        return {"items": [*agents, *login_items], "scope": "current user", "access_errors": access_errors}
+
+    def add_agent(self, label: str, program: str, arguments: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Create a current-user LaunchAgent that runs the selected executable."""
+        executable = Path(program).expanduser().resolve()
+        if executable.is_dir() and executable.suffix == ".app":
+            program_arguments = ["/usr/bin/open", "-a", str(executable), *(arguments or [])]
+        elif executable.is_file() and os.access(executable, os.X_OK):
+            program_arguments = [str(executable), *(arguments or [])]
+        else:
+            raise ValueError("Program must be an executable file or a .app bundle")
+        if not label or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_" for ch in label):
+            raise ValueError("Label may contain only letters, numbers, dot, dash, and underscore")
+        target = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            raise FileExistsError(f"LaunchAgent already exists: {target}")
+        data = {"Label": label, "ProgramArguments": program_arguments, "RunAtLoad": True, "KeepAlive": False}
+        with target.open("xb") as handle:
+            plistlib.dump(data, handle, sort_keys=True)
+        return {"ok": True, "type": "agent", "label": label, "path": str(target)}
+
+    def remove_agent(self, label: str) -> Dict[str, Any]:
+        """Unload and move a current-user LaunchAgent plist to a dated backup."""
+        if not label or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_" for ch in label):
+            raise ValueError("Invalid LaunchAgent label")
+        source = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+        if not source.is_file():
+            raise FileNotFoundError(f"Current-user LaunchAgent not found: {label}")
+        result = subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{label}"], capture_output=True, text=True, check=False)
+        # An already-unloaded agent is safe to move; launchctl reports that condition as an error.
+        if result.returncode and "could not find" not in (result.stderr + result.stdout).lower():
+            raise RuntimeError((result.stderr + result.stdout).strip() or "Could not unload LaunchAgent")
+        backup_root = Path.home() / "Library" / "Application Support" / "msp" / "StartupBackups" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        backup_root.mkdir(parents=True, exist_ok=True)
+        backup = backup_root / source.name
+        source.replace(backup)
+        return {"ok": True, "label": label, "backup": str(backup), "executable_preserved": True}
+
+    def login_item_action(self, action: str, name: str = "", path: str = "") -> Dict[str, Any]:
+        """List or change Login Items through System Events (current user)."""
+        if action == "list":
+            script = '\n'.join([
+                'tell application "System Events"',
+                'set loginItemNames to name of every login item',
+                'if loginItemNames is {} then return ""',
+                'set AppleScript\'s text item delimiters to linefeed',
+                'return loginItemNames as text',
+                'end tell',
+            ])
+        elif action == "add":
+            app = Path(path).expanduser().resolve()
+            if not name or not app.exists():
+                raise ValueError("A name and existing application path are required")
+            script = f'tell application "System Events" to make login item at end with properties {{name:{json.dumps(name)}, path:{json.dumps(str(app))}, hidden:false}}'
+        elif action == "remove":
+            if not name:
+                raise ValueError("Login Item name is required")
+            script = f'tell application "System Events" to delete login item {json.dumps(name)}'
+        else:
+            raise ValueError("Login Item action must be list, add, or remove")
+        result = subprocess.run(["/usr/bin/osascript", "-e", script], capture_output=True, text=True, check=False)
+        output = (result.stdout + result.stderr).strip()
+        if result.returncode:
+            raise RuntimeError(output or "System Events could not manage Login Items")
+        if action == "list":
+            names = [part.strip() for part in result.stdout.splitlines() if part.strip()]
+            return {"items": [{"name": item, "label": item, "type": "login_item", "status": "enabled"} for item in names], "scope": "current user"}
+        return {"ok": True, "action": action, "name": name, "path": path or None}
 
     def list_running(self, json_output: bool = False, sort_by: str = "pid") -> List[StartupItem]:
         """List currently running launchd items with PIDs."""
@@ -1179,8 +1292,11 @@ class StartupManager:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Startup Manager")
-    parser.add_argument("action", nargs="?", choices=["list", "agents", "daemons", "cron", "disable", "enable", "audit", "summary", "search", "running", "disabled", "pause", "start", "inventory", "comprehensive-audit"], help="Action to perform (omit for interactive mode)")
+    parser.add_argument("action", nargs="?", choices=["list", "managed", "login-items", "login-add", "login-remove", "agent-add", "agent-remove", "agent-enable", "agent-disable", "agents", "daemons", "cron", "disable", "enable", "audit", "summary", "search", "running", "disabled", "pause", "start", "inventory", "comprehensive-audit"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("label", nargs="?", help="Label to enable/disable/pause/start")
+    parser.add_argument("--name", help="Display name for a Login Item")
+    parser.add_argument("--path", help="Application or executable path")
+    parser.add_argument("--program-arg", action="append", default=[], help="Argument for a new LaunchAgent (repeatable)")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -1192,12 +1308,39 @@ def main():
 
     manager = StartupManager(verbose=args.verbose)
 
+    def run_json_action(operation):
+        try:
+            print(json.dumps(operation(), indent=2))
+        except (OSError, RuntimeError, ValueError, FileExistsError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+            sys.exit(1)
+
     if not args.action:
         interactive_menu(manager, args.json)
         return
 
     if args.action == "list":
         manager.list_all(json_output=args.json, sort_by=args.sort, include_system=args.include_system)
+    elif args.action == "managed":
+        print(json.dumps(manager.managed_items(), indent=2))
+    elif args.action == "login-items":
+        run_json_action(lambda: manager.login_item_action("list"))
+    elif args.action == "login-add":
+        run_json_action(lambda: manager.login_item_action("add", name=args.name or "", path=args.path or ""))
+    elif args.action == "login-remove":
+        run_json_action(lambda: manager.login_item_action("remove", name=args.name or args.label or ""))
+    elif args.action == "agent-add":
+        if not args.label or not args.path:
+            parser.error("agent-add requires LABEL and --path")
+        run_json_action(lambda: manager.add_agent(args.label, args.path, args.program_arg))
+    elif args.action == "agent-remove":
+        if not args.label:
+            parser.error("agent-remove requires LABEL")
+        run_json_action(lambda: manager.remove_agent(args.label))
+    elif args.action in {"agent-enable", "agent-disable"}:
+        if not args.label:
+            parser.error(f"{args.action} requires LABEL")
+        run_json_action(lambda: manager.set_agent_enabled(args.label, args.action == "agent-enable"))
     elif args.action == "agents":
         manager.list_agents(json_output=args.json, sort_by=args.sort)
     elif args.action == "daemons":
@@ -1311,6 +1454,14 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
 
     while True:
         action = cmd_menu([
+            ("managed", "managed", "Current-user Login Items and LaunchAgents"),
+            ("login-items", "login-items", "List current-user Login Items"),
+            ("login-add", "login-add", "Add a current-user Login Item"),
+            ("login-remove", "login-remove", "Remove a current-user Login Item"),
+            ("agent-add", "agent-add", "Add a current-user LaunchAgent"),
+            ("agent-remove", "agent-remove", "Remove a LaunchAgent to recovery backup"),
+            ("agent-enable", "agent-enable", "Enable a current-user LaunchAgent"),
+            ("agent-disable", "agent-disable", "Disable a current-user LaunchAgent"),
             ("list", "list", "List all startup items"),
             ("running", "running", "List running daemons (with PIDs)"),
             ("disabled", "disabled", "List disabled daemons (plist exists, not running)"),
@@ -1333,7 +1484,29 @@ def interactive_menu(manager: StartupManager, json_output: bool = False):
             print("Goodbye!")
             break
 
-        if action == "sort":
+        if action == "managed":
+            print(json.dumps(manager.managed_items(), indent=2))
+        elif action == "login-items":
+            print(json.dumps(manager.login_item_action("list"), indent=2))
+        elif action == "login-add":
+            name, path = input("Login Item name: ").strip(), input("Application path: ").strip()
+            print(json.dumps(manager.login_item_action("add", name=name, path=path), indent=2))
+        elif action == "login-remove":
+            name = input("Login Item name to remove: ").strip()
+            if name and input(f"Remove {name}? [y/N] ").strip().lower() in {"y", "yes"}:
+                print(json.dumps(manager.login_item_action("remove", name=name), indent=2))
+        elif action == "agent-add":
+            label, path = input("LaunchAgent label: ").strip(), input("Executable or .app path: ").strip()
+            print(json.dumps(manager.add_agent(label, path), indent=2))
+        elif action == "agent-remove":
+            label = input("LaunchAgent label to remove: ").strip()
+            if label and input(f"Unload and move {label}.plist to recovery backup? [y/N] ").strip().lower() in {"y", "yes"}:
+                print(json.dumps(manager.remove_agent(label), indent=2))
+        elif action in {"agent-enable", "agent-disable"}:
+            label = input("Current-user LaunchAgent label: ").strip()
+            if label:
+                print(json.dumps(manager.set_agent_enabled(label, action == "agent-enable"), indent=2))
+        elif action == "sort":
             items: List[Item] = cast(List[Item], [(o, o, None) for o in sort_options])
             result = interactive_select(items, title=f"Sort by (current: {current_sort})")
             if result:

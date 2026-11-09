@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from enum import Enum
@@ -271,10 +272,17 @@ class NetworkMonitor:
 
         return processes
 
-    def kill_process(self, pid: int, force: bool = False) -> bool:
+    def kill_process(self, pid: int, force: bool = False, signal_name: str = "TERM", confirmed: bool = False, expected_identity: str = "") -> bool:
         """Kill a process by PID."""
+        if pid <= 1 or signal_name not in {"TERM", "KILL"}:
+            raise ValueError("PID must be greater than 1 and signal must be TERM or KILL")
+        if expected_identity:
+            current = subprocess.run(["ps", "-p", str(pid), "-o", "lstart=,command="], capture_output=True, text=True, check=False).stdout.strip()
+            if not current or current != expected_identity:
+                print(f"Process identity changed for PID {pid}; action cancelled")
+                return False
         confirm = ""
-        if not force:
+        if not (force or confirmed):
             try:
                 success, output = self._run_cmd(
                     ["ps", "-o", "comm=", "-p", str(pid)], shell=False
@@ -284,19 +292,71 @@ class NetworkMonitor:
             except (ValueError, subprocess.CalledProcessError):
                 pass
 
-        if force or confirm.lower() in ['y', 'yes']:
+        if force or confirmed or confirm.lower() in ['y', 'yes']:
             try:
-                os.kill(pid, 9)
-                print(f"Killed process {pid}")
+                os.kill(pid, getattr(__import__("signal"), f"SIG{signal_name}"))
+                print(f"Sent SIG{signal_name} to process {pid}")
                 return True
             except ProcessLookupError:
                 print(f"Process {pid} not found")
             except PermissionError:
-                print(f"Permission denied to kill {pid}")
+                if sys.platform == "darwin":
+                    script = f'do shell script "kill -{signal_name} {pid}" with administrator privileges'
+                    result = subprocess.run(["/usr/bin/osascript", "-e", script], capture_output=True, text=True, check=False)
+                    if result.returncode == 0:
+                        print(f"Sent SIG{signal_name} to process {pid} with administrator authorization")
+                        return True
+                    print((result.stderr or result.stdout).strip() or f"Administrator authorization failed for process {pid}")
+                else:
+                    print(f"Permission denied to kill {pid}")
         else:
             print("Cancelled")
 
         return False
+
+    def inspect_process(self, pid: int, json_output: bool = False) -> Dict[str, Any]:
+        """Return live process details for a PID without changing system state."""
+        if pid <= 0:
+            raise ValueError("PID must be positive")
+        commands = {
+            "process": ["ps", "-p", str(pid), "-o", "pid=,ppid=,user=,state=,etime=,command="],
+            "open_files": ["lsof", "-nP", "-p", str(pid)],
+        }
+        details: Dict[str, Any] = {"pid": pid, "process": None, "open_files": []}
+        for key, argv in commands.items():
+            try:
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=8, check=False)
+                output = (result.stdout + result.stderr).strip()
+                if result.returncode == 0 and output:
+                    details[key] = output.splitlines()[:100] if key == "open_files" else output
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                details[f"{key}_error"] = str(exc)
+        if json_output:
+            print(json.dumps(details, indent=2))
+        else:
+            print(json.dumps(details, indent=2))
+        return details
+
+    def terminate_process(self, pid: int, confirmed: bool = False, wait_seconds: float = 5.0) -> Dict[str, Any]:
+        """Send SIGTERM and report whether the process is still present after waiting."""
+        identity = subprocess.run(["ps", "-p", str(pid), "-o", "lstart=,command="], capture_output=True, text=True, check=False).stdout.strip()
+        if not identity:
+            return {"pid": pid, "signal": "TERM", "sent": False, "still_running": False, "identity": ""}
+        sent = self.kill_process(pid, signal_name="TERM", confirmed=confirmed, expected_identity=identity)
+        if sent:
+            time.sleep(max(0.0, min(wait_seconds, 5.0)))
+        try:
+            os.kill(pid, 0)
+            result = subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True, check=False)
+            state = result.stdout.strip()
+            still_running = bool(state and not state.startswith("Z"))
+        except ProcessLookupError:
+            still_running = False
+        except PermissionError:
+            still_running = True
+        current = subprocess.run(["ps", "-p", str(pid), "-o", "lstart=,command="], capture_output=True, text=True, check=False).stdout.strip()
+        still_running = still_running and bool(identity) and current == identity
+        return {"pid": pid, "signal": "TERM", "sent": sent, "still_running": still_running, "identity": identity}
 
     def lookup(self, host: str) -> List[str]:
         """DNS lookup for a host."""
@@ -311,7 +371,7 @@ class NetworkMonitor:
             return []
 
     def list_devices_arp(self, limit: int = 20, json_output: bool = False) -> List[Dict[str, str]]:
-        """List network devices discovered via ARP cache.
+        r"""List network devices discovered via ARP cache.
 
         Uses: arp -a | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}'
         """
@@ -521,6 +581,8 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
         ("2", "established", "List established connections"),
         ("3", "top", "Show top bandwidth consumers"),
         ("4", "kill", "Kill a process by PID"),
+        ("9", "inspect", "Inspect a process by PID"),
+        ("10", "terminate", "Graceful stop; offer force only if still running"),
         ("5", "lookup", "DNS lookup"),
         ("6", "arp", "List network devices (ARP)"),
         ("7", "hosts", "Discover live hosts (nmap -sn)"),
@@ -543,6 +605,8 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
             ("2", "established", "List established connections"),
             ("3", "top", "Show top bandwidth consumers"),
             ("4", "kill", "Kill a process by PID"),
+            ("9", "inspect", "Inspect a process by PID"),
+            ("10", "terminate", "Graceful stop; offer force only if still running"),
             ("5", "lookup", "DNS lookup"),
             ("6", "arp", "List network devices (ARP)"),
             ("7", "hosts", "Discover live hosts (nmap -sn)"),
@@ -580,6 +644,21 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
                 monitor.kill_process(int(pid))
             else:
                 print("Invalid PID")
+        elif action == "inspect":
+            pid = input("PID to inspect: ").strip()
+            if pid.isdigit() and int(pid) > 0:
+                monitor.inspect_process(int(pid), json_output=json_output)
+            else:
+                print("Invalid PID")
+        elif action == "terminate":
+            pid = input("PID to stop: ").strip()
+            if pid.isdigit() and int(pid) > 1:
+                result = monitor.terminate_process(int(pid), confirmed=True)
+                print(json.dumps(result, indent=2) if json_output else result)
+                if result.get("still_running") and input("Still running. Send SIGKILL? [y/N] ").strip().lower() in {"y", "yes"}:
+                    monitor.kill_process(int(pid), signal_name="KILL", confirmed=True, expected_identity=result.get("identity", ""))
+            else:
+                print("Invalid PID")
         elif action == "lookup":
             host = input("Host to lookup: ").strip()
             if host:
@@ -605,7 +684,7 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Network Monitor")
-    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "lookup", "arp", "nmap", "hosts"], help="Action to perform (omit for interactive mode)")
+    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "terminate", "inspect", "lookup", "arp", "nmap", "hosts"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--pid", type=int, help="PID for kill command")
     parser.add_argument("--host", help="Host for lookup command")
     parser.add_argument("--limit", type=int, default=20, help="Limit for arp command")
@@ -616,6 +695,9 @@ def main():
     parser.add_argument("--ping-scan", action="store_true", help="Ping scan only (discover live hosts, no port scan)")
     parser.add_argument("--check-http", action="store_true", help="Check HTTP status on discovered hosts")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
+    parser.add_argument("--signal", choices=["TERM", "KILL"], default="TERM", help="Signal used by kill action")
+    parser.add_argument("--yes", action="store_true", help="Confirm action without prompting")
+    parser.add_argument("--expected-identity", default="", help="Cancel if PID no longer identifies the same process")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--sort", choices=["port", "process", "pid", "user", "protocol", "local", "remote", "total", "in", "out"], help="Sort by: port, process, pid, user, protocol, local, remote, total, in, out")
@@ -638,7 +720,19 @@ def main():
         if not args.pid:
             print("Error: --pid required for kill")
             sys.exit(1)
-        monitor.kill_process(args.pid, force=args.force)
+        if not monitor.kill_process(args.pid, force=args.force, signal_name=args.signal, confirmed=args.yes, expected_identity=args.expected_identity):
+            raise SystemExit(1)
+    elif args.action == "inspect":
+        if not args.pid:
+            parser.error("--pid required for inspect")
+        monitor.inspect_process(args.pid, json_output=args.json)
+    elif args.action == "terminate":
+        if not args.pid:
+            parser.error("--pid required for terminate")
+        result = monitor.terminate_process(args.pid, confirmed=args.yes)
+        print(json.dumps(result, indent=2))
+        if not result.get("sent"):
+            raise SystemExit(1)
     elif args.action == "lookup":
         if not args.host:
             print("Error: --host required for lookup")

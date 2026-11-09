@@ -16,6 +16,7 @@ Commands:
 
     net                Network monitoring
     startup            Startup item management
+    firewall           macOS application firewall controls
     fswatch            File system watching
     traffic            Traffic analysis
     scan               Security scanning
@@ -35,7 +36,7 @@ Commands:
     tune               System performance tuning
     presets            Manage presets
 
-    tui                Interactive security assistant (xli TUI)
+    tui                Interactive security assistant (Textual TUI)
 """
 __version__ = "0.2.0"
 import logging
@@ -72,6 +73,7 @@ COMMAND_MODULES = {
     "tui": "tui",
     "forensics": "forensics",
     "privacy_settings": "privacy_settings",
+    "firewall": "firewall",
 }
 
 NO_ACTION_MODULES = {"facts", "llm", "report", "ai"}
@@ -218,10 +220,11 @@ def main():
         epilog="""
 Commands:
   status, list, enable, disable - Privacy settings
-  net, startup, fswatch, traffic - Monitoring
+  net, startup, firewall, fswatch, traffic - Monitoring and system controls
   scan, tcc, interrogate, audit, reason, remediate, report, workflow - Security suite
   forensics - Volume & AppleDouble forensic inspection and correlation
   ai/ask, chain, doctor, tune - AI, automation & maintenance
+  tui - Textual interface (msp tui --v1 opens the legacy dashboard)
 
 Examples:
   msp status                       Show security status
@@ -234,7 +237,14 @@ Examples:
   msp net top                       Bandwidth usage
 
   msp startup list                   Startup items
+  msp startup managed --json        Current-user Login Items and LaunchAgents
+  msp startup login-add --name NAME --path /Applications/App.app
+  msp startup agent-add LABEL --path /path/to/program
   msp startup audit                 Audit startup items
+
+  msp firewall status               Firewall state and application rules
+  msp firewall set enabled on       Enable the macOS firewall
+  msp firewall app block /Applications/App.app
 
   msp fswatch recent 60             Recent file events
   msp fswatch watch /path           Watch directory
@@ -259,6 +269,8 @@ Examples:
   msp chain run daily               Run daily check
 
   msp doctor                        Check dependencies
+  msp tui                           Open the Textual security console
+  msp tui --v1                      Open the legacy dashboard
   msp tune check                    Run all diagnostics
   msp tune fix                      Apply auto-fixes
   msp tune top                      Show top CPU/memory, memory pressure, load
@@ -295,8 +307,8 @@ Examples:
         return
 
     if not args.command:
-        # Default: launch Textual TUI
-        from src.tui import main as tui_main
+        # Default: launch the primary Textual interface.
+        from src.tui_v2 import main as tui_main
         tui_main()
         return
 
@@ -580,7 +592,9 @@ Examples:
                 with open(args.args[idx + 1]) as f:
                     data = f.read()
 
-        analyzer.ask(prompt, data=data, json_output=args.json)
+        response = analyzer.ask(prompt, data=data, json_output=args.json)
+        if response is None:
+            raise SystemExit(1)
         return
 
     command_map = COMMAND_MODULES
@@ -601,8 +615,8 @@ Examples:
 
         # TUI always routes to Textual-based interactive assistant
         if module_name == "tui":
-            from src.tui import main as tui_main
-            tui_main()
+            from src.tui_v2 import main as tui_main
+            tui_main(tuple(args.args))
             return
 
         # Doctor routes directly to DependencyManager doctor()

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>msp — Help &amp; Key Reference</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            canvas: "#0c1322",
+            surface: "#111827",
+            surfaceElevated: "#1a222e",
+            primaryText: "#dce2f7",
+            mutedText: "#8e93a0",
+            accentPrimary: "#0a84ff",
+            success: "#34c759",
+            warning: "#ff9f0a",
+            critical: "#ff3b30",
+            hairline: "#2d323a"
+          },
+          borderRadius: { DEFAULT: "8px", sm: "4px", lg: "12px", full: "9999px" },
+          spacing: { xs: "0.25rem", sm: "0.5rem", md: "0.75rem", lg: "1rem", xl: "1.5rem" },
+          fontFamily: { sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"], mono: ["JetBrains Mono", "SF Mono", "ui-monospace", "monospace"] }
+        }
+      }
+    }
+  </script>
+<style>
+  :root {
+    --canvas: #0c1322;
+    --surface: #111827;
+    --surface-elevated: #1a222e;
+    --primary-text: #dce2f7;
+    --muted-text: #8e93a0;
+    --accent-primary: #0a84ff;
+    --success: #34c759;
+    --warning: #ff9f0a;
+    --critical: #ff3b30;
+    --hairline: #2d323a;
+    --radius-8: 8px;
+    --radius-4: 4px;
+    --font-sans: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: JetBrains Mono, SF Mono, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0;
+    height: 100vh;
+    background: var(--canvas);
+    color: var(--primary-text);
+    font-family: var(--font-sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .nav-rail { width: 240px; background: var(--surface); border-right: 1px solid var(--hairline); display: flex; flex-direction: column; padding: 0.75rem 0.5rem; flex-shrink: 0; user-select: none; }
+  .top-bar { height: 48px; background: var(--surface); border-bottom: 1px solid var(--hairline); display: flex; align-items: center; justify-content: space-between; padding: 0 0.75rem; flex-shrink: 0; z-index: 30; }
+  .surface-card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-8); }
+  .hairline-border { border: 1px solid var(--hairline); }
+  .text-primary { color: var(--primary-text); }
+  .text-muted { color: var(--muted-text); }
+  .accent-primary { color: var(--accent-primary); }
+  .badge-success { background: rgba(52,199,89,0.1); color: var(--success); border: 1px solid rgba(52,199,89,0.25); }
+  .badge-warning { background: rgba(255,159,10,0.1); color: var(--warning); border: 1px solid rgba(255,159,10,0.25); }
+  .badge-critical { background: rgba(255,59,48,0.1); color: var(--critical); border: 1px solid rgba(255,59,48,0.25); }
+  .pill { border-radius: var(--radius-4); }
+  .table-row { border-bottom: 1px solid var(--hairline); }
+  .table-header { border-bottom: 1px solid var(--hairline); color: var(--muted-text); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .detail-drawer { background: var(--surface-elevated); border-left: 1px solid var(--hairline); }
+  .divider { border-top: 1px solid var(--hairline); margin: 0.75rem 0; }
+  .mono { font-family: var(--font-mono); }
+  .btn-primary { background: var(--accent-primary); color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 500; padding: 0.5rem 0.875rem; border: none; cursor: pointer; }
+  .btn-ghost { background: transparent; border: 1px solid var(--hairline); color: var(--primary-text); border-radius: 6px; font-size: 12px; padding: 0.5rem 0.875rem; cursor: pointer; }
+  .btn-ghost:hover { background: var(--surface-elevated); }
+  .empty-state { text-align: center; color: var(--muted-text); padding: 3rem 1rem; }
+  .kbd { display: inline-flex; align-items: center; background: var(--surface-elevated); border: 1px solid var(--hairline); border-radius: var(--radius-4); padding: 0.125rem 0.5rem; font-size: 11px; font-family: var(--font-mono); color: var(--accent-primary); }
+  .chip { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface-elevated); border: 1px solid var(--hairline); border-radius: var(--radius-4); padding: 0.25rem 0.625rem; font-size: 11px; font-family: var(--font-mono); color: var(--muted-text); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #090e18; }
+  ::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+<header class="top-bar">
+  <div class="flex items-center gap-2">
+    <span class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]"></span>
+    <span class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]"></span>
+    <span class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]"></span>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-accent-primary text-lg">help_outline</span>
+    <div class="flex flex-col">
+      <span class="text-sm font-semibold text-primary tracking-tight">Help &amp; Keyboard Shortcuts</span>
+      <span class="text-xs mono text-muted">v2.4.1-arm64 · PRO · DARWIN XNU</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button class="btn-ghost px-3 py-1.5 text-xs mono">⌘K Palette</button>
+    <button class="btn-ghost px-3 py-1.5 text-xs mono">q Close</button>
+  </div>
+</header>
+
+<div class="flex-1 flex overflow-hidden">
+  <aside class="nav-rail">
+    <div class="flex flex-col gap-2 px-1 pt-1 pb-1">
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">dashboard</span><span>Dashboard</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">lan</span><span>Network</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">security</span><span>Privacy</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">power_settings_new</span><span>Startup</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">radar</span><span>Scan</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted"><span class="material-symbols-outlined">terminal</span><span>Workbench</span></div>
+    </div>
+    <div class="mt-auto px-1 pt-2 pb-1">
+      <div class="flex items-center gap-3 px-2"><span class="material-symbols-outlined text-accent-primary">help_outline</span><span class="text-primary font-semibold">Help &amp; Keys</span></div>
+      <div class="flex items-center gap-3 px-2 text-muted text-xs"><span class="material-symbols-outlined">settings</span><span>Settings</span></div>
+    </div>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto p-lg bg-[#090e18]">
+    <div class="max-w-4xl mx-auto">
+      <div class="surface-card p-lg mb-lg">
+        <div class="flex items-center gap-2 mb-md">
+          <span class="material-symbols-outlined text-accent-primary text-xl">keyboard</span>
+          <span class="text-lg font-semibold text-primary">Help &amp; Keyboard Shortcuts Reference</span>
+        </div>
+        <p class="text-sm text-muted mb-md">Vim-style modal bindings, low-latency filter controls, and rapid terminal triggers designed for forensic analysts and kernel telemetry operators. Press <span class="kbd">?</span> at any time to toggle this reference.</p>
+
+        <div class="flex gap-md mb-lg">
+          <button class="btn-ghost px-3 py-1.5 text-xs mono">All Hotkeys</button>
+          <button class="btn-ghost px-3 py-1.5 text-xs mono">Vim Only</button>
+          <button class="btn-ghost px-3 py-1.5 text-xs mono">macOS Modifiers</button>
+        </div>
+
+        <!-- Navigation & Panels -->
+        <div class="mb-lg">
+          <div class="flex items-center gap-sm mb-sm">
+            <span class="material-symbols-outlined text-muted text-sm">navigation</span>
+            <span class="text-xs font-semibold text-muted uppercase tracking-wider">navigation &amp; panels</span>
+          </div>
+          <div class="text-xs text-muted mb-sm">Global scope — rapid perspective switching and view traversal hotkeys.</div>
+          <div class="table-header grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span>action</span><span>key</span><span>scope</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Quit or exit subview / drawer</span><span class="kbd">q</span><span class="mono text-muted">global</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Return to previous view / clear filter</span><span class="kbd">esc</span><span class="mono text-muted">global</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Global command palette &amp; fuzzy finder</span><span class="kbd">⌘K</span><span class="mono text-muted">global</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Direct view jump (Dashboard → Workbench)</span><span class="kbd">1–6</span><span class="mono text-muted">global</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Toggle help &amp; reference sheet</span><span class="kbd">?</span><span class="mono text-muted">global</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Cycle focus across console split panels</span><span class="kbd">tab</span><span class="mono text-muted">global</span></div>
+        </div>
+
+        <!-- Tables & Lists (Vim) -->
+        <div class="mb-lg">
+          <div class="flex items-center gap-sm mb-sm">
+            <span class="material-symbols-outlined text-muted text-sm">table_rows</span>
+            <span class="text-xs font-semibold text-muted uppercase tracking-wider">tables &amp; lists (vim)</span>
+          </div>
+          <div class="text-xs text-muted mb-sm">Datagrid focus — high-speed inspection of sockets, processes, and event queues.</div>
+          <div class="table-header grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span>action</span><span>key</span><span>scope</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Move selection down / up</span><span class="kbd">j / k</span><span class="mono text-muted">datagrid</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Enter regex search / filter prompt</span><span class="kbd">/</span><span class="mono text-muted">datagrid</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Pin rule or toggle inspect preview</span><span class="kbd">space</span><span class="mono text-muted">datagrid</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Expand row into forensic detail drawer</span><span class="kbd">enter</span><span class="mono text-muted">datagrid</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Force instant live telemetry refresh</span><span class="kbd">r</span><span class="mono text-muted">datagrid</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Multi-select socket/PID for batch action</span><span class="kbd">x</span><span class="mono text-muted">datagrid</span></div>
+          <div class="text-xs text-muted mt-sm">Binding: Modal Vim · Supports: <span class="mono">5j, 10k</span></div>
+        </div>
+
+        <!-- Runner & Operations -->
+        <div class="mb-lg">
+          <div class="flex items-center gap-sm mb-sm">
+            <span class="material-symbols-outlined text-muted text-sm">bolt</span>
+            <span class="text-xs font-semibold text-muted uppercase tracking-wider">runner &amp; operations</span>
+          </div>
+          <div class="text-xs text-muted mb-sm">Pipeline hotkeys — interventions, forensic quarantine, and signal management.</div>
+          <div class="table-header grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span>action</span><span>key</span><span>scope</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Immediate kill active scan pipeline</span><span class="kbd">^C</span><span class="mono text-muted">runner</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Destructive quarantine / SIGKILL PID</span><span class="kbd">⇧D</span><span class="mono text-muted">runner</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Pause / resume live packet &amp; proc trace</span><span class="kbd">p</span><span class="mono text-muted">runner</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Export current filtered dataset to JSON</span><span class="kbd">e</span><span class="mono text-muted">runner</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Open interactive embedded terminal shell</span><span class="kbd">!</span><span class="mono text-muted">runner</span></div>
+          <div class="table-row grid grid-cols-[1fr_auto_1fr] px-sm py-xs"><span class="text-sm">Toggle Hex / Disassembly decode drawer</span><span class="kbd">h</span><span class="mono text-muted">runner</span></div>
+        </div>
+
+        <!-- Per-view quick guides -->
+        <div class="mt-lg">
+          <span class="text-xs font-semibold text-muted uppercase tracking-wider block mb-sm">per-view quick guides &amp; telemetry specs</span>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-md">
+            <!-- Dashboard -->
+            <div class="surface-card p-md">
+              <div class="flex items-center gap-2 mb-xs"><span class="material-symbols-outlined text-sm text-muted">dashboard</span><span class="text-xs font-semibold text-primary">Dashboard</span></div>
+              <span class="kbd text-xs">1</span>
+              <p class="text-xs text-muted mt-xs">Real-time system posture evaluation, anomalous PID burst telemetry, and active threat counter.</p>
+              <div class="mt-xs"><span class="mono text-xs text-accent-primary">msp status --posture</span></div>
+              <span class="chip text-xs mt-xs">60 FPS feed</span>
+            </div>
+            <!-- Network -->
+            <div class="surface-card p-md">
+              <div class="flex items-center gap-2 mb-xs"><span class="material-symbols-outlined text-sm text-muted">lan</span><span class="text-xs font-semibold text-primary">Network</span></div>
+              <span class="kbd text-xs">2</span>
+              <p class="text-xs text-muted mt-xs">Raw BSD socket inspections, outbound DNS sniffers, and packet telemetry matching Little Snitch rules.</p>
+              <div class="mt-xs"><span class="mono text-xs text-accent-primary">msp network --trace --json</span></div>
+              <span class="chip text-xs mt-xs">bpf0 hooks</span>
+            </div>
+            <!-- Privacy & TCC -->
+            <div class="surface-card p-md">
+              <div class="flex items-center gap-2 mb-xs"><span class="material-symbols-outlined text-sm text-muted">security</span><span class="text-xs font-semibold text-primary">Privacy &amp; TCC</span></div>
+              <span class="kbd text-xs">3</span>
+              <p class="text-xs text-muted mt-xs">Local and system TCC.db forensic auditing with real-time camera and microphone usage interceptors.</p>
+              <div class="mt-xs"><span class="mono text-xs text-accent-primary">msp privacy --audit --json</span></div>
+              <span class="chip text-xs mt-xs">TCC watcher</span>
+            </div>
+            <!-- Startup & Persistence -->
+            <div class="surface-card p-md">
+              <div class="flex items-center gap-2 mb-xs"><span class="material-symbols-outlined text-sm text-muted">power_settings_new</span><span class="text-xs font-semibold text-primary">Startup &amp; Persistence</span></div>
+              <span class="kbd text-xs">4</span>
+              <p class="text-xs text-muted mt-xs">LaunchDaemons, LaunchAgents, user Login Items, and crontab persistence scan engine.</p>
+              <div class="mt-xs"><span class="mono text-xs text-accent-primary">msp startup --tree --json</span></div>
+              <span class="chip text-xs mt-xs">launchd</span>
+            </div>
+            <!-- Scan & YARA Engine -->
+            <div class="surface-card p-md">
+              <div class="flex items-center gap-2 mb-xs"><span class="material-symbols-outlined text-sm text-muted">radar</span><span class="text-xs font-semibold text-primary">Scan &amp; YARA Engine</span></div>
+              <span class="kbd text-xs">5</span>
+              <p class="text-xs text-muted mt-xs">Static and dynamic binary analysis, Mach-O header parsing, and Gatekeeper quarantine inspection.</p>
+              <div class="mt-xs"><span class="mono text-xs text-accent-primary">msp scan --yara default.yar --json</span></div>
+              <span class="chip text-xs mt-xs">Mach-O</span>
+            </div>
+            <!-- Workbench & DTrace -->
+            <div class="surface-card p-md">
+              <div class="flex items-center gap-2 mb-xs"><span class="material-symbols-outlined text-sm text-muted">terminal</span><span class="text-xs font-semibold text-primary">Workbench &amp; DTrace</span></div>
+              <span class="kbd text-xs">6</span>
+              <p class="text-xs text-muted mt-xs">Live syscall interception with DTrace, memory offset dumping, and binary entropy visualization.</p>
+              <div class="mt-xs"><span class="mono text-xs text-accent-primary">msp debug --dtrace <pid> --json</span></div>
+              <span class="chip text-xs mt-xs">kernel probe</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider mt-lg"></div>
+        <div class="surface-card p-md">
+          <div class="flex items-center gap-2 mb-xs">
+            <span class="material-symbols-outlined text-sm text-muted">terminal</span>
+            <span class="text-xs font-semibold text-muted uppercase tracking-wider">terminal quick-run</span>
+          </div>
+          <p class="text-xs text-muted mb-xs">Paste into Terminal to open the corresponding help page:</p>
+          <div class="bg-[#090e18] border border-hairline rounded-sm p-xs mono text-xs text-primary"><span class="mono">man msp</span></div>
+          <div class="flex gap-xs mt-xs">
+            <button class="btn-ghost text-xs px-2 py-1.5">msp status --verbose</button>
+            <button class="btn-ghost text-xs px-2 py-1.5">msp audit --all</button>
+            <button class="btn-ghost text-xs px-2 py-1.5">msp privacy --help</button>
+          </div>
+        </div>
+
+        <p class="text-xs text-muted mt-lg">msp security engine v2.4.1 · macOS darwin-arm64 · sandbox active</p>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

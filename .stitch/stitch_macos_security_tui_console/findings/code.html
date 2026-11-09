@@ -1,0 +1,469 @@
+<!DOCTYPE html><html lang="en" class="dark"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>msp - Findings Review (Textual TUI)</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'accent': '#58A6FF',
+        'primary': '#58A6FF',
+        'on-primary': '#0D1117',
+        'surface': '#0D1117',
+        'on-surface': '#C9D1D9',
+        'surface-variant': '#161B22',
+        'on-surface-variant': '#8B949E',
+        'outline': '#30363D',
+        'outline-focused': '#58A6FF',
+        'success': '#3FB950',
+        'on-success': '#0D1117',
+        'warning': '#D29922',
+        'on-warning': '#0D1117',
+        'error': '#F85149',
+        'on-error': '#262626',
+        'light-primary': '#0969DA',
+        'light-on-primary': '#FFFFFF',
+        'light-surface': '#FFFFFF',
+        'light-on-surface': '#1F2328',
+        'dark-primary': '#58A6FF',
+        'dark-on-primary': '#0D1117',
+        'dark-surface': '#0D1117',
+        'dark-on-surface': '#C9D1D9',
+      },
+      borderRadius: {
+        'sm': '2px',
+        'DEFAULT': '4px',
+        'md': '4px',
+        'lg': '6px',
+        'xl': '8px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '12px',
+        'gutter-lg': '16px',
+        'gutter-xl': '24px',
+        'section': '24px',
+        'page-margin': '12px',
+      },
+      fontFamily: {
+        'display': ['"JetBrains Mono"', 'sans-serif'],
+        'headline': ['"JetBrains Mono"', 'sans-serif'],
+        'body': ['"JetBrains Mono"', 'sans-serif'],
+        'label': ['"JetBrains Mono"', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.2px', fontWeight: '700' }],
+        'display-lg-mobile': ['20px', { lineHeight: '28px', letterSpacing: '-0.1px', fontWeight: '700' }],
+        'headline-lg': ['18px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-lg-mobile': ['16px', { lineHeight: '22px', letterSpacing: '0px', fontWeight: '600' }],
+        'headline-md': ['15px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-lg': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-md': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['13px', { lineHeight: '18px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.3px', fontWeight: '600' }],
+      },
+      transitionDuration: {
+        'state-change': '60ms',
+        'surface-enter': '100ms',
+        'surface-exit': '80ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'ease-out',
+        'surface-exit': 'ease-in',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    ::selection { background-color: #58A6FF; color: #0D1117; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0D1117; }
+    ::-webkit-scrollbar-thumb { background: #30363D; border-radius: 2px; }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body min-h-[1024px] flex flex-col antialiased p-2" data-stitch-vh="min-h-[1024px]===min-h-screen">
+
+  <div class="flex-1 flex flex-col border border-outline rounded bg-surface shadow-2xl overflow-hidden min-h-[960px]">
+
+    <!-- APP HEADER -->
+    <header class="bg-surface-variant border-b border-outline px-3 py-2 flex items-center justify-between font-mono text-body-sm">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 mr-1">
+          <span class="w-3 h-3 rounded-full bg-[#FF5F56] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#FFBD2E] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#27C93F] inline-block"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-primary tracking-wider">[msp]</span>
+          <span class="text-on-surface-variant">macOS Security &amp; Privacy Console</span>
+          <span class="text-label-sm px-1.5 py-0.5 rounded bg-surface border border-outline text-on-surface-variant font-mono">v2.4.0</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-label-sm font-mono">
+        <span class="text-on-surface">darwin-arm64 (macOS 15.2)</span>
+        <span class="text-primary tabular-nums">VIEW: FINDINGS</span>
+      </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="bg-surface border-b border-outline px-3 py-1.5 flex items-center justify-between text-body-sm font-mono">
+      <div class="flex items-center gap-1">
+        <a href="../dashboard/Dashboard.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[1]</span> <span>Dashboard</span>
+        </a>
+        <a href="../findings/Findings.html" class="px-2.5 py-1 rounded bg-primary text-on-primary font-semibold border border-primary flex items-center gap-1.5">
+          <span class="opacity-75">[2]</span> <span>Findings</span>
+          <span class="ml-1 px-1 py-0.2 bg-error text-on-error text-label-sm rounded font-bold">2</span>
+        </a>
+        <a href="../network/Network.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[3]</span> <span>Network</span>
+        </a>
+        <a href="../startup/Startup.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[4]</span> <span>Startup</span>
+        </a>
+        <a href="../tcc/TCC.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[5]</span> <span>TCC</span>
+        </a>
+        <a href="../privacy/Privacy.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[6]</span> <span>Privacy</span>
+        </a>
+        <a href="../snapshots/Snapshots.html" class="px-2.5 py-1 rounded bg-surface-variant text-on-surface-variant hover:text-on-surface border border-outline flex items-center gap-1.5">
+          <span class="text-outline">[7]</span> <span>Snapshots</span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-1.5 text-label-sm">
+        <a href="../runner/Runner.html" class="px-2 py-1 bg-surface-variant text-on-surface border border-outline rounded flex items-center gap-1">
+          <span class="text-primary font-bold">^R</span> Runner
+        </a>
+        <a href="../palette/Palette.html" class="px-2 py-1 bg-surface-variant text-on-surface border border-outline rounded flex items-center gap-1">
+          <span class="text-primary font-bold">^P</span> Palette
+        </a>
+        <a href="../help/Help.html" class="px-2 py-1 bg-surface-variant text-on-surface border border-outline rounded flex items-center gap-1">
+          <span class="text-primary font-bold">?</span> Help
+        </a>
+      </div>
+    </nav>
+
+    <!-- MAIN FINDINGS CONTENT -->
+    <main class="flex-1 bg-surface p-3 overflow-y-auto space-y-3 font-mono">
+      <!-- Filter Toolbar -->
+      <div class="bg-surface-variant border border-outline rounded p-2.5 flex flex-wrap items-center justify-between gap-2 text-body-sm">
+        <div class="flex items-center gap-2 flex-1 min-w-[320px]">
+          <span class="text-primary font-bold">[/]</span>
+          <input id="findings-filter" type="text" placeholder="Type filter pattern (e.g. sev:high, net, python, tcc)..." class="flex-1 bg-surface border border-outline rounded px-2.5 py-1 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary text-body-sm" oninput="filterRows(this.value)">
+        </div>
+        <div class="flex items-center gap-1.5 text-label-sm">
+          <span class="text-on-surface-variant">Severity:</span>
+          <button onclick="setFilter(&#39;ALL&#39;)" class="sev-tag px-2 py-0.5 rounded bg-primary text-on-primary font-semibold border border-primary" data-s="ALL">All (5)</button>
+          <button onclick="setFilter(&#39;HIGH&#39;)" class="sev-tag px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface" data-s="HIGH">High (1)</button>
+          <button onclick="setFilter(&#39;WARN&#39;)" class="sev-tag px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface" data-s="WARN">Warn (2)</button>
+          <button onclick="setFilter(&#39;INFO&#39;)" class="sev-tag px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface" data-s="INFO">Info (2)</button>
+        </div>
+      </div>
+
+      <!-- Split Layout: Table on Top/Left, Live Detail Inspector on Bottom/Right -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <!-- Table Column -->
+        <div class="lg:col-span-2 border border-outline rounded bg-surface-variant overflow-hidden flex flex-col">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface border-b border-outline text-on-surface-variant text-label-sm uppercase tracking-wider">
+                <th class="py-2 px-3 w-8 text-center">SEL</th>
+                <th class="py-2 px-3 w-20">SEV</th>
+                <th class="py-2 px-3 w-28">CATEGORY</th>
+                <th class="py-2 px-3 w-40">ITEM</th>
+                <th class="py-2 px-3">DESCRIPTION</th>
+              </tr>
+            </thead>
+            <tbody id="findings-body" class="divide-y divide-outline/40">
+              <tr data-sev="HIGH" onclick="selectRow(this, &#39;SEC-NET-082&#39;)" class="row-item bg-primary/10 border-l-2 border-l-primary cursor-pointer hover:bg-primary/20">
+                <td class="py-2 px-3 text-primary font-bold text-center indicator">&gt;</td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-error text-on-error font-bold text-label-sm">HIGH</span></td>
+                <td class="py-2 px-3 text-on-surface">Network</td>
+                <td class="py-2 px-3 font-semibold text-primary">0.0.0.0:8080</td>
+                <td class="py-2 px-3 text-on-surface">Wildcard unencrypted HTTP listener bound to INADDR_ANY (python3)</td>
+              </tr>
+              <tr data-sev="WARN" onclick="selectRow(this, &#39;SEC-TCC-019&#39;)" class="row-item border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-warning text-on-warning font-bold text-label-sm">WARN</span></td>
+                <td class="py-2 px-3 text-on-surface">TCC</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">ScreenCapture</td>
+                <td class="py-2 px-3 text-on-surface-variant">Legacy developer tool retains system display capture privileges</td>
+              </tr>
+              <tr data-sev="WARN" onclick="selectRow(this, &#39;SEC-START-004&#39;)" class="row-item border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-warning text-on-warning font-bold text-label-sm">WARN</span></td>
+                <td class="py-2 px-3 text-on-surface">Startup</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">com.acme.telemetry</td>
+                <td class="py-2 px-3 text-on-surface-variant">Ad-hoc signed LaunchDaemon in /Library/LaunchDaemons (no Apple Team ID)</td>
+              </tr>
+              <tr data-sev="INFO" onclick="selectRow(this, &#39;SEC-FW-001&#39;)" class="row-item border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-success text-on-success font-bold text-label-sm">INFO</span></td>
+                <td class="py-2 px-3 text-on-surface">Firewall</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">Stealth Mode</td>
+                <td class="py-2 px-3 text-on-surface-variant">ICMP ping response drop enabled via socketfilterfw</td>
+              </tr>
+              <tr data-sev="INFO" onclick="selectRow(this, &#39;SEC-FV-002&#39;)" class="row-item border-l-2 border-l-transparent cursor-pointer hover:bg-surface">
+                <td class="py-2 px-3 text-on-surface-variant text-center indicator"> </td>
+                <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-success text-on-success font-bold text-label-sm">INFO</span></td>
+                <td class="py-2 px-3 text-on-surface">Storage</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">FileVault Volume</td>
+                <td class="py-2 px-3 text-on-surface-variant">APFS volume encrypted with Secure Enclave Processor (SEP)</td>
+              </tr>
+            </tbody>
+          </table>
+          <footer class="mt-auto px-3 py-2 bg-surface border-t border-outline flex items-center justify-between text-label-sm text-on-surface-variant">
+            <span>[j/k or ↑/↓] Navigate | [Enter] Open Modal</span>
+            <span><span id="findings-count" class="text-on-surface font-bold">5</span> findings</span>
+          </footer>
+        </div>
+
+        <!-- Detail Inspector Panel Column -->
+        <div class="border border-outline rounded bg-surface-variant p-3 flex flex-col justify-between">
+          <div>
+            <header class="border-b border-outline pb-2 mb-2 flex items-center justify-between">
+              <span class="text-primary font-bold text-label-md">[RECORD INSPECTION]</span>
+              <span id="detail-badge" class="px-1.5 py-0.2 rounded bg-error text-on-error text-label-sm font-bold">HIGH</span>
+            </header>
+            <div id="detail-content" class="space-y-2 text-body-sm">
+              <div class="py-1 border-b border-outline/30">
+                <div class="text-on-surface-variant text-label-sm">ID &amp; Title:</div>
+                <div class="text-primary font-semibold">SEC-NET-082: Wildcard Public Socket</div>
+              </div>
+              <div class="py-1 border-b border-outline/30">
+                <div class="text-on-surface-variant text-label-sm">Bound Endpoint:</div>
+                <div class="text-on-surface">0.0.0.0:8080 (TCP IPv4 LISTEN)</div>
+              </div>
+              <div class="py-1 border-b border-outline/30">
+                <div class="text-on-surface-variant text-label-sm">Process Context:</div>
+                <div class="text-on-surface">python3 (PID 49210, UID 501 developer)</div>
+              </div>
+              <div class="py-1 border-b border-outline/30">
+                <div class="text-on-surface-variant text-label-sm">Command Line:</div>
+                <div class="text-on-surface text-body-xs bg-surface p-1.5 rounded border border-outline">python3 -m http.server 8080 --bind 0.0.0.0</div>
+              </div>
+              <div class="py-1">
+                <div class="text-on-surface-variant text-label-sm">Remediation Guidance:</div>
+                <p class="text-on-surface-variant text-body-xs mt-1">
+                  Bind server specifically to 127.0.0.1 or terminate instance if temporary.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-outline flex items-center justify-between text-label-sm">
+            <span class="text-on-surface-variant">Press <kbd class="px-1 py-0.5 bg-surface border border-outline text-primary">q</kbd> to return</span>
+            <a href="../confirmation/Confirmation.html" class="px-2.5 py-1 bg-surface border border-outline hover:border-warning text-warning rounded font-semibold">
+              Plan Remediation [p]
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- BOTTOM COMMAND RUNNER DRAWER (^R) -->
+    <div id="command-runner-drawer" class="border-t-2 border-outline bg-surface-variant flex flex-col font-mono text-body-sm transition-all duration-200 h-64">
+      <div class="px-3 py-1.5 bg-surface border-b border-outline flex items-center justify-between text-label-sm">
+        <div class="flex items-center gap-3">
+          <span class="text-primary font-bold flex items-center gap-1">
+            <span>[^R]</span> SUBPROCESS COMMAND RUNNER &amp; AI CHAT
+          </span>
+          <span id="runner-status-badge" class="px-1.5 py-0.2 rounded bg-surface border border-outline text-on-surface-variant text-label-sm">IDLE</span>
+          <span id="runner-meta" class="text-on-surface-variant">Exit: 0 | Duration: 24ms</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="toggleRunner()" class="text-on-surface-variant hover:text-on-surface text-label-sm">[Esc / ^R Close]</button>
+        </div>
+      </div>
+
+      <div id="runner-output-terminal" class="flex-1 p-2 bg-[#090D12] overflow-y-auto text-body-xs font-mono space-y-0.5 text-on-surface">
+        <div class="text-on-surface-variant">msp terminal runner initialized on findings screen. Ready for commands or ai analysis.</div>
+        <div class="text-on-surface-variant">Try: <span onclick="runCmd(&#39;msp remediate plan findings.json&#39;)" class="text-primary hover:underline cursor-pointer">msp remediate plan findings.json</span> | <span onclick="runCmd(&#39;msp ask &#34;what is high severity?&#34;&#39;)" class="text-accent hover:underline cursor-pointer">msp ask &#34;what is high severity?&#34;</span></div>
+      </div>
+
+      <div class="p-2 bg-surface border-t border-outline flex items-center gap-2">
+        <span class="text-primary font-bold text-body-sm">&gt;</span>
+        <input id="runner-input" type="text" placeholder="Run msp command or query AI (e.g. msp remediate, msp ask &#39;explain 8080&#39;)..." class="flex-1 bg-surface-variant border border-outline rounded px-2.5 py-1 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary text-body-sm font-mono" onkeydown="handleRunnerKey(event)">
+        <button onclick="execRunner()" class="px-3 py-1 rounded bg-primary text-on-primary font-label text-label-sm hover:bg-opacity-90 font-semibold">
+          Run [Enter]
+        </button>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-surface-variant border-t border-outline px-3 py-1.5 flex items-center justify-between font-mono text-label-sm text-on-surface-variant">
+      <div class="flex items-center gap-3">
+        <span><kbd class="bg-surface border border-outline px-1 rounded text-primary">1-7</kbd> Views</span>
+        <span><kbd class="bg-surface border border-outline px-1 rounded text-primary">^R</kbd> Runner</span>
+        <span><kbd class="bg-surface border border-outline px-1 rounded text-primary">/</kbd> Filter</span>
+        <span><kbd class="bg-surface border border-outline px-1 rounded text-primary">Enter</kbd> Inspect</span>
+        <span><kbd class="bg-surface border border-outline px-1 rounded text-primary">q</kbd> Dismiss</span>
+      </div>
+      <span>120×36 CHARS</span>
+    </footer>
+  </div>
+
+  <script>
+    const data = {
+      'SEC-NET-082': {
+        sev: 'HIGH',
+        badgeClass: 'bg-error text-on-error',
+        title: 'SEC-NET-082: Wildcard Public Socket',
+        endpoint: '0.0.0.0:8080 (TCP IPv4 LISTEN)',
+        proc: 'python3 (PID 49210, UID 501 developer)',
+        cmd: 'python3 -m http.server 8080 --bind 0.0.0.0',
+        remedy: 'Bind server specifically to 127.0.0.1 or terminate instance if temporary.'
+      },
+      'SEC-TCC-019': {
+        sev: 'WARN',
+        badgeClass: 'bg-warning text-on-warning',
+        title: 'SEC-TCC-019: ScreenCapture Entitlement',
+        endpoint: 'User TCC.db / kTCCServiceScreenCapture',
+        proc: 'com.apple.Terminal (Terminal.app)',
+        cmd: 'tccutil reset ScreenCapture com.apple.Terminal',
+        remedy: 'Revoke unnecessary display recording privileges in System Settings.'
+      },
+      'SEC-START-004': {
+        sev: 'WARN',
+        badgeClass: 'bg-warning text-on-warning',
+        title: 'SEC-START-004: Unsigned LaunchDaemon',
+        endpoint: '/Library/LaunchDaemons/com.acme.telemetry.plist',
+        proc: 'acme-agent (Ad-hoc signature, no Team ID)',
+        cmd: 'codesign -dv --verbose=4 /usr/local/bin/acme-agent',
+        remedy: 'Verify developer provenance or unload daemon using launchctl bootout.'
+      },
+      'SEC-FW-001': {
+        sev: 'INFO',
+        badgeClass: 'bg-success text-on-success',
+        title: 'SEC-FW-001: Stealth Mode Active',
+        endpoint: 'socketfilterfw --getstealthmode',
+        proc: 'ApplicationFirewall daemon',
+        cmd: '/usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on',
+        remedy: 'No action required. Complies with CIS benchmark.'
+      },
+      'SEC-FV-002': {
+        sev: 'INFO',
+        badgeClass: 'bg-success text-on-success',
+        title: 'SEC-FV-002: APFS Volume Encryption',
+        endpoint: '/System/Volumes/Data (APFS Container)',
+        proc: 'fdesetup status',
+        cmd: 'fdesetup status',
+        remedy: 'Encrypted via XTS-AES-128 cryptographic hardware engine.'
+      }
+    };
+
+    function selectRow(el, id) {
+      document.querySelectorAll('.row-item').forEach(r => {
+        r.classList.remove('bg-primary/10', 'border-l-primary');
+        r.classList.add('border-l-transparent');
+        r.querySelector('.indicator').innerText = ' ';
+      });
+      el.classList.add('bg-primary/10', 'border-l-primary');
+      el.classList.remove('border-l-transparent');
+      el.querySelector('.indicator').innerText = '>';
+
+      const item = data[id];
+      if (item) {
+        document.getElementById('detail-badge').innerText = item.sev;
+        document.getElementById('detail-badge').className = `px-1.5 py-0.2 rounded font-bold text-label-sm ${item.badgeClass}`;
+        document.getElementById('detail-content').innerHTML = `
+          <div class="py-1 border-b border-outline/30">
+            <div class="text-on-surface-variant text-label-sm">ID &amp; Title:</div>
+            <div class="text-primary font-semibold">${item.title}</div>
+          </div>
+          <div class="py-1 border-b border-outline/30">
+            <div class="text-on-surface-variant text-label-sm">Bound Endpoint:</div>
+            <div class="text-on-surface">${item.endpoint}</div>
+          </div>
+          <div class="py-1 border-b border-outline/30">
+            <div class="text-on-surface-variant text-label-sm">Process Context:</div>
+            <div class="text-on-surface">${item.proc}</div>
+          </div>
+          <div class="py-1 border-b border-outline/30">
+            <div class="text-on-surface-variant text-label-sm">Command Line / Path:</div>
+            <div class="text-on-surface text-body-xs bg-surface p-1.5 rounded border border-outline">${item.cmd}</div>
+          </div>
+          <div class="py-1">
+            <div class="text-on-surface-variant text-label-sm">Remediation Guidance:</div>
+            <p class="text-on-surface-variant text-body-xs mt-1">${item.remedy}</p>
+          </div>
+        `;
+      }
+    }
+
+    function filterRows(q) {
+      const term = q.toLowerCase();
+      let count = 0;
+      document.querySelectorAll('#findings-body tr').forEach(row => {
+        if (!term || row.innerText.toLowerCase().includes(term)) {
+          row.classList.remove('hidden');
+          count++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+      document.getElementById('findings-count').innerText = count;
+    }
+
+    function setFilter(sev) {
+      document.querySelectorAll('.sev-tag').forEach(b => {
+        if (b.dataset.s === sev) {
+          b.className = 'sev-tag px-2 py-0.5 rounded bg-primary text-on-primary font-semibold border border-primary';
+        } else {
+          b.className = 'sev-tag px-2 py-0.5 rounded bg-surface border border-outline text-on-surface-variant hover:text-on-surface';
+        }
+      });
+      let count = 0;
+      document.querySelectorAll('#findings-body tr').forEach(row => {
+        if (sev === 'ALL' || row.dataset.sev === sev) {
+          row.classList.remove('hidden');
+          count++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+      document.getElementById('findings-count').innerText = count;
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key >= '1' && e.key <= '7') {
+        const routes = {
+          '1': '../dashboard/Dashboard.html',
+          '2': '../findings/Findings.html',
+          '3': '../network/Network.html',
+          '4': '../startup/Startup.html',
+          '5': '../tcc/TCC.html',
+          '6': '../privacy/Privacy.html',
+          '7': '../snapshots/Snapshots.html'
+        };
+        window.location.href = routes[e.key];
+      } else if (e.key === '/') {
+        e.preventDefault();
+        document.getElementById('findings-filter').focus();
+      } else if (e.key === 'q' || e.key === 'Escape') {
+        window.location.href = '../dashboard/Dashboard.html';
+      }
+    });
+  </script>
+
+
+</body></html>
