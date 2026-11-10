@@ -94,6 +94,7 @@ RUNNABLES: list[dict[str, str]] = [
     {"verb": "interrogate", "title": "Run: interrogate", "desc": "Deep system fact gathering"},
     {"verb": "audit", "title": "Run: audit", "desc": "Best-practice audit rules"},
     {"verb": "net", "title": "Run: net", "desc": "Network connection audit"},
+    {"verb": "net camsweep --json", "title": "Run: net camsweep", "desc": "Sweep LAN for hidden cameras"},
     {"verb": "tcc list --json", "title": "Run: tcc list", "desc": "TCC permission dump"},
     {"verb": "report", "title": "Run: report", "desc": "Generate a security report"},
     {"verb": "doctor", "title": "Run: doctor", "desc": "Dependency doctor"},

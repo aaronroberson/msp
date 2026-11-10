@@ -235,6 +235,7 @@ Examples:
   msp net list                      Listening ports
   msp net established               Active connections
   msp net top                       Bandwidth usage
+  msp net camsweep                  Sweep LAN for hidden cameras (ARP/vendor/ports/ONVIF/mDNS)
 
   msp startup list                   Startup items
   msp startup managed --json        Current-user Login Items and LaunchAgents

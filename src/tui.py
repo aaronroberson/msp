@@ -708,6 +708,7 @@ class HelpScreen(Screen):
             yield Label("")
             yield Label("[bold]CLI Commands:[/bold]")
             yield Label("  [bold]msp tune top[/bold]  Show top CPU/memory, pressure, load")
+            yield Label("  [bold]msp net camsweep[/bold]  Sweep LAN for hidden cameras")
             yield Label("")
             yield Label("[bold]View Navigation:[/bold]")
             yield Label("  [bold]N[/bold]         Network details screen")

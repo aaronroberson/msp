@@ -4,9 +4,11 @@
 import os
 import json
 import re
+import socket
 import subprocess
 import sys
 import time
+import concurrent.futures as cf
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from enum import Enum
@@ -573,6 +575,228 @@ class NetworkMonitor:
                 return f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
         return "10.0.0.0/24"
 
+    # ── Hidden-camera sweep ────────────────────────────────────────────────
+
+    # OUI prefixes observed on camera hardware (curated, verified subset).
+    CAMERA_OUIS: Dict[str, str] = {
+        "4C:37:DE": "AltoBeam (Wi-Fi camera module)",
+        "30:BE:29": "AltoBeam (Wi-Fi camera module)",
+        "00:25:90": "Hikvision",
+        "44:19:B6": "Hikvision",
+        "C0:56:E3": "Hikvision",
+        "00:40:8C": "Axis",
+        "B8:A4:4F": "Axis",
+        "AC:CC:8E": "Axis",
+        "3C:EF:8C": "Dahua",
+        "90:02:A9": "Dahua",
+        "E0:50:8B": "Dahua",
+        "00:12:12": "Foscam",
+        "00:62:6E": "Foscam",
+        "EC:71:DB": "Reolink",
+        "50:C7:BF": "TP-Link",
+        "AC:84:C6": "TP-Link",
+        "24:5A:4C": "Ubiquiti",
+        "78:8A:20": "Ubiquiti",
+        "44:65:0D": "Amazon (Ring/Cloud Cam)",
+        "28:6C:07": "Xiaomi (Yi/Ezviz class)",
+        "B0:B9:8A": "NETGEAR",
+        "3C:37:86": "NETGEAR",
+        "A0:40:A0": "NETGEAR",
+    }
+
+    INFRA_OUIS: Dict[str, str] = {
+        "3C:37:86": "NETGEAR (extender/AP)",
+        "B0:B9:8A": "NETGEAR",
+        "A0:40:A0": "NETGEAR",
+        "24:5A:4C": "Ubiquiti",
+        "78:8A:20": "Ubiquiti",
+    }
+
+    CAMERA_PORTS = [554, 80, 443, 8080, 8000, 8899, 8554, 5000, 34567, 345, 9100, 34900, 81, 20000]
+
+    ONVIF_PROBE = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<e:Envelope xmlns:e="http://www.w3.org/2003/05/soap-envelope" '
+        'xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery" '
+        'xmlns:dn="http://www.onvif.org/ver10/network/wsdl">'
+        '<e:Header><w:MessageID xmlns:w="http://schemas.xmlsoap.org/ws/2004/08/addressing">'
+        'urn:uuid:msp-camsweep-probe</w:MessageID>'
+        '<w:Action xmlns:w="http://schemas.xmlsoap.org/ws/2004/08/addressing">'
+        'http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action></e:Header>'
+        '<e:Body><d:Probe><d:Types>dn:NetworkVideoTransmitter</d:Types></d:Probe></e:Body>'
+        '</e:Envelope>'
+    )
+
+    @staticmethod
+    def _is_randomized_mac(mac: str) -> bool:
+        """Locally-administered (privacy-randomized) MAC: 2nd hex digit in {2,6,A,E}."""
+        if len(mac) < 2:
+            return False
+        return mac[1].upper() in {"2", "6", "A", "E"}
+
+    def _camsweep_ping(self, ip: str) -> Optional[str]:
+        r = subprocess.run(["ping", "-c", "1", "-W", "800", ip], capture_output=True)
+        return ip if r.returncode == 0 else None
+
+    def _camsweep_tcp(self, target: tuple) -> Optional[tuple]:
+        ip, port = target
+        s = socket.socket()
+        s.settimeout(0.8)
+        try:
+            s.connect(target)
+            return target
+        except Exception:
+            return None
+        finally:
+            s.close()
+
+    def _camsweep_onvif(self, timeout: float = 4.0) -> List[str]:
+        """WS-Discovery probe for ONVIF NetworkVideoTransmitters."""
+        responders: List[str] = []
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(timeout)
+            s.sendto(self.ONVIF_PROBE.encode(), ("239.255.255.250", 3702))
+            try:
+                while True:
+                    _data, addr = s.recvfrom(4096)
+                    if addr[0] not in responders:
+                        responders.append(addr[0])
+            except socket.timeout:
+                pass
+            finally:
+                s.close()
+        except Exception:
+            pass
+        return responders
+
+    def _camsweep_mdns(self, services: Optional[List[str]] = None, seconds: float = 2.0) -> List[str]:
+        """Browse mDNS for camera-ish service types via dns-sd. Returns '<svc> <instance>' hits."""
+        services = services or ["_rtsp._tcp", "_onvif._tcp", "_axis-video._tcp", "_hap._tcp"]
+        hits: List[str] = []
+        for svc in services:
+            try:
+                proc = subprocess.Popen(
+                    ["dns-sd", "-B", svc, "local"],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                )
+                # dns-sd block-buffers when piped and never exits on its own, so
+                # collect what it wrote within the window, then kill and reap.
+                try:
+                    out, _err = proc.communicate(timeout=seconds)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    out, _err = proc.communicate()
+                if out:
+                    for line in out.splitlines():
+                        if "instance" in line.lower():
+                            hits.append(f"{svc} {line.strip()}")
+            except Exception:
+                continue
+        return hits
+
+    def camera_sweep(self, subnet: Optional[str] = None, json_output: bool = False) -> List[Dict[str, Any]]:
+        """Sweep the LAN for cameras and camera-like devices.
+
+        Combines: ping sweep, ARP vendor identification, camera-port TCP scan,
+        ONVIF WS-Discovery, and mDNS camera-service browse.
+        """
+        subnet = subnet or self.get_local_subnet()
+        try:
+            base = ".".join(subnet.split("/")[0].split(".")[:3])
+        except Exception:
+            base = "10.0.0"
+        self._camsweep_last_subnet = subnet
+        self._camsweep_last_base = base
+
+        if not json_output and RICH_AVAILABLE:
+            console.print(f"[bold]Sweeping {subnet} for cameras…[/bold] (ping → ARP → ports → ONVIF → mDNS)")
+
+        # 1) ping sweep
+        with cf.ThreadPoolExecutor(max_workers=128) as ex:
+            live = [ip for ip in ex.map(self._camsweep_ping, [f"{base}.{i}" for i in range(1, 255)]) if ip]
+
+        # 2) ARP harvest (best-effort; entries populated by the ping sweep)
+        _, arp_out = self._run_cmd("arp -a")
+        mac_map: Dict[str, str] = {}
+        for line in arp_out.splitlines():
+            m = re.match(r"\? \((\d+\.\d+\.\d+\.\d+)\) at ([0-9a-fA-F:]+)", line.strip())
+            if m and "incomplete" not in m.group(2).lower():
+                mac_map[m.group(1)] = m.group(2).upper()
+
+        # 3) camera-port TCP scan on live hosts
+        with cf.ThreadPoolExecutor(max_workers=200) as ex:
+            open_ports = [r for r in ex.map(self._camsweep_tcp, [(ip, p) for ip in live for p in self.CAMERA_PORTS]) if r]
+        ports_by_ip: Dict[str, List[int]] = {}
+        for ip, port in open_ports:
+            ports_by_ip.setdefault(ip, []).append(port)
+
+        # 4) ONVIF + mDNS
+        onvif = self._camsweep_onvif()
+        mdns_hits = self._camsweep_mdns()
+
+        # 5) classify
+        devices: List[Dict[str, Any]] = []
+        for ip in live:
+            mac = mac_map.get(ip, "")
+            oui = mac[:8]
+            vendor = self.CAMERA_OUIS.get(oui, self.INFRA_OUIS.get(oui, ""))
+            ports = sorted(ports_by_ip.get(ip, []))
+            is_onvif = ip in onvif
+            cam_oui = bool(vendor) and "extender" not in vendor.lower()
+            if cam_oui or 554 in ports or is_onvif:
+                verdict = "CAMERA"
+            elif vendor and any(p in ports for p in (80, 443, 8080, 34567)):
+                verdict = "CAMERA-SUSPECT"
+            elif oui in self.INFRA_OUIS or ip.endswith(".1"):
+                verdict = "INFRA"
+            else:
+                verdict = "CLIENT"
+            devices.append({
+                "ip": ip,
+                "mac": mac or "(unresolved)",
+                "vendor": vendor or ("(randomized)" if self._is_randomized_mac(mac) else "(unknown OUI)"),
+                "randomized_mac": self._is_randomized_mac(mac),
+                "open_ports": ports,
+                "onvif": is_onvif,
+                "verdict": verdict,
+            })
+
+        result = {
+            "subnet": subnet,
+            "scanned": len(live),
+            "onvif_responders": onvif,
+            "mdns_hits": mdns_hits,
+            "devices": devices,
+            "cameras_found": [d for d in devices if d["verdict"] in ("CAMERA", "CAMERA-SUSPECT")],
+        }
+
+        if json_output:
+            print(json.dumps(result, indent=2))
+            return devices
+
+        if RICH_AVAILABLE:
+            table = Table(title=f"Camera Sweep — {subnet} ({len(live)} live hosts)")
+            for col in ("IP", "MAC", "Vendor", "Open Ports", "ONVIF", "Verdict"):
+                table.add_column(col)
+            for d in devices:
+                verdict_style = {"CAMERA": "bold red", "CAMERA-SUSPECT": "yellow", "INFRA": "cyan", "CLIENT": "green"}.get(d["verdict"], "white")
+                table.add_row(
+                    d["ip"], d["mac"], d["vendor"],
+                    ",".join(map(str, d["open_ports"])) or "—",
+                    "yes" if d["onvif"] else "—",
+                    f"[{verdict_style}]{d['verdict']}[/{verdict_style}]",
+                )
+            console.print(table)
+            if mdns_hits:
+                console.print(f"[yellow]mDNS camera services:[/yellow] {mdns_hits}")
+            if not result["cameras_found"]:
+                console.print("[green]No cameras or camera-like devices found.[/green]")
+        else:
+            for d in devices:
+                print(f"{d['ip']:15} {d['mac']:20} {d['vendor']:30} {','.join(map(str, d['open_ports'])) or '-':12} {d['verdict']}")
+        return devices
+
 
 def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
     """Interactive menu for network management."""
@@ -587,6 +811,7 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
         ("6", "arp", "List network devices (ARP)"),
         ("7", "hosts", "Discover live hosts (nmap -sn)"),
         ("8", "nmap", "Scan network (nmap)"),
+        ("11", "camsweep", "Sweep LAN for hidden cameras"),
     ]
 
     sort_options = {
@@ -611,6 +836,7 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
             ("6", "arp", "List network devices (ARP)"),
             ("7", "hosts", "Discover live hosts (nmap -sn)"),
             ("8", "nmap", "Scan network (nmap)"),
+            ("11", "camsweep", "Sweep LAN for hidden cameras"),
             ("s", "sort", "Change sort order"),
         ], title="Network Monitor - Interactive Mode")
 
@@ -677,6 +903,9 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
             ping_only = input("Ping scan only? (y/N): ").strip().lower() == 'y'
             ports = input("Ports (default 554,80,8080,8899): ").strip() or "554,80,8080,8899"
             monitor.nmap_scan(target=target, ports=ports, json_output=json_output, ping_scan=ping_only)
+        elif action == "camsweep":
+            target = input("Target subnet (blank for auto-detect): ").strip() or None
+            monitor.camera_sweep(subnet=target, json_output=json_output)
 
         pause_for_enter()
 
@@ -684,7 +913,7 @@ def interactive_menu(monitor: NetworkMonitor, json_output: bool = False):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Network Monitor")
-    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "terminate", "inspect", "lookup", "arp", "nmap", "hosts"], help="Action to perform (omit for interactive mode)")
+    parser.add_argument("action", nargs="?", choices=["list", "established", "top", "kill", "terminate", "inspect", "lookup", "arp", "nmap", "hosts", "camsweep"], help="Action to perform (omit for interactive mode)")
     parser.add_argument("--pid", type=int, help="PID for kill command")
     parser.add_argument("--host", help="Host for lookup command")
     parser.add_argument("--limit", type=int, default=20, help="Limit for arp command")
@@ -752,6 +981,8 @@ def main():
     elif args.action == "hosts":
         check_http = getattr(args, 'check_http', False)
         monitor.nmap_scan(target=args.target, ports="", json_output=args.json, sudo=args.sudo, ping_scan=True, check_http=check_http)
+    elif args.action == "camsweep":
+        monitor.camera_sweep(subnet=args.target, json_output=args.json)
 
 
 if __name__ == "__main__":
