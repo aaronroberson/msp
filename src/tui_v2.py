@@ -241,8 +241,12 @@ def _payload_rows(view_id: str, payload: Any) -> list[dict[str, Any]]:
             value = payload.get(key)
             if isinstance(value, dict):
                 enabled = value.get("enabled")
+
+                def _fmt(detail: Any) -> Any:
+                    return ("On" if detail else "Off") if isinstance(detail, bool) else detail
+
                 details = "\n".join(
-                    f"• {name.replace('_', ' ').title()}: {detail}"
+                    f"• {name.replace('_', ' ').title()}: {_fmt(detail)}"
                     for name, detail in value.items()
                     if name != "enabled" and detail not in (None, "", [], {})
                 )
@@ -468,6 +472,8 @@ class TablePane(Vertical):
         with Horizontal(classes="screen-toolbar"):
             title = "Network" if self.spec.id in {"listening", "established"} else self.spec.title
             yield Label(title, classes="screen-title")
+            if self.spec.id == "firewall":
+                yield Button("‹ Back", id="back-privacy")
             yield Button("Refresh", id="refresh-view")
         if self.spec.id in {"listening", "established"}:
             with Horizontal(id="network-tabs"):
@@ -637,7 +643,10 @@ class TablePane(Vertical):
 
     def _refresh_status(self) -> None:
         total = len(self._all_rows)
-        message = "No rows returned" if total == 0 else f"{len(self._visible_rows())} of {total} rows"
+        if self.spec.id == "privacy":
+            message = "Synced from msp status --json" if total else "No data returned"
+        else:
+            message = "No rows returned" if total == 0 else f"{len(self._visible_rows())} of {total} rows"
         self.query_one(f"#status-{self.spec.id}", Label).update(message)
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -957,7 +966,9 @@ class MspTUI(App[None]):
     #nav { height: 3; padding: 0 1; background: #161B22; border-bottom: solid #30363D; }
     #nav Button { min-width: 9; height: 3; border: solid #30363D; background: #161B22; color: #8B949E; padding: 0 1; }
     #nav Button.-active { color: #0D1117; text-style: bold; border: solid #58A6FF; background: #58A6FF; }
-    #page { height: 1fr; padding: 0 1; }
+    #page { width: 1fr; height: 1fr; padding: 0 1; }
+    #main-row { height: 1fr; }
+    #log-rail { width: 48; border-left: solid #30363D; background: #0D1117; padding: 0 1; }
     .screen-title { height: 1; text-style: bold; color: #C9D1D9; }
     .screen-toolbar { height: 3; align: left middle; }
     .screen-toolbar Button { dock: right; }
@@ -965,7 +976,9 @@ class MspTUI(App[None]):
     #security-cards { height: 6; min-height: 6; }
     .security-card { width: 1fr; height: 1fr; border: solid #30363D; background: #161B22; padding: 0 1; margin-right: 1; }
     .security-card:hover, .dashboard-panel:hover { border: solid #58A6FF; }
-    .privacy-card { height: 14; }
+    #privacy-cards { height: auto; }
+    .privacy-card { height: auto; }
+    #privacy-cards Static { color: #8B949E; }
     .card-heading, .panel-heading { height: 2; }
     .card-heading .eyebrow, .panel-heading .eyebrow { width: 1fr; }
     .eyebrow { color: #8B949E; text-style: bold; }
@@ -984,8 +997,9 @@ class MspTUI(App[None]):
     #network-tabs, #finding-filter-row { height: 3; margin-bottom: 1; }
     #firewall-actions { height: 9; }
     #firewall-actions Horizontal { height: 3; }
-    #firewall-actions Button { margin-right: 1; min-width: 12; }
+    #firewall-actions Button { margin-right: 1; width: 21; }
     #firewall-app-actions { height: 3; }
+    #firewall-app-actions Button { margin-right: 1; }
     #record-layout { height: 1fr; }
     #record-layout DataTable { width: 2fr; margin-right: 1; }
     #row-inspector { width: 1fr; }
@@ -1007,19 +1021,22 @@ class MspTUI(App[None]):
     #command-presets { height: 3; margin-bottom: 1; }
     #command-presets Button { margin-right: 1; }
     .empty-note { height: 1; color: #8B949E; }
-    #command-panel { height: 9; min-height: 8; padding: 0 1; border-top: solid #30363D; background: #0D1117; }
-    #runner-tabs { height: 2; }
-    #runner-tabs Button { min-width: 16; height: 2; border: none; background: #0D1117; color: #8B949E; padding: 0 1; }
-    #runner-tabs Button.-active { color: #58A6FF; text-style: bold; border-bottom: solid #58A6FF; }
-    #execution-log-view, #chat-ask-view { height: 1fr; }
+    #command-panel { height: 3; padding: 0 1; border-top: solid #30363D; background: #0D1117; }
+    #execution-log-view { height: 2fr; border-bottom: solid #30363D; padding-bottom: 1; }
     #command-head { height: 1; color: #58A6FF; text-style: bold; }
     #command-log { height: 1fr; color: #C9D1D9; }
-    #command-controls { height: 3; }
+    #command-controls { height: 3; align: left middle; }
     #command-input { width: 1fr; }
-    #command-controls Button { min-width: 9; }
+    #command-controls Button { height: 1; min-width: 7; padding: 0 1; border: none; }
+    #command-controls #run-command { background: #58A6FF; color: #0D1117; text-style: bold; }
+    #command-controls #stop-command { background: #2D1416; color: #F85149; }
+    #command-controls Button:disabled { background: transparent; color: #6E7681; }
+    #chat-ask-view { height: 1fr; }
     #chat-log { height: 1fr; color: #C9D1D9; }
-    #chat-controls { height: 3; }
+    #chat-controls { height: 3; align: left middle; }
     #chat-input { width: 1fr; }
+    #chat-controls Button { height: 1; min-width: 5; padding: 0 1; border: none; }
+    #chat-controls #ask-question { background: #58A6FF; color: #0D1117; text-style: bold; }
     #detail-body, #confirm-body, #help-body {
         margin: 2 4; padding: 1 2; border: solid #30363D; background: #161B22;
     }
@@ -1104,28 +1121,27 @@ class MspTUI(App[None]):
                     yield Button(nav_labels[view.id], id=f"nav-{view.id}")
             yield Button("⌘ Palette", id="open-palette", tooltip="Command palette (Ctrl+P)")
             yield Button("?", id="open-help", tooltip="Help")
-        with Vertical(id="page"):
-            pass
+        with Horizontal(id="main-row"):
+            with Vertical(id="page"):
+                pass
+            with Vertical(id="log-rail"):
+                with Vertical(id="execution-log-view"):
+                    yield Label("$ msp · waiting for command", id="command-head", markup=False)
+                    yield RichLog(id="command-log", markup=False, wrap=True, highlight=False)
+                with Vertical(id="chat-ask-view"):
+                    yield Label("CHAT / ASK", classes="eyebrow")
+                    yield RichLog(id="chat-log", markup=False, wrap=True, highlight=False)
+                    with Horizontal(id="chat-controls"):
+                        yield Input(placeholder="Ask a question…", id="chat-input")
+                        yield Button("Ask", id="ask-question", variant="primary")
         with Vertical(id="command-panel"):
-            with Horizontal(id="runner-tabs"):
-                yield Button("Chat / Ask", id="runner-tab-chat")
-                yield Button("Execution Logs", id="runner-tab-logs", classes="-active")
-            with Vertical(id="execution-log-view"):
-                yield Label("$ msp · waiting for command", id="command-head", markup=False)
-                yield RichLog(id="command-log", markup=False, wrap=True, highlight=False)
-                with Horizontal(id="command-controls"):
-                    yield Input(placeholder="msp command…", id="command-input")
-                    yield Button("Run", id="run-command", variant="primary")
-                    yield Button("Stop", id="stop-command", variant="error", disabled=True)
-            with Vertical(id="chat-ask-view"):
-                yield RichLog(id="chat-log", markup=False, wrap=True, highlight=False)
-                with Horizontal(id="chat-controls"):
-                    yield Input(placeholder="Ask a question…", id="chat-input")
-                    yield Button("Ask", id="ask-question", variant="primary")
+            with Horizontal(id="command-controls"):
+                yield Input(placeholder="msp command…", id="command-input")
+                yield Button("Run", id="run-command", variant="primary")
+                yield Button("Stop", id="stop-command", variant="error", disabled=True)
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#chat-ask-view", Vertical).display = False
         self.call_after_refresh(self.switch_view_id, "dashboard")
 
     def on_unmount(self) -> None:
@@ -1228,10 +1244,8 @@ class MspTUI(App[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id or ""
-        if button_id == "runner-tab-chat":
-            self.select_runner_tab("chat")
-        elif button_id == "runner-tab-logs":
-            self.select_runner_tab("logs")
+        if button_id == "back-privacy":
+            self.switch_view_id("privacy")
         elif button_id.startswith("nav-"):
             self.switch_view_id(button_id[4:])
         elif button_id == "open-palette":
@@ -1289,11 +1303,8 @@ class MspTUI(App[None]):
             self.submit_question()
 
     def select_runner_tab(self, tab: str) -> None:
-        is_chat = tab == "chat"
-        self.query_one("#chat-ask-view", Vertical).display = is_chat
-        self.query_one("#execution-log-view", Vertical).display = not is_chat
-        self.query_one("#runner-tab-chat", Button).set_class(is_chat, "-active")
-        self.query_one("#runner-tab-logs", Button).set_class(not is_chat, "-active")
+        """Tabs are gone — the rail shows logs and chat together; just focus the log."""
+        self.query_one("#command-log", RichLog).scroll_end(animate=False)
 
     def submit_question(self) -> None:
         box = self.query_one("#chat-input", Input)

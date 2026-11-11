@@ -37,7 +37,12 @@ def test_privacy_firewall_details_use_bullets():
     rows = _payload_rows("privacy", {"firewall": {
         "enabled": True, "stealth_mode": True, "block_all": False,
     }})
-    assert rows[0]["details"] == "• Stealth Mode: True\n• Block All: False"
+    assert rows[0]["details"] == "• Stealth Mode: On\n• Block All: Off"
+
+
+def test_privacy_gatekeeper_details_fallback():
+    rows = _payload_rows("privacy", {"gatekeeper": {"enabled": True}})
+    assert rows[0]["details"] == "• Assessments: active — unsigned apps blocked"
 
 
 def test_firewall_mutations_use_fixed_argument_vectors(monkeypatch, tmp_path):
