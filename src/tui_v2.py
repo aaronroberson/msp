@@ -530,7 +530,11 @@ class TablePane(Vertical):
                     with Vertical(classes="security-card privacy-card"):
                         yield Label(name.upper(), classes="eyebrow")
                         yield Label("—", id=f"privacy-{name}-state", classes="state-pill")
-            yield Static("", id=f"privacy-{name}-details", markup=False)
+                        yield Static("", id=f"privacy-{name}-details", markup=False)
+                        if name == "firewall":
+                            with Horizontal(id="firewall-actions"):
+                                yield Button("Enable", id="firewall-enable", variant="primary")
+                                yield Button("Disable", id="firewall-disable", variant="error")
         else:
             if self.spec.id == "startup":
                 with Vertical(id="startup-intro", classes="dashboard-panel"):
