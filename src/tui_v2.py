@@ -424,7 +424,7 @@ class DashboardPane(Vertical):
                 cells: list[Any] = [_trunc(_cell(row, column), 44) for column in columns]
                 if view_id == "findings" and cells:
                     level = str(row.get("severity", "")).upper()
-                    cells[0] = Text(cells[0], style={"HIGH": "bold #FF3B30", "WARN": "bold #FF9F0A", "WARNING": "bold #FF9F0A", "INFO": "#0A84FF"}.get(level, "#8E93A0"))
+                    cells[0] = Text(cells[0], style={"HIGH": "bold #F85149", "WARN": "bold #D29922", "WARNING": "bold #D29922", "INFO": "#58A6FF"}.get(level, "#8B949E"))
                 table.add_row(*cells)
             note_id = {"listening": "#overview-listening-empty", "findings": "#overview-findings-empty", "startup": "#overview-startup-empty"}.get(view_id)
             if note_id:
@@ -925,56 +925,57 @@ class MspTUI(App[None]):
     """msp console with live CLI views and a persistent command runner."""
 
     CSS = """
-    Screen { background: #0C1322; color: #F2F4F8; }
-    Footer { background: #111827; }
+    Screen { background: #0D1117; color: #C9D1D9; }
+    Footer { background: #161B22; }
     Button {
         min-width: 8;
         height: 3;
         padding: 0 1;
-        border: solid #2D323A;
-        background: #111827;
-        color: #F2F4F8;
+        border: solid #30363D;
+        background: #161B22;
+        color: #C9D1D9;
         text-style: none;
     }
-    Button:hover { background: #1A2233; border: solid #8E93A0; color: #F0F6FC; }
-    Button:focus { border: solid #0A84FF; color: #0A84FF; }
-    Button.-primary { background: #0A84FF; border: solid #0A84FF; color: #0C1322; text-style: bold; }
-    Button.-primary:hover { background: #66A5FF; border: solid #66A5FF; color: #0C1322; }
-    Button.-success { background: #14251A; border: solid #2C6B3F; color: #34C759; }
-    Button.-warning { background: #241E12; border: solid #6D5422; color: #FF9F0A; }
-    Button.-error { background: #261719; border: solid #6E3037; color: #FF3B30; }
-    Button.-error:hover { background: #3A1D21; border: solid #FF3B30; color: #FF6B63; }
-    Button:disabled { background: #0C1322; border: solid #1A2233; color: #484F58; }
-    #brandbar { height: 2; padding: 0 1; background: #111827; border-bottom: solid #2D323A; }
-    #brand-left { width: 1fr; color: #8E93A0; }
-    #brand-right { width: auto; color: #8E93A0; }
-    #brandbar Button { height: 2; min-width: 10; border: none; background: transparent; color: #AAC7FF; }
-    #nav { height: 3; padding: 0 1; background: #111827; border-bottom: solid #2D323A; }
-    #nav Button { min-width: 9; height: 3; border: solid #2D323A; background: #111827; color: #8E93A0; padding: 0 1; }
-    #nav Button.-active { color: #0C1322; text-style: bold; border: solid #0A84FF; background: #0A84FF; }
+    Button:hover { background: #21262D; border: solid #8B949E; color: #F0F6FC; }
+    Button:focus { border: solid #58A6FF; color: #58A6FF; }
+    Button.-primary { background: #58A6FF; border: solid #58A6FF; color: #0D1117; text-style: bold; }
+    Button.-primary:hover { background: #79B8FF; border: solid #79B8FF; color: #0D1117; }
+    Button.-success { background: #12261E; border: solid #2EA043; color: #3FB950; }
+    Button.-warning { background: #272115; border: solid #9E6A03; color: #D29922; }
+    Button.-error { background: #2D1416; border: solid #B62324; color: #F85149; }
+    Button.-error:hover { background: #3D1A1D; border: solid #F85149; color: #FF7B72; }
+    Button:disabled { background: #0D1117; border: solid #21262D; color: #6E7681; }
+    #brandbar { height: 2; padding: 0 1; background: #161B22; border-bottom: solid #30363D; }
+    #brand-left { width: 1fr; color: #8B949E; }
+    #brand-right { width: auto; color: #8B949E; }
+    #brandbar Button { height: 2; min-width: 10; border: none; background: transparent; color: #58A6FF; }
+    #nav { height: 3; padding: 0 1; background: #161B22; border-bottom: solid #30363D; }
+    #nav Button { min-width: 9; height: 3; border: solid #30363D; background: #161B22; color: #8B949E; padding: 0 1; }
+    #nav Button.-active { color: #0D1117; text-style: bold; border: solid #58A6FF; background: #58A6FF; }
     #page { height: 1fr; padding: 0 1; }
-    .screen-title { height: 1; text-style: bold; color: #F2F4F8; }
+    .screen-title { height: 1; text-style: bold; color: #C9D1D9; }
     .screen-toolbar { height: 3; align: left middle; }
     .screen-toolbar Button { dock: right; }
     .dashboard-row { height: 1fr; min-height: 5; margin-bottom: 1; }
     #security-cards { height: 6; min-height: 6; }
-    .security-card { width: 1fr; height: 1fr; border: solid #2D323A; background: #111827; padding: 0 1; margin-right: 1; }
+    .security-card { width: 1fr; height: 1fr; border: solid #30363D; background: #161B22; padding: 0 1; margin-right: 1; }
+    .security-card:hover, .dashboard-panel:hover { border: solid #58A6FF; }
     .privacy-card { height: 14; }
     .card-heading, .panel-heading { height: 2; }
     .card-heading .eyebrow, .panel-heading .eyebrow { width: 1fr; }
-    .eyebrow { color: #8E93A0; text-style: bold; }
-    .state-pill { color: #34C759; text-style: bold; }
-    .state-disabled { color: #FF3B30; }
-    .state-enabled { color: #34C759; }
-    .state-unavailable { color: #8E93A0; }
-    .card-details { height: 1fr; color: #8E93A0; }
-    .quiet-action { min-width: 11; height: 2; border: none; background: transparent; color: #0A84FF; }
-    .quiet-action:hover { border: none; background: transparent; color: #66A5FF; }
-    .dashboard-panel { border: solid #2D323A; background: #111827; padding: 0 1; }
+    .eyebrow { color: #8B949E; text-style: bold; }
+    .state-pill { color: #3FB950; text-style: bold; }
+    .state-disabled { color: #F85149; }
+    .state-enabled { color: #3FB950; }
+    .state-unavailable { color: #8B949E; }
+    .card-details { height: 1fr; color: #8B949E; }
+    .quiet-action { min-width: 11; height: 2; border: none; background: transparent; color: #58A6FF; }
+    .quiet-action:hover { border: none; background: transparent; color: #79B8FF; }
+    .dashboard-panel { border: solid #30363D; background: #161B22; padding: 0 1; }
     .wide-panel { width: 2fr; margin-right: 1; }
     .narrow-panel { width: 1fr; }
     #overview-listening, #overview-findings-table, #overview-startup-table { height: 1fr; border: none; }
-    #activity-summary, #startup-summary { height: 1fr; padding: 1 0; color: #8E93A0; }
+    #activity-summary, #startup-summary { height: 1fr; padding: 1 0; color: #8B949E; }
     #network-tabs, #finding-filter-row { height: 3; margin-bottom: 1; }
     #firewall-actions { height: 9; }
     #firewall-actions Horizontal { height: 3; }
@@ -985,58 +986,58 @@ class MspTUI(App[None]):
     #row-inspector { width: 1fr; }
     #startup-add-form { height: 3; }
     #startup-add-form Input { width: 1fr; }
-    #network-tabs Button.-active, #finding-filter-row Button.-active { color: #0C1322; border: solid #0A84FF; background: #0A84FF; text-style: bold; }
+    #network-tabs Button.-active, #finding-filter-row Button.-active { color: #0D1117; border: solid #58A6FF; background: #58A6FF; text-style: bold; }
     #findings-layout { height: 1fr; }
     #findings-layout #table-findings { width: 2fr; margin-right: 1; }
-    #finding-inspector { width: 1fr; padding: 0 1; border-left: solid #2D323A; }
-    #finding-detail { height: 1fr; padding-top: 1; color: #F2F4F8; }
+    #finding-inspector { width: 1fr; padding: 0 1; border-left: solid #30363D; }
+    #finding-detail { height: 1fr; padding-top: 1; color: #C9D1D9; }
     #startup-intro, #tcc-intro, #snapshot-intro { height: auto; min-height: 4; margin-bottom: 1; padding: 0 1; }
-    #startup-inventory-summary, #tcc-summary { color: #8E93A0; }
+    #startup-inventory-summary, #tcc-summary { color: #8B949E; }
     #snapshot-intro Button { dock: right; }
     #table-startup, #table-tcc, #table-snapshots, #table-listening, #table-established { height: 1fr; }
-    DataTable { height: 1fr; border: solid #2D323A; background: #0C1322; }
-    #status-findings, #status-listening, #status-established, #status-startup, #status-tcc, #status-privacy, #status-snapshots { height: 1; color: #8E93A0; }
-    #overview-note { margin-top: 1; color: #8E93A0; }
-    #runner-help { color: #8E93A0; margin-bottom: 1; }
+    DataTable { height: 1fr; border: solid #30363D; background: #0D1117; }
+    #status-findings, #status-listening, #status-established, #status-startup, #status-tcc, #status-privacy, #status-snapshots { height: 1; color: #8B949E; }
+    #overview-note { margin-top: 1; color: #8B949E; }
+    #runner-help { color: #8B949E; margin-bottom: 1; }
     #command-presets { height: 3; margin-bottom: 1; }
     #command-presets Button { margin-right: 1; }
-    .empty-note { height: 1; color: #8E93A0; }
-    #command-panel { height: 9; min-height: 8; padding: 0 1; border-top: solid #2D323A; background: #0C1322; }
+    .empty-note { height: 1; color: #8B949E; }
+    #command-panel { height: 9; min-height: 8; padding: 0 1; border-top: solid #30363D; background: #0D1117; }
     #runner-tabs { height: 2; }
-    #runner-tabs Button { min-width: 16; height: 2; border: none; background: #0C1322; color: #8E93A0; padding: 0 1; }
-    #runner-tabs Button.-active { color: #0A84FF; text-style: bold; border-bottom: solid #0A84FF; }
+    #runner-tabs Button { min-width: 16; height: 2; border: none; background: #0D1117; color: #8B949E; padding: 0 1; }
+    #runner-tabs Button.-active { color: #58A6FF; text-style: bold; border-bottom: solid #58A6FF; }
     #execution-log-view, #chat-ask-view { height: 1fr; }
-    #command-head { height: 1; color: #0A84FF; text-style: bold; }
-    #command-log { height: 1fr; color: #F2F4F8; }
+    #command-head { height: 1; color: #58A6FF; text-style: bold; }
+    #command-log { height: 1fr; color: #C9D1D9; }
     #command-controls { height: 3; }
     #command-input { width: 1fr; }
     #command-controls Button { min-width: 9; }
-    #chat-log { height: 1fr; color: #F2F4F8; }
+    #chat-log { height: 1fr; color: #C9D1D9; }
     #chat-controls { height: 3; }
     #chat-input { width: 1fr; }
     #detail-body, #confirm-body, #help-body {
-        margin: 2 4; padding: 1 2; border: solid #2D323A; background: #111827;
+        margin: 2 4; padding: 1 2; border: solid #30363D; background: #161B22;
     }
     DetailScreen, ConfirmScreen, HelpScreen { align: center middle; background: #000000 85%; }
-    #detail-dialog { width: 76; max-height: 85%; height: auto; border: solid #2D323A; background: #111827; padding: 1 2; }
+    #detail-dialog { width: 76; max-height: 85%; height: auto; border: solid #30363D; background: #161B22; padding: 1 2; }
     #detail-body { margin: 0; padding: 1 0; border: none; }
-    #confirm-body { width: 72; height: auto; max-height: 80%; margin: 0; border: solid #0A84FF; }
+    #confirm-body { width: 72; height: auto; max-height: 80%; margin: 0; border: solid #58A6FF; }
     #confirm-actions { height: 3; align: right middle; }
     #confirm-actions Button { margin-left: 1; }
-    #confirm-command { padding: 0 1; margin: 1 0; border: solid #2D323A; background: #0C1322; color: #FF9F0A; }
-    #confirm-description { color: #8E93A0; }
-    #config-dialog { width: 68; height: auto; border: solid #414754; background: #111827; padding: 1 2; }
+    #confirm-command { padding: 0 1; margin: 1 0; border: solid #30363D; background: #0D1117; color: #D29922; }
+    #confirm-description { color: #8B949E; }
+    #config-dialog { width: 68; height: auto; border: solid #30363D; background: #161B22; padding: 1 2; }
     #config-dialog Input { margin-top: 1; }
     #config-actions { height: 3; margin-top: 1; align: right middle; }
     #config-actions Button { margin-left: 1; }
     PaletteScreen { align: center middle; background: #000000 85%; }
-    #palette-dialog { width: 74; height: auto; max-height: 75%; border: solid #0A84FF; background: #0C1322; padding: 1; }
+    #palette-dialog { width: 74; height: auto; max-height: 75%; border: solid #58A6FF; background: #0D1117; padding: 1; }
     #palette-search-row { height: 3; margin-bottom: 1; }
-    .palette-chevron { width: 3; color: #0A84FF; content-align: center middle; }
-    #palette-search { width: 1fr; border: solid #0A84FF; }
-    .keycap { width: 6; content-align: center middle; color: #8E93A0; }
-    #palette-options { height: auto; max-height: 20; background: #111827; }
-    #palette-footer { height: 1; color: #8E93A0; margin-top: 1; }
+    .palette-chevron { width: 3; color: #58A6FF; content-align: center middle; }
+    #palette-search { width: 1fr; border: solid #58A6FF; }
+    .keycap { width: 6; content-align: center middle; color: #8B949E; }
+    #palette-options { height: auto; max-height: 20; background: #161B22; }
+    #palette-footer { height: 1; color: #8B949E; margin-top: 1; }
     """
 
     BINDINGS = [
@@ -1060,10 +1061,10 @@ class MspTUI(App[None]):
     SUB_TITLE = "security & privacy console"
 
     DARK_THEME = Theme(
-        name="msp-dark", primary="#AAC7FF", secondary="#C2C6D4", warning="#FFB691",
-        error="#FFB4AB", success="#34C759", accent="#AAC7FF", foreground="#DCE2F7",
-        background="#0C1322", surface="#111827", panel="#0C1322", boost="#1A2233",
-        dark=True, variables={"outline": "#414754"},
+        name="msp-dark", primary="#58A6FF", secondary="#C9D1D9", warning="#D29922",
+        error="#F85149", success="#3FB950", accent="#58A6FF", foreground="#C9D1D9",
+        background="#0D1117", surface="#161B22", panel="#0D1117", boost="#21262D",
+        dark=True, variables={"outline": "#30363D"},
     )
 
     def __init__(self) -> None:
