@@ -32,9 +32,11 @@ Thumbs.db
 
 # Local databases and runtime state
 lancedb/
+frigate-setup/.env
 frigate-setup/config/*.db*
 frigate-setup/config/.vacuum
 frigate-setup/config/*.log
+frigate-setup/config/.jwt_secret
 
 # History and stray files
 $APFEL_GLOBAL_HISTORY
