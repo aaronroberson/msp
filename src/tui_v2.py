@@ -241,14 +241,17 @@ def _payload_rows(view_id: str, payload: Any) -> list[dict[str, Any]]:
             value = payload.get(key)
             if isinstance(value, dict):
                 enabled = value.get("enabled")
+                details = "\n".join(
+                    f"• {name.replace('_', ' ').title()}: {detail}"
+                    for name, detail in value.items()
+                    if name != "enabled" and detail not in (None, "", [], {})
+                )
+                if not details and key == "gatekeeper" and enabled is True:
+                    details = "• Assessments: active — unsigned apps blocked"
                 rows.append({
                     "setting": key.title(),
                     "status": "Enabled" if enabled is True else "Disabled" if enabled is False else "Unavailable",
-                    "details": "\n".join(
-                        f"• {name.replace('_', ' ').title()}: {detail}"
-                        for name, detail in value.items()
-                        if name != "enabled" and detail not in (None, "", [], {})
-                    ),
+                    "details": details,
                 })
         return rows
     if view_id == "firewall" and isinstance(payload, dict):
@@ -409,6 +412,8 @@ class DashboardPane(Vertical):
                     if isinstance(detail, bool):
                         detail = "On" if detail else "Off"
                     details.append(f"{field.replace('_', ' ').title()}: {detail}")
+            if not details and name == "gatekeeper" and enabled is True:
+                details.append("Assessments: active — unsigned apps blocked")
             self.query_one(f"#card-{name}-details", Label).update("\n".join(details[:3]))
         for table_id, command, view_id, columns, limit in (
             ("#overview-listening", "net list --json", "listening", ("protocol", "local", "process", "pid"), 5),
@@ -1018,7 +1023,12 @@ class MspTUI(App[None]):
     #detail-body, #confirm-body, #help-body {
         margin: 2 4; padding: 1 2; border: solid #30363D; background: #161B22;
     }
-    DetailScreen, ConfirmScreen, HelpScreen { align: center middle; background: #000000 85%; }
+    DetailScreen, ConfirmScreen, HelpScreen, ConfigScreen { align: center middle; background: #000000 85%; }
+    HelpScreen VerticalScroll { align: center middle; }
+    HelpScreen #help-body { width: 72; margin: 0; height: auto; }
+    /* .stitch: thin dark scrollbars */
+    * { scrollbar-color: #30363D; scrollbar-background: #0D1117; scrollbar-color-hover: #6E7681; }
+    Screen, VerticalScroll, ScrollableContainer { scrollbar-size-vertical: 1; scrollbar-size-horizontal: 1; }
     #detail-dialog { width: 76; max-height: 85%; height: auto; border: solid #30363D; background: #161B22; padding: 1 2; }
     #detail-body { margin: 0; padding: 1 0; border: none; }
     #confirm-body { width: 72; height: auto; max-height: 80%; margin: 0; border: solid #58A6FF; }
