@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `msp doctor` shell-performance output rendered raw Rich markup (`[red]HIGH[/red]`) instead of color; it now prints via `console.print`.
+- `msp doctor` suggested nonexistent commands: `msp tune profile` (slow startup) and `msp tune apply` (corrupted history) now point to `msp tune fix` / `msp tune check`.
+- `msp tune` check output leaked raw Rich markup (`[red]HIGH[/red] [red]zsh[/red]`) in the severity lines; now rendered with `console.print`.
+
+### Changed
+- `msp tune fix` destructive operations (`~/.zshrc` rewrite, zsh history trim/repair) now create timestamped backups in `~/.msp/backups/` before modifying files. On failure every backup is restored (all-or-nothing run); on success backups are kept and interactive users are offered cleanup, non-interactive runs report backup paths. Applies fixes summary with per-fix status and backup location.
+
+### Added
+- `tests/test_tune.py` covering backup creation, rollback on handler/write failure, dry-run isolation, backup cleanup, and JSON output of backup paths.
+
 ## [0.2.0] - 2026-09-02
 
 ### Added

@@ -3,7 +3,10 @@
 
 Commands:
   check       Run all diagnostics (shell + system), show issues
-  fix         Apply auto-fixes (--dry-run to preview)
+  fix         Apply auto-fixes (--dry-run to preview). Modified files are
+              backed up to ~/.msp/backups first: on failure every backup is
+              restored (all-or-nothing); on success backups are kept and you
+              are offered cleanup (interactive) or told how to remove them.
   top         Show top CPU/memory processes, memory pressure, and load
 """
 
@@ -36,6 +39,7 @@ ZSH_HISTORY = HOME / ".zsh_history"
 ZSHRC = HOME / ".zshrc"
 ZSH_DIR = HOME / ".zsh"
 NVM_SH = HOME / ".nvm" / "nvm.sh"
+BACKUP_DIR = HOME / ".msp" / "backups"
 
 
 @dataclass
@@ -102,6 +106,8 @@ class Tuner:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
         self.findings: list[Finding] = []
+        # (target, backup) pairs created during the current fix run.
+        self.backups: list[tuple[Path, Path]] = []
 
     # ── check ──────────────────────────────────────────────
 
@@ -146,11 +152,11 @@ class Tuner:
             print()
             for f in self.findings:
                 c = colors.get(f.severity, "white")
-                print(f"  [{c}]{f.severity.upper()}[/{c}] [{c}]{f.domain}[/{c}] {f.title}")
-                print(f"       {f.description}")
+                console.print(f"  [{c}]{f.severity.upper()}[/{c}] [{c}]{f.domain}[/{c}] {f.title}")
+                console.print(f"       {f.description}")
                 if f.fixable:
-                    print(f"       → msp tune fix")
-                print()
+                    console.print("       → msp tune fix")
+                console.print()
         else:
             for f in self.findings:
                 print(f"[{f.severity.upper()}] [{f.domain}] {f.title}")
@@ -390,11 +396,124 @@ class Tuner:
             print(out)
         return result
 
+    # ── backups ────────────────────────────────────────────
+
+    def _make_backup(self, target: Path, dry: bool = False) -> Path:
+        """Back up `target` into BACKUP_DIR before a destructive write.
+
+        Raises on failure so the caller can abort rather than edit a file
+        with no rollback path. Records (target, backup) for this run so a
+        later failure can restore every modified file (all-or-nothing).
+        Returns the backup path (placeholder path in dry mode).
+        """
+        if not target.exists():
+            raise FileNotFoundError(f"{target} does not exist")
+        if dry:
+            return BACKUP_DIR / f"{target.name}.<timestamp>.bak"
+        try:
+            BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+            stamp = time.strftime("%Y%m%d-%H%M%S")
+            backup = BACKUP_DIR / f"{target.name}.{stamp}.bak"
+            n = 1
+            while backup.exists():
+                backup = BACKUP_DIR / f"{target.name}.{stamp}.{n}.bak"
+                n += 1
+            shutil.copy2(target, backup)
+        except Exception:
+            raise
+        self.backups.append((target, backup))
+        return backup
+
+    def _restore(self, target: Path, backup: Path) -> bool:
+        try:
+            shutil.copy2(backup, target)
+            return True
+        except Exception:
+            return False
+
+    def _rollback(self) -> list[dict[str, str]]:
+        """Restore every backup recorded this run; delete backups after a
+        successful restore. Returns a report for failed-run summaries."""
+        rolled: list[dict[str, str]] = []
+        for target, backup in self.backups:
+            if self._restore(target, backup):
+                rolled.append({"file": str(target), "restored_from": str(backup)})
+                backup.unlink(missing_ok=True)
+            else:
+                rolled.append({"file": str(target), "restored_from": str(backup),
+                               "status": "restore-failed", "backup_kept": str(backup)})
+        self.backups.clear()
+        return rolled
+
+    def _cleanup_backups(self, delete: bool) -> list[str]:
+        """Delete or keep this run's backups; returns the affected paths."""
+        paths = [str(backup) for _, backup in self.backups]
+        if delete:
+            for _, backup in self.backups:
+                backup.unlink(missing_ok=True)
+        self.backups.clear()
+        return paths
+
+    def _prompt_backup_cleanup(self, json_output: bool) -> None:
+        """On success: offer to delete backups (TTY only); otherwise report
+        where they are and how to restore them."""
+        if not self.backups:
+            return
+        if json_output or not sys.stdin.isatty() or not sys.stdout.isatty():
+            kept = self._cleanup_backups(delete=False)
+            print("Backups kept — verify the fixes, then remove manually:")
+            for p in kept:
+                print(f"  {p}")
+            return
+        try:
+            from src.command import interactive_select
+            choice = interactive_select(
+                [
+                    ("keep", "Keep backups (recommended)", "Leave copies in ~/.msp/backups"),
+                    ("delete", "Delete backups", "Fixes verified; remove backup copies"),
+                ],
+                title="Fixes applied successfully. Delete backups?",
+            )
+        except Exception:
+            choice = None  # e.g. raw-mode failure: fall back to keeping them
+        delete = bool(choice) and choice[0] == "delete"
+        handled = self._cleanup_backups(delete=delete)
+        if delete:
+            print(f"Deleted {len(handled)} backup(s).")
+        else:
+            print("Backups kept — verify the fixes, then remove manually:")
+            for p in handled:
+                print(f"  {p}")
+
+    def _print_fix_summary(self, results: list[dict[str, Any]]) -> None:
+        if not results:
+            return
+        colors = {"applied": "green", "failed": "red", "skipped": "yellow", "dry-run": "cyan"}
+        for r in results:
+            status = r.get("status", "unknown")
+            c = colors.get(status, "white")
+            title = r.get("finding") or r.get("fix", "")
+            plain = f"  {status.upper():<8} {title}"
+            if r.get("detail"):
+                plain += f" ({r['detail']})"
+            if RICH_AVAILABLE and console:
+                console.print(f"  [{c}]{status.upper():<8}[/] {title}")
+            else:
+                print(plain)
+            if r.get("backup"):
+                plain = f"           backup: {r['backup']}"
+                (console.print if RICH_AVAILABLE and console else print)(plain)
+            if r.get("rolled_back"):
+                plain = (f"           rolled back {len(r['rolled_back'])} file(s): "
+                         + ", ".join(Path(x["file"]).name for x in r["rolled_back"]))
+                (console.print if RICH_AVAILABLE and console else print)(plain)
+
     # ── fix ────────────────────────────────────────────────
 
     def fix(self, dry_run: bool = False, json_output: bool = False) -> list[dict[str, Any]]:
         self.check(json_output=False)
         results: list[dict[str, Any]] = []
+        self.backups = []
         zshrc_lines = ZSHRC.read_text().splitlines(keepends=True) if ZSHRC.exists() else []
 
         fix_map: dict[str, Any] = {
@@ -405,27 +524,75 @@ class Tuner:
             "brew_shellenv": self._fix_brew_shellenv,
         }
 
+        zshrc_dirty = False
         for f in self.findings:
             if not f.fixable or not f.fix_cmd:
                 continue
             handler = fix_map.get(f.fix_cmd)
-            if handler:
+            if not handler:
+                continue
+            try:
                 result = handler(zshrc_lines, dry_run)
+            except Exception as e:
+                # All-or-nothing: restore every file touched this run and stop.
+                rolled = self._rollback()
+                zshrc_lines = ZSHRC.read_text().splitlines(keepends=True) if ZSHRC.exists() else []
+                zshrc_dirty = False
+                result: dict[str, Any] = {"fix": f.fix_cmd, "status": "failed", "reason": str(e)}
+                if rolled:
+                    result["rolled_back"] = rolled
                 result["finding"] = f.title
                 results.append(result)
-                if dry_run:
-                    print(f"  [DRY-RUN] {f.title}")
+                break
+            result["finding"] = f.title
+            results.append(result)
+            if result.get("dirty_zshrc"):
+                zshrc_dirty = True
+            if dry_run:
+                print(f"  [DRY-RUN] {f.title}")
 
-        if not dry_run and any(r.get("dirty_zshrc") for r in results):
-            self._write_zshrc(zshrc_lines)
+        if not dry_run and zshrc_dirty and ZSHRC.exists():
+            write_result: dict[str, Any] = {}
+            try:
+                backup = self._make_backup(ZSHRC)
+            except Exception as e:
+                rolled = self._rollback()
+                write_result = {"fix": "zshrc_write", "status": "failed",
+                                "finding": f"Rewrite {ZSHRC}",
+                                "reason": f"backup failed: {e}"}
+                if rolled:
+                    write_result["rolled_back"] = rolled
+            else:
+                if self._write_zshrc(zshrc_lines):
+                    write_result = {"fix": "zshrc_write", "status": "applied",
+                                    "finding": f"Rewrite {ZSHRC}",
+                                    "path": str(ZSHRC), "backup": str(backup)}
+                else:
+                    rolled = self._rollback()
+                    write_result = {"fix": "zshrc_write", "status": "failed",
+                                    "finding": f"Rewrite {ZSHRC}",
+                                    "reason": "write failed; restored from backup"}
+                    if rolled:
+                        write_result["rolled_back"] = rolled
+            results.append(write_result)
+
+        if not dry_run:
+            self._print_fix_summary(results)
+            if not any(r.get("status") == "failed" for r in results):
+                self._prompt_backup_cleanup(json_output)
 
         if json_output:
             print(json.dumps(results, indent=2))
         return results
 
-    def _write_zshrc(self, lines: list[str]) -> None:
-        if ZSHRC.exists():
+    def _write_zshrc(self, lines: list[str]) -> bool:
+        if not ZSHRC.exists():
+            return False
+        try:
             ZSHRC.write_text("".join(lines))
+            return True
+        except Exception:
+            return False
 
     def _has(self, lines: list[str], pattern: str) -> bool:
         return any(pattern in l for l in lines)
@@ -434,22 +601,25 @@ class Tuner:
         if self._has(lines, "Lazy"):
             return {"fix": "nvm_lazy", "status": "skipped", "reason": "already lazy"}
         for i, line in enumerate(lines):
-            if "source" in line and "nvm.sh" in line and "Lazy" not in lines[i - 1] if i > 0 else True:
-                indent = line[:len(line) - len(line.lstrip())]
-                block = (
-                    f"{indent}# Lazy-load NVM\n"
-                    f"{indent}export NVM_DIR=\"$HOME/.nvm\"\n"
-                    f"{indent}if [ -s \"$NVM_DIR/nvm.sh\" ]; then\n"
-                    f"{indent}  nvm()   {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; nvm \"$@\"; }}\n"
-                    f"{indent}  node()  {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; node \"$@\"; }}\n"
-                    f"{indent}  npm()   {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; npm \"$@\"; }}\n"
-                    f"{indent}  npx()   {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; npx \"$@\"; }}\n"
-                    f"{indent}  yarn()  {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; yarn \"$@\"; }}\n"
-                    f"{indent}  pnpm()  {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; pnpm \"$@\"; }}\n"
-                    f"{indent}fi\n"
-                )
-                lines[i] = block if not dry else lines[i]
-                return {"fix": "nvm_lazy", "status": "applied" if not dry else "dry-run", "dirty_zshrc": True}
+            if "source" not in line or "nvm.sh" not in line:
+                continue
+            if i > 0 and "Lazy" in lines[i - 1]:
+                continue
+            indent = line[:len(line) - len(line.lstrip())]
+            block = (
+                f"{indent}# Lazy-load NVM\n"
+                f"{indent}export NVM_DIR=\"$HOME/.nvm\"\n"
+                f"{indent}if [ -s \"$NVM_DIR/nvm.sh\" ]; then\n"
+                f"{indent}  nvm()   {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; nvm \"$@\"; }}\n"
+                f"{indent}  node()  {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; node \"$@\"; }}\n"
+                f"{indent}  npm()   {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; npm \"$@\"; }}\n"
+                f"{indent}  npx()   {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; npx \"$@\"; }}\n"
+                f"{indent}  yarn()  {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; yarn \"$@\"; }}\n"
+                f"{indent}  pnpm()  {{ unset -f nvm node npm npx yarn pnpm; . \"$NVM_DIR/nvm.sh\"; pnpm \"$@\"; }}\n"
+                f"{indent}fi\n"
+            )
+            lines[i] = block if not dry else lines[i]
+            return {"fix": "nvm_lazy", "status": "applied" if not dry else "dry-run", "dirty_zshrc": True}
         return {"fix": "nvm_lazy", "status": "skipped", "reason": "not found"}
 
     def _fix_history_trim(self, lines: list[str], dry: bool) -> dict:
@@ -459,8 +629,10 @@ class Tuner:
             return {"fix": "history_trim", "status": "dry-run"}
         hl = ZSH_HISTORY.read_text().splitlines()
         if len(hl) > 10000:
+            backup = self._make_backup(ZSH_HISTORY)
             ZSH_HISTORY.write_text("\n".join(hl[-10000:]) + "\n")
-            return {"fix": "history_trim", "status": "applied", "detail": f"{len(hl)}→10000"}
+            return {"fix": "history_trim", "status": "applied",
+                    "detail": f"{len(hl)}→10000", "backup": str(backup)}
         return {"fix": "history_trim", "status": "skipped", "reason": f"{len(hl)} lines OK"}
 
     def _fix_history_repair(self, lines: list[str], dry: bool) -> dict:
@@ -468,13 +640,11 @@ class Tuner:
             return {"fix": "history_repair", "status": "skipped", "reason": "no file"}
         if dry:
             return {"fix": "history_repair", "status": "dry-run"}
-        backup = ZSH_HISTORY.with_suffix(".zsh_history.bad")
-        shutil.copy2(ZSH_HISTORY, backup)
+        backup = self._make_backup(ZSH_HISTORY)
         rc, _ = _run(f"strings {backup} > {ZSH_HISTORY}")
         if rc == 0:
-            backup.unlink()
-            return {"fix": "history_repair", "status": "applied"}
-        return {"fix": "history_repair", "status": "failed"}
+            return {"fix": "history_repair", "status": "applied", "backup": str(backup)}
+        raise RuntimeError(f"strings extraction failed (rc={rc}); history restored from backup")
 
     def _fix_async(self, lines: list[str], dry: bool) -> dict:
         if self._has(lines, "ZSH_AUTOSUGGEST_USE_ASYNC"):
@@ -518,8 +688,12 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog="""Examples:
   msp tune check          Run all diagnostics
   msp tune check --json   Machine-readable output
-  msp tune fix            Apply all auto-fixes
+  msp tune fix            Apply all auto-fixes (backs up modified files first)
   msp tune fix --dry-run  Preview fixes
+
+Fixes that modify files (~/.zshrc, ~/.zsh_history) create timestamped
+backups in ~/.msp/backups first. On failure every backup is restored;
+on success backups are kept and you are offered cleanup.
         """,
     )
     p.add_argument("action", nargs="?", choices=["check", "fix", "top", ""], help="check | fix | top (omit for interactive)")

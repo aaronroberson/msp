@@ -223,7 +223,7 @@ class DependencyManager:
             if seconds > 0:
                 ms = seconds * 1000
                 if ms > 500:
-                    shell_issues.append(("HIGH", "Zsh startup is slow", f"{ms:.0f}ms (target: <150ms). Run 'msp tune profile'."))
+                    shell_issues.append(("HIGH", "Zsh startup is slow", f"{ms:.0f}ms (target: <150ms). Run 'msp tune fix' to auto-fix (lazy-load NVM, trim history), or 'msp tune check' for details."))
                 elif ms > 150:
                     shell_issues.append(("MEDIUM", "Zsh startup could be faster", f"{ms:.0f}ms (target: <150ms)."))
         except Exception:
@@ -238,7 +238,7 @@ class DependencyManager:
                     shell_issues.append(("MEDIUM", "Large zsh history", f"{lines} lines affects startup/search speed."))
                 ok, file_out = self._run_cmd(f"file {history}")
                 if ok and "ASCII" not in file_out:
-                    shell_issues.append(("HIGH", "Corrupted zsh history", "Run 'msp tune apply' to repair."))
+                    shell_issues.append(("HIGH", "Corrupted zsh history", "Run 'msp tune fix' to repair (backs up and extracts readable entries)."))
             except Exception:
                 pass
 
@@ -277,8 +277,8 @@ class DependencyManager:
             print("Shell performance:\n")
             for severity, title, detail in shell_issues:
                 color = {"HIGH": "red", "MEDIUM": "yellow", "LOW": "cyan"}.get(severity, "white")
-                if RICH_AVAILABLE:
-                    print(f"  [{color}]{severity}[/{color}] {title}")
+                if RICH_AVAILABLE and console:
+                    console.print(f"  [{color}]{severity}[/{color}] {title}")
                 else:
                     print(f"  [{severity}] {title}")
                 print(f"       {detail}\n")
