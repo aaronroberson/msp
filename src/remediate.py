@@ -793,6 +793,7 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="?",
         const="",
         default=None,
+        action="append",  # list of tokens; a bare --yes appends ""
         metavar="TOKEN",
         help="Affirm applying. Repeat with a token (--yes TOKEN) to authorize confirm/dangerous actions.",
     )
