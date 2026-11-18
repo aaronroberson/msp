@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """File system watcher module for msp CLI."""
 
+import hashlib
 import os
 import json
 import subprocess
@@ -32,6 +33,127 @@ console = Console() if RICH_AVAILABLE else None
 
 
 @dataclass
+
+
+
+class PersistentDirectoryMonitor:
+    """Monitors system persistence directories for tamper detection.
+
+    Watches critical system directories for unauthorized changes,
+    comparing against stored baselines and alerting on modifications.
+    """
+
+    DEFAULT_WATCH_DIRS = [
+        "/Library/LaunchAgents",
+        "/Library/LaunchDaemons",
+        "/Library/Application Support",
+        "/Library/Extensions",
+        "/Library/StartupItems",
+        "/Library/PrivilegedHelperTools",
+        "/Library/PreferencePanes",
+        "/Library/PreferenceBundles",
+        "/System/Library/LaunchDaemons",
+        "/System/Library/LoginItems",
+        "/Library/HTTPd",
+        "/Library/Internet Plug-Ins",
+        "/Library/ColorSync/Profiles",
+        "/Library/Fonts",
+    ]
+
+    def __init__(self, watch_dirs: Optional[List[str]] = None, interval: int = 300):
+        self.watch_dirs = watch_dirs or self.DEFAULT_WATCH_DIRS
+        self.interval = interval  # seconds between scans
+        self._running = False
+        self._baseline: Dict[str, str] = {}
+        self._callbacks: List[Callable] = []
+
+    def set_callback(self, callback: Callable[[str, str, str], None]) -> None:
+        """Set a callback for tamper events."""
+        self._callbacks.append(callback)
+
+    def _compute_baseline(self) -> Dict[str, str]:
+        """Compute a SHA-256 baseline of all files in watch directories."""
+        baseline = {}
+        for d in self.watch_dirs:
+            if not os.path.exists(d):
+                continue
+            for root, dirs, files in os.walk(d):
+                for fname in files:
+                    fpath = os.path.join(root, fname)
+                    try:
+                        with open(fpath, "rb") as f:
+                            baseline[fpath] = hashlib.sha256(f.read()).hexdigest()
+                    except (PermissionError, OSError):
+                        pass
+        return baseline
+
+    def start(self) -> None:
+        """Start continuous monitoring."""
+        if self._running:
+            return
+        self._running = True
+        self._baseline = self._compute_baseline()
+        
+        def _monitor_loop():
+            while self._running:
+                try:
+                    current = self._compute_baseline()
+                    for fpath, old_hash in self._baseline.items():
+                        if fpath not in current:
+                            # File deleted
+                            self._notify(fpath, "deleted", old_hash)
+                        elif current[fpath] != old_hash:
+                            # File modified
+                            self._notify(fpath, "modified", old_hash)
+                    self._baseline = current
+                except Exception as e:
+                    pass
+                time.sleep(self.interval)
+
+        self._thread = threading.Thread(target=_monitor_loop, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Stop monitoring."""
+        self._running = False
+        if hasattr(self, "_thread"):
+            self._thread.join(timeout=5)
+
+    def _notify(self, path: str, event: str, old_hash: str) -> None:
+        """Notify all registered callbacks of a tamper event."""
+        short_hash = old_hash[:12]
+        for cb in self._callbacks:
+            try:
+                cb(path, event, short_hash)
+            except Exception:
+                pass
+        # Also print to stderr for visibility
+        import sys
+        print(f"[TAMPER] {path} - {event} (hash: {short_hash})", file=sys.stderr)
+
+    def _log_tamper(self, path: str, event: str, old_hash: str) -> None:
+        """Log tamper event to a persistent ledger."""
+        import json
+        import datetime
+        ledger_path = Path.home() / ".msp/.tamper_ledger.jsonl"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        if not ledger_path.exists():
+            ledger_path.write_text("")
+        record = {
+            "path": path,
+            "event": event,
+            "old_hash": old_hash,
+        }
+        with ledger_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, sort_keys=True) + chr(10)"
+")
+
+    def __enter__(self) -> "PersistentDirectoryMonitor":
+        self.start()
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.stop()
 class FileEvent:
     path: str
     event_type: str
