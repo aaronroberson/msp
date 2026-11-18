@@ -36,7 +36,7 @@ def test_bundle_roundtrip(scan_home):
     assert path == scan_home / ".msp" / "scans" / "latest.json"
     bundle = read_latest_scan()
     assert bundle is not None
-    assert bundle["schema"] == "1.0"
+    assert bundle["schema"] == "2.0"
     assert bundle["mode"] == "quick"
     assert bundle["checks"] == checks
 

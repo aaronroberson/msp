@@ -17,6 +17,12 @@ from src.command import (
     interactive_select,
 )
 from src.command import pause_for_enter
+from src.schema import (
+    BUNDLE_SCHEMA_VERSION,
+    FindingV2,
+    canonicalize_checks,
+    finding_v2_from_scanner_finding,
+)
 from src.state import latest_scan_bundle, reports_dir
 
 try:
@@ -43,7 +49,7 @@ class Finding:
 # The single source consumed by `msp doctor` (health surface) so that
 # doctor never re-runs checks inline. Written by every scan mode.
 
-SCAN_BUNDLE_SCHEMA = "1.0"
+SCAN_BUNDLE_SCHEMA = BUNDLE_SCHEMA_VERSION
 
 
 def scan_bundle_path() -> Path:
@@ -91,6 +97,17 @@ def collect_health_checks() -> List[Dict[str, Any]]:
     scanner = SecurityScanner()
     scanner._check_file_permissions()
     checks.extend(getattr(scanner, "permission_results", []))
+
+    # Canonicalize (schema v2): add provenance/incomplete/verified metadata
+    # while preserving every flat key consumers depend on.
+    argv = list(sys.argv)
+    now = datetime.now().isoformat(timespec="seconds")
+    tune_count = len(checks)
+    checks = canonicalize_checks(checks, collector="tune", args=argv, timestamp=now)
+    scanner_checks = checks[tune_count:]
+    checks[tune_count:] = canonicalize_checks(
+        scanner_checks, collector="scanner.permissions", args=argv, timestamp=now
+    )
     return checks
 
 
@@ -568,13 +585,11 @@ class SecurityScanner:
         findings = self._sort_findings(self.findings, sort_by)
 
         if json_output:
-            output = [{
-                "severity": f.severity,
-                "category": f.category,
-                "item": f.item,
-                "description": f.description,
-                "recommendation": f.recommendation
-            } for f in findings]
+            output = []
+            for f in findings:
+                v2 = finding_v2_from_scanner_finding(f).to_dict()
+                v2["item"] = f.item  # legacy alias consumed by TUI views
+                output.append(v2)
             print(json.dumps(output, indent=2))
             return self.findings
 
@@ -625,13 +640,10 @@ class SecurityScanner:
             "timestamp": datetime.now().isoformat(),
             "scan_type": "comprehensive",
             "findings_count": len(self.findings),
-            "findings": [{
-                "severity": f.severity,
-                "category": f.category,
-                "item": f.item,
-                "description": f.description,
-                "recommendation": f.recommendation
-            } for f in self.findings]
+            "findings": [
+                {**finding_v2_from_scanner_finding(f).to_dict(), "item": f.item}
+                for f in self.findings
+            ]
         }
 
         if output_file:

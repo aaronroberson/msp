@@ -281,6 +281,14 @@ class Finding:
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+    def to_v2(self) -> Dict[str, Any]:
+        """Canonical finding v2 dict (schema.py adapter), keeping the
+        legacy ``rule_id`` flat key so remediate planners stay compatible."""
+        from src.schema import finding_v2_from_rules_finding
+        v2 = finding_v2_from_rules_finding(self).to_dict()
+        v2["rule_id"] = self.rule_id
+        return v2
+
 
 class RuleEngine:
     """Evaluate audit rules against normalized facts."""
