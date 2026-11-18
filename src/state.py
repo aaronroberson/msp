@@ -102,6 +102,11 @@ def state_dir() -> Path:
     return msp_home() / "state"
 
 
+def approval_ledger_file() -> Path:
+    """Append-only JSONL ledger for approval-gate tokens and decisions."""
+    return state_dir() / "approval_ledger.jsonl"
+
+
 ALL_DIRS = (
     scans_dir,
     reports_dir,
