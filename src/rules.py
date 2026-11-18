@@ -19,10 +19,12 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Seque
 from src.command import (
     interactive_menu as cmd_interactive_menu,
     interactive_select as cmd_interactive_select,
+    pause_for_enter,
     setup_completion,
     suggest_command,
 )
-from src.command import pause_for_enter
+from src import controls
+from src.controls import require_control
 
 try:
     from rich.console import Console
@@ -379,7 +381,7 @@ def default_rules() -> List[Rule]:
     strict_profiles = ("enterprise", "high_security")
     developer_plus = ("developer", "enterprise", "high_security")
 
-    return [
+    rules_list: List[Rule] = [
         rule(
             "FW-001",
             "Application firewall is disabled",
@@ -623,6 +625,11 @@ def default_rules() -> List[Rule]:
             tags=("developer",),
         ),
     ]
+
+    # Every rule must resolve to a registered control (T-03).
+    for entry in rules_list:
+        require_control(entry.id)
+    return rules_list
 
 
 def _password_delay_exceeds_profile(facts: Facts) -> bool:

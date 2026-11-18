@@ -6,7 +6,6 @@ planning and dry-runs; callers must opt in to applying commands.
 """
 
 from __future__ import annotations
-
 import argparse
 import json
 import sys
@@ -15,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 from src.command import pause_for_enter
+from src.controls import get_control
 
 try:
     from src.command import (
@@ -161,6 +161,18 @@ class RemediationPlanner:
 
         for finding in findings:
             rule_id = str(finding.get("rule_id", ""))
+            if not rule_id or get_control(rule_id) is None:
+                skipped.append(
+                    {
+                        "rule_id": rule_id,
+                        "reason": (
+                            "Unknown control id (not in controls registry)."
+                            if rule_id
+                            else "No control id on finding."
+                        ),
+                    }
+                )
+                continue
             mapped = self._actions_for_finding(finding)
             if not mapped:
                 skipped.append(
