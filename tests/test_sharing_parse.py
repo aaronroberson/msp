@@ -38,3 +38,14 @@ def test_nested_protocol_blocks_are_not_flattened():
 def test_empty_output():
     assert parse_share_points("") == []
 
+
+def test_listening_ports_from_netstat():
+    from src.sharing import parse_listening_ports
+    sample = (
+        "Active Internet connections (including servers)\n"
+        "Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)\n"
+        "tcp4       0      0  *.445                  *.*                    LISTEN\n"
+        "tcp6       0      0  *.548                  *.*                    LISTEN\n"
+        "tcp4       0      0  192.168.1.5.52000      17.1.1.1.443           ESTABLISHED\n"
+    )
+    assert parse_listening_ports(sample) == {445, 548}

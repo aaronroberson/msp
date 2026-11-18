@@ -693,7 +693,7 @@ class PrivacySettingsManager:
 
         sharing = status["sharing"]
         console.print(f"\n[bold yellow]SHARING[/bold yellow]")
-        console.print(f"  Sharing daemon: {'[yellow]Running[/yellow]' if sharing.get('sharing_enabled') else '[green]Stopped[/green]'}")
+        console.print(f"  File sharing: {'[yellow]Listening[/yellow]' if sharing.get('sharing_enabled') else '[green]Off[/green]'}")
         shares = sharing.get('share_points', [])
         if shares:
             console.print(f"  Share points: [yellow]{len(shares)}[/yellow]")
@@ -768,7 +768,7 @@ class PrivacySettingsManager:
         print(f"  FileVault: {status['filevault'].get('enabled')}")
 
         print(f"\nSHARING")
-        print(f"  Daemon: {'running' if status['sharing'].get('sharing_enabled') else 'stopped'}")
+        print(f"  File sharing: {'listening' if status['sharing'].get('sharing_enabled') else 'off'}")
         print(f"  Share points: {len(status['sharing'].get('share_points', []))}")
 
         services = status['listening_services']
@@ -787,30 +787,9 @@ class PrivacySettingsManager:
         print(f"\nLAST SCAN: {scan.get('last_scan') or 'Never'}")
 
     def get_sharing_status(self) -> Dict[str, Any]:
-        """Get sharing status."""
-        status = {"sharing_enabled": False, "share_points": []}
-        success, output = self.run_command("launchctl list")
-        matching = [line for line in output.split('\n') if "sharing" in line.lower()]
-        if success and matching:
-            status["sharing_enabled"] = True
-
-        success, output = self.run_command("sharing -l")
-        if success and output:
-            shares = []
-            current = {}
-            for line in output.split('\n'):
-                line = line.strip()
-                if ':' in line:
-                    key, val = line.split(':', 1)
-                    current[key.strip().lower()] = val.strip()
-                elif not line and current:
-                    shares.append(current)
-                    current = {}
-            if current:
-                shares.append(current)
-            status["share_points"] = shares
-
-        return status
+        """Get sharing status (delegates to the single sharing parser)."""
+        from src.sharing import SharingManager
+        return SharingManager(verbose=self.verbose).get_sharing_status()
 
     def get_security_settings(self) -> Dict[str, Any]:
         """Get security settings (screen lock, etc)."""

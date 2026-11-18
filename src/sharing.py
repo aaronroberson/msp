@@ -25,6 +25,18 @@ except ImportError:
 console = Console() if RICH_AVAILABLE else None
 
 
+def parse_listening_ports(netstat_output: str) -> set:
+    """Local TCP ports in LISTEN state from ``netstat -an -p tcp``."""
+    ports = set()
+    for line in netstat_output.splitlines():
+        fields = line.split()
+        if len(fields) >= 6 and fields[0].startswith("tcp") and fields[-1] == "LISTEN":
+            port = fields[3].rsplit(".", 1)[-1]
+            if port.isdigit():
+                ports.add(int(port))
+    return ports
+
+
 def parse_share_points(output: str) -> List[Dict[str, Any]]:
     """Parse ``sharing -l``.
 
@@ -103,16 +115,17 @@ class SharingManager:
             "services": {}
         }
 
-        success, output = self._run_cmd("launchctl list | grep -E '(smb|afp|sharing)'")
-        if success and "sharing" in output.lower():
-            status["sharing_enabled"] = True
-
         status["share_points"] = self.list_share_points()
 
-        for svc in ["com.apple.smbd", "com.apple.afpd", "com.apple.ftpd"]:
-            svc_name = svc.split('.')[-1]
-            success, output = self._run_cmd(f"launchctl list | grep {svc_name}")
-            status["services"][svc_name] = success and output.strip() != ""
+        # System daemons are invisible to a non-root `launchctl list`, so
+        # detect the services by their listening TCP port instead.
+        success, output = self._run_cmd("netstat -an -p tcp")
+        listening = parse_listening_ports(output) if success else set()
+        for svc_name, port in (("smbd", 445), ("afpd", 548), ("ftpd", 21)):
+            status["services"][svc_name] = port in listening
+        # True only when a file-sharing server is actually accepting connections
+        # (the always-running AirDrop/Handoff `sharingd` does not count).
+        status["sharing_enabled"] = any(status["services"].values())
 
         return status
 
@@ -209,7 +222,7 @@ class SharingManager:
         if RICH_AVAILABLE and console:
             console.print("\n[bold]macOS Sharing Status[/bold]\n")
 
-            console.print(f"[cyan]Sharing Daemon:[/cyan] {'Running' if status.get('sharing_enabled') else 'Stopped'}")
+            console.print(f"[cyan]File sharing:[/cyan] {'Listening' if status.get('sharing_enabled') else 'Off'}")
 
             console.print(f"\n[cyan]Active Services:[/cyan]")
             for svc, active in status.get('services', {}).items():
