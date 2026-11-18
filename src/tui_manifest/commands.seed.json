@@ -1,0 +1,2406 @@
+{
+  "generated_by": "scripts/seed_manifest.py",
+  "note": "Machine-generated draft. Do not edit; curate in commands.toml.",
+  "excluded": {
+    "tui": "the TUI itself (the shell)",
+    "cli": "legacy interactive menu",
+    "console": "legacy interactive menu",
+    "menu": "legacy interactive menu"
+  },
+  "groups": [
+    {
+      "group": "privacy",
+      "module": "privacy_settings",
+      "style": "subparsers",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "list",
+          "args": [
+            {
+              "name": "category",
+              "kind": "text",
+              "positional": false,
+              "option": "--category",
+              "required": false,
+              "help": "Filter by category (Firewall, Privacy, Security, Services, DNS, Telemetry, System)"
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "status",
+          "args": [],
+          "args_source": "subparser"
+        },
+        {
+          "action": "enable",
+          "args": [
+            {
+              "name": "setting",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Name of the setting to enable",
+              "choices": [
+                "Application Firewall",
+                "Bluetooth",
+                "Captive Portal Probe",
+                "FileVault Encryption",
+                "Firewall Stealth Mode",
+                "Gatekeeper"
+              ]
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "disable",
+          "args": [
+            {
+              "name": "setting",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Name of the setting to disable",
+              "choices": [
+                "Application Firewall",
+                "Bluetooth",
+                "Captive Portal Probe",
+                "Firewall Stealth Mode"
+              ]
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "services list",
+          "args": [],
+          "args_source": "unassigned",
+          "shared_args": []
+        },
+        {
+          "action": "preset apply",
+          "args": [],
+          "args_source": "unassigned",
+          "shared_args": [
+            {
+              "name": "name",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": false,
+              "help": "Preset name or ID",
+              "choices": [
+                "basic",
+                "drduh",
+                "nist",
+                "paranoid",
+                "term7"
+              ]
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Show what would be changed"
+            },
+            {
+              "name": "settings",
+              "kind": "text",
+              "positional": false,
+              "option": "--settings",
+              "required": false,
+              "help": "JSON settings for save action"
+            },
+            {
+              "name": "description",
+              "kind": "text",
+              "positional": false,
+              "option": "--description",
+              "required": false,
+              "help": "Description for save action"
+            }
+          ]
+        },
+        {
+          "action": "preset delete",
+          "args": [],
+          "args_source": "unassigned",
+          "shared_args": [
+            {
+              "name": "name",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": false,
+              "help": "Preset name or ID",
+              "choices": [
+                "basic",
+                "drduh",
+                "nist",
+                "paranoid",
+                "term7"
+              ]
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Show what would be changed"
+            },
+            {
+              "name": "settings",
+              "kind": "text",
+              "positional": false,
+              "option": "--settings",
+              "required": false,
+              "help": "JSON settings for save action"
+            },
+            {
+              "name": "description",
+              "kind": "text",
+              "positional": false,
+              "option": "--description",
+              "required": false,
+              "help": "Description for save action"
+            }
+          ]
+        },
+        {
+          "action": "preset list",
+          "args": [],
+          "args_source": "unassigned",
+          "shared_args": [
+            {
+              "name": "name",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": false,
+              "help": "Preset name or ID",
+              "choices": [
+                "basic",
+                "drduh",
+                "nist",
+                "paranoid",
+                "term7"
+              ]
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Show what would be changed"
+            },
+            {
+              "name": "settings",
+              "kind": "text",
+              "positional": false,
+              "option": "--settings",
+              "required": false,
+              "help": "JSON settings for save action"
+            },
+            {
+              "name": "description",
+              "kind": "text",
+              "positional": false,
+              "option": "--description",
+              "required": false,
+              "help": "Description for save action"
+            }
+          ]
+        },
+        {
+          "action": "preset save",
+          "args": [],
+          "args_source": "unassigned",
+          "shared_args": [
+            {
+              "name": "name",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": false,
+              "help": "Preset name or ID",
+              "choices": [
+                "basic",
+                "drduh",
+                "nist",
+                "paranoid",
+                "term7"
+              ]
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Show what would be changed"
+            },
+            {
+              "name": "settings",
+              "kind": "text",
+              "positional": false,
+              "option": "--settings",
+              "required": false,
+              "help": "JSON settings for save action"
+            },
+            {
+              "name": "description",
+              "kind": "text",
+              "positional": false,
+              "option": "--description",
+              "required": false,
+              "help": "Description for save action"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "net",
+      "module": "network",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "pid",
+          "kind": "int",
+          "positional": false,
+          "option": "--pid",
+          "required": false,
+          "help": "PID for kill command"
+        },
+        {
+          "name": "host",
+          "kind": "text",
+          "positional": false,
+          "option": "--host",
+          "required": false,
+          "help": "Host for lookup command"
+        },
+        {
+          "name": "limit",
+          "kind": "int",
+          "positional": false,
+          "option": "--limit",
+          "required": false,
+          "help": "Limit for arp command",
+          "default": 20
+        },
+        {
+          "name": "target",
+          "kind": "text",
+          "positional": false,
+          "option": "--target",
+          "required": false,
+          "help": "Target subnet for nmap (e.g., 192.168.1.0/24)"
+        },
+        {
+          "name": "ports",
+          "kind": "text",
+          "positional": false,
+          "option": "--ports",
+          "required": false,
+          "help": "Ports for nmap scan (default: 554,80,8080,8899)",
+          "default": "554,80,8080,8899"
+        },
+        {
+          "name": "sudo",
+          "kind": "flag",
+          "positional": false,
+          "option": "--sudo",
+          "required": false,
+          "help": "Use sudo for nmap scan (may be required for full port scan)"
+        },
+        {
+          "name": "scan_type",
+          "kind": "choice",
+          "positional": false,
+          "option": "--scan-type",
+          "required": false,
+          "help": "Scan type: default (custom ports) or cameras (RTSP/Web camera ports)",
+          "choices": [
+            "cameras",
+            "default"
+          ]
+        },
+        {
+          "name": "ping_scan",
+          "kind": "flag",
+          "positional": false,
+          "option": "--ping-scan",
+          "required": false,
+          "help": "Ping scan only (discover live hosts, no port scan)"
+        },
+        {
+          "name": "check_http",
+          "kind": "flag",
+          "positional": false,
+          "option": "--check-http",
+          "required": false,
+          "help": "Check HTTP status on discovered hosts"
+        },
+        {
+          "name": "force",
+          "kind": "flag",
+          "positional": false,
+          "option": "--force",
+          "required": false,
+          "help": "Skip confirmation"
+        },
+        {
+          "name": "signal",
+          "kind": "choice",
+          "positional": false,
+          "option": "--signal",
+          "required": false,
+          "help": "Signal used by kill action",
+          "choices": [
+            "KILL",
+            "TERM"
+          ],
+          "default": "TERM"
+        },
+        {
+          "name": "yes",
+          "kind": "flag",
+          "positional": false,
+          "option": "--yes",
+          "required": false,
+          "help": "Confirm action without prompting"
+        },
+        {
+          "name": "expected_identity",
+          "kind": "text",
+          "positional": false,
+          "option": "--expected-identity",
+          "required": false,
+          "help": "Cancel if PID no longer identifies the same process",
+          "default": ""
+        }
+      ],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "established",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "top",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "kill",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "terminate",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "inspect",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "lookup",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "arp",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "nmap",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "hosts",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "camsweep",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "startup",
+      "module": "startup",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "label",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Label to enable/disable/pause/start"
+        },
+        {
+          "name": "name",
+          "kind": "text",
+          "positional": false,
+          "option": "--name",
+          "required": false,
+          "help": "Display name for a Login Item"
+        },
+        {
+          "name": "path",
+          "kind": "text",
+          "positional": false,
+          "option": "--path",
+          "required": false,
+          "help": "Application or executable path"
+        },
+        {
+          "name": "program_arg",
+          "kind": "text",
+          "positional": false,
+          "option": "--program-arg",
+          "required": false,
+          "help": "Argument for a new LaunchAgent (repeatable)",
+          "default": [],
+          "multi": true
+        },
+        {
+          "name": "force",
+          "kind": "flag",
+          "positional": false,
+          "option": "--force",
+          "required": false,
+          "help": "Skip confirmation"
+        },
+        {
+          "name": "interactive",
+          "kind": "flag",
+          "positional": false,
+          "option": "-i",
+          "required": false,
+          "help": "Interactive mode"
+        },
+        {
+          "name": "include_system",
+          "kind": "flag",
+          "positional": false,
+          "option": "--include-system",
+          "required": false,
+          "help": "Include Apple system startup items (default: hidden)"
+        }
+      ],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "managed",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "login-items",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "login-add",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "login-remove",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "agent-add",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "agent-remove",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "agent-enable",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "agent-disable",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "agents",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "daemons",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "cron",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "disable",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "enable",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "audit",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "summary",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "search",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "running",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "disabled",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "pause",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "start",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "inventory",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "comprehensive-audit",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "firewall",
+      "module": "firewall",
+      "style": "subparsers",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "status",
+          "args": [],
+          "args_source": "subparser"
+        },
+        {
+          "action": "set",
+          "args": [
+            {
+              "name": "option",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "",
+              "choices": [
+                "allows_signed",
+                "allows_signed_app",
+                "block_all",
+                "enabled",
+                "stealth_mode"
+              ]
+            },
+            {
+              "name": "value",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "",
+              "choices": [
+                "off",
+                "on"
+              ]
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "app",
+          "args": [
+            {
+              "name": "operation",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "",
+              "choices": [
+                "add",
+                "block",
+                "remove",
+                "unblock"
+              ]
+            },
+            {
+              "name": "path",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": ""
+            }
+          ],
+          "args_source": "subparser"
+        }
+      ]
+    },
+    {
+      "group": "fswatch",
+      "module": "fswatch",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "path",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Path to watch or diff"
+        },
+        {
+          "name": "seconds",
+          "kind": "int",
+          "positional": false,
+          "option": "--seconds",
+          "required": false,
+          "help": "Seconds for recent command",
+          "default": 60
+        },
+        {
+          "name": "days",
+          "kind": "int",
+          "positional": false,
+          "option": "--days",
+          "required": false,
+          "help": "Days for new files",
+          "default": 1
+        }
+      ],
+      "actions": [
+        {
+          "action": "watch",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "recent",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "system",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "new",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "diff",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "audit",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "traffic",
+      "module": "traffic",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "count",
+          "kind": "int",
+          "positional": false,
+          "option": "--count",
+          "required": false,
+          "help": "Packet count",
+          "default": 100
+        },
+        {
+          "name": "output",
+          "kind": "text",
+          "positional": false,
+          "option": "--output",
+          "required": false,
+          "help": "Output file",
+          "default": "/tmp/msp_capture.pcap"
+        },
+        {
+          "name": "duration",
+          "kind": "int",
+          "positional": false,
+          "option": "--duration",
+          "required": false,
+          "help": "Duration in seconds",
+          "default": 30
+        },
+        {
+          "name": "filter",
+          "kind": "text",
+          "positional": false,
+          "option": "--filter",
+          "required": false,
+          "help": "BPF filter expression",
+          "default": ""
+        }
+      ],
+      "actions": [
+        {
+          "action": "summary",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "dns",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "http",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "capture",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "stream",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "scan",
+      "module": "scanner",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "path",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Path to verify/signature check"
+        },
+        {
+          "name": "output",
+          "kind": "text",
+          "positional": false,
+          "option": "--output",
+          "required": false,
+          "help": "Output file for report"
+        }
+      ],
+      "actions": [
+        {
+          "action": "quick",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "deep",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "suspicious",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "verify",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "signature",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "report",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "tcc",
+      "module": "tcc",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "service",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "TCC service name or alias"
+        },
+        {
+          "name": "client",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Bundle ID or path client"
+        },
+        {
+          "name": "service_filter",
+          "kind": "text",
+          "positional": false,
+          "option": "--service",
+          "required": false,
+          "help": "Filter list by TCC service name or alias"
+        },
+        {
+          "name": "client_filter",
+          "kind": "text",
+          "positional": false,
+          "option": "--client",
+          "required": false,
+          "help": "Filter list/show by bundle ID or path"
+        },
+        {
+          "name": "type",
+          "kind": "choice",
+          "positional": false,
+          "option": "--type",
+          "required": false,
+          "help": "Compatibility only; grant/revoke are not supported",
+          "choices": [
+            "allow",
+            "deny"
+          ],
+          "default": "allow"
+        },
+        {
+          "name": "output",
+          "kind": "text",
+          "positional": false,
+          "option": "--output",
+          "required": false,
+          "help": "Backup output JSON file"
+        },
+        {
+          "name": "scope",
+          "kind": "choice",
+          "positional": false,
+          "option": "--scope",
+          "required": false,
+          "help": "TCC database scope",
+          "choices": [
+            "both",
+            "system",
+            "user"
+          ],
+          "default": "both"
+        },
+        {
+          "name": "db_path",
+          "kind": "text",
+          "positional": false,
+          "option": "--db-path",
+          "required": false,
+          "help": "Read a specific TCC.db path"
+        }
+      ],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "show",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "grant",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "revoke",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "reset",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "backup",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "restore",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "audit",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "audit",
+      "module": "rules",
+      "style": "single",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "",
+          "args": [
+            {
+              "name": "facts",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": false,
+              "help": "Path to facts JSON, or '-' for stdin.",
+              "default": "-"
+            },
+            {
+              "name": "profile",
+              "kind": "choice",
+              "positional": false,
+              "option": "--profile",
+              "required": false,
+              "help": "Built-in audit profile to evaluate.",
+              "choices": [
+                "developer",
+                "enterprise",
+                "high_security",
+                "personal"
+              ],
+              "default": "personal"
+            },
+            {
+              "name": "format",
+              "kind": "choice",
+              "positional": false,
+              "option": "--format",
+              "required": false,
+              "help": "Output format.",
+              "choices": [
+                "json",
+                "table"
+              ],
+              "default": "table"
+            },
+            {
+              "name": "categories",
+              "kind": "text",
+              "positional": false,
+              "option": "--category",
+              "required": false,
+              "help": "Limit evaluation to a category. May be repeated.",
+              "multi": true
+            },
+            {
+              "name": "minimum_severity",
+              "kind": "choice",
+              "positional": false,
+              "option": "--minimum-severity",
+              "required": false,
+              "help": "Override the profile minimum severity.",
+              "choices": [
+                "critical",
+                "high",
+                "info",
+                "low",
+                "medium"
+              ]
+            },
+            {
+              "name": "list_profiles",
+              "kind": "flag",
+              "positional": false,
+              "option": "--list-profiles",
+              "required": false,
+              "help": "Print built-in profile definitions and exit."
+            }
+          ],
+          "args_source": "parser"
+        }
+      ]
+    },
+    {
+      "group": "interrogate",
+      "module": "facts",
+      "style": "single",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "",
+          "args": [
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": false,
+              "help": "Write JSON facts to a file."
+            },
+            {
+              "name": "sections",
+              "kind": "text",
+              "positional": false,
+              "option": "--sections",
+              "required": false,
+              "help": "Comma-separated sections to collect. Default: privacy_settings,network,startup,sharing,security,tcc,shell"
+            },
+            {
+              "name": "no_redact",
+              "kind": "flag",
+              "positional": false,
+              "option": "--no-redact",
+              "required": false,
+              "help": "Do not redact host/user/IP details."
+            }
+          ],
+          "args_source": "parser"
+        }
+      ]
+    },
+    {
+      "group": "reason",
+      "module": "llm",
+      "style": "single",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "",
+          "args": [
+            {
+              "name": "facts",
+              "kind": "text",
+              "positional": false,
+              "option": "--facts",
+              "required": false,
+              "help": "Facts JSON file."
+            },
+            {
+              "name": "findings",
+              "kind": "text",
+              "positional": false,
+              "option": "--findings",
+              "required": false,
+              "help": "Findings JSON file."
+            },
+            {
+              "name": "plan",
+              "kind": "text",
+              "positional": false,
+              "option": "--plan",
+              "required": false,
+              "help": "Remediation plan JSON file."
+            },
+            {
+              "name": "provider",
+              "kind": "choice",
+              "positional": false,
+              "option": "--provider",
+              "required": false,
+              "help": "",
+              "choices": [
+                "apfel",
+                "auto",
+                "local",
+                "ollama",
+                "openai"
+              ],
+              "default": "auto"
+            },
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": false,
+              "help": "Write reasoning output to a file."
+            }
+          ],
+          "args_source": "parser"
+        }
+      ]
+    },
+    {
+      "group": "remediate",
+      "module": "remediate",
+      "style": "subparsers",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "plan",
+          "args": [
+            {
+              "name": "findings_json",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Path to findings JSON."
+            },
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": false,
+              "help": "Write output to a file."
+            },
+            {
+              "name": "max_safety",
+              "kind": "choice",
+              "positional": false,
+              "option": "--max-safety",
+              "required": false,
+              "help": "Highest safety level to include in the plan.",
+              "choices": [
+                "destructive",
+                "high",
+                "low",
+                "medium"
+              ],
+              "default": "destructive"
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "apply",
+          "args": [
+            {
+              "name": "plan_json",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Path to remediation plan JSON."
+            },
+            {
+              "name": "apply",
+              "kind": "flag",
+              "positional": false,
+              "option": "--apply",
+              "required": false,
+              "help": "Actually execute commands."
+            },
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": false,
+              "help": "Write output to a file."
+            },
+            {
+              "name": "max_safety",
+              "kind": "choice",
+              "positional": false,
+              "option": "--max-safety",
+              "required": false,
+              "help": "Highest safety level to execute.",
+              "choices": [
+                "destructive",
+                "high",
+                "low",
+                "medium"
+              ],
+              "default": "destructive"
+            },
+            {
+              "name": "allow_high_risk",
+              "kind": "flag",
+              "positional": false,
+              "option": "--allow-high-risk",
+              "required": false,
+              "help": "Allow high or destructive actions to run."
+            },
+            {
+              "name": "yes",
+              "kind": "text",
+              "positional": false,
+              "option": "--yes",
+              "required": false,
+              "help": "Affirm applying. Repeat with a token (--yes TOKEN) to authorize confirm/dangerous actions.",
+              "multi": true
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "approve",
+          "args": [
+            {
+              "name": "plan_json",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Path to remediation plan JSON."
+            },
+            {
+              "name": "action",
+              "kind": "text",
+              "positional": false,
+              "option": "--action",
+              "required": true,
+              "help": "Action id to approve."
+            },
+            {
+              "name": "ttl",
+              "kind": "int",
+              "positional": false,
+              "option": "--ttl",
+              "required": false,
+              "help": "Token time-to-live in seconds.",
+              "default": 300
+            }
+          ],
+          "args_source": "subparser"
+        }
+      ]
+    },
+    {
+      "group": "report",
+      "module": "report",
+      "style": "single",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "",
+          "args": [
+            {
+              "name": "facts",
+              "kind": "text",
+              "positional": false,
+              "option": "--facts",
+              "required": true,
+              "help": "Path to facts JSON"
+            },
+            {
+              "name": "findings",
+              "kind": "text",
+              "positional": false,
+              "option": "--findings",
+              "required": true,
+              "help": "Path to findings JSON"
+            },
+            {
+              "name": "plan",
+              "kind": "text",
+              "positional": false,
+              "option": "--plan",
+              "required": false,
+              "help": "Optional remediation plan JSON"
+            },
+            {
+              "name": "format",
+              "kind": "choice",
+              "positional": false,
+              "option": "--format",
+              "required": true,
+              "help": "Output format",
+              "choices": [
+                "json",
+                "md"
+              ]
+            },
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": true,
+              "help": "Output file path"
+            }
+          ],
+          "args_source": "parser"
+        }
+      ]
+    },
+    {
+      "group": "workflow",
+      "module": "workflows",
+      "style": "subparsers",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "subparser"
+        },
+        {
+          "action": "show",
+          "args": [
+            {
+              "name": "workflow",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Workflow id",
+              "choices": [
+                "daily",
+                "evidence",
+                "harden",
+                "incident"
+              ]
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "run",
+          "args": [
+            {
+              "name": "workflow",
+              "kind": "choice",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Workflow id",
+              "choices": [
+                "daily",
+                "evidence",
+                "harden",
+                "incident"
+              ]
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Return planned steps only",
+              "default": true
+            },
+            {
+              "name": "no_reason",
+              "kind": "flag",
+              "positional": false,
+              "option": "--no-reason",
+              "required": false,
+              "help": "Skip reasoning summary"
+            }
+          ],
+          "args_source": "subparser"
+        }
+      ]
+    },
+    {
+      "group": "snapshot",
+      "module": "snapshot",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "name",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Snapshot name"
+        },
+        {
+          "name": "interval",
+          "kind": "int",
+          "positional": false,
+          "option": "--interval",
+          "required": false,
+          "help": "Watch interval in seconds",
+          "default": 300
+        },
+        {
+          "name": "auto_restore",
+          "kind": "flag",
+          "positional": false,
+          "option": "--auto-restore",
+          "required": false,
+          "help": "Auto-restore on drift"
+        },
+        {
+          "name": "include_network",
+          "kind": "flag",
+          "positional": false,
+          "option": "--include-network",
+          "required": false,
+          "help": "Include network state"
+        },
+        {
+          "name": "include_startup",
+          "kind": "flag",
+          "positional": false,
+          "option": "--include-startup",
+          "required": false,
+          "help": "Include startup items"
+        },
+        {
+          "name": "dry_run",
+          "kind": "flag",
+          "positional": false,
+          "option": "--dry-run",
+          "required": false,
+          "help": "Preview changes"
+        },
+        {
+          "name": "force",
+          "kind": "flag",
+          "positional": false,
+          "option": "--force",
+          "required": false,
+          "help": "Skip confirmation"
+        }
+      ],
+      "actions": [
+        {
+          "action": "capture",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "diff",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "restore",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "watch",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "delete",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "sharing",
+      "module": "sharing",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "name",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Share name or path"
+        }
+      ],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "status",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "disable",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "disable-guest",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "enable",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "stop-all",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "security",
+      "module": "security",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "key",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Setting key"
+        },
+        {
+          "name": "value",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Setting value"
+        }
+      ],
+      "actions": [
+        {
+          "action": "status",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "lock",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "sleep",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "set",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "computer-sleep",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "ai",
+      "module": "ai",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "data",
+          "kind": "text",
+          "positional": false,
+          "option": "--data",
+          "required": false,
+          "help": "File to attach as data context"
+        },
+        {
+          "name": "text",
+          "kind": "text",
+          "positional": false,
+          "option": "--text",
+          "required": false,
+          "help": "Prompt text (for ask)"
+        },
+        {
+          "name": "file",
+          "kind": "text",
+          "positional": false,
+          "option": "--file",
+          "required": false,
+          "help": "Data file to analyze"
+        },
+        {
+          "name": "interval",
+          "kind": "int",
+          "positional": false,
+          "option": "--interval",
+          "required": false,
+          "help": "",
+          "default": 60
+        },
+        {
+          "name": "modules",
+          "kind": "text",
+          "positional": false,
+          "option": "--modules",
+          "required": false,
+          "help": "",
+          "multi": true
+        },
+        {
+          "name": "setting",
+          "kind": "text",
+          "positional": false,
+          "option": "--setting",
+          "required": false,
+          "help": "Setting name to explain"
+        },
+        {
+          "name": "preset1",
+          "kind": "text",
+          "positional": false,
+          "option": "--preset1",
+          "required": false,
+          "help": "First preset to compare"
+        },
+        {
+          "name": "preset2",
+          "kind": "text",
+          "positional": false,
+          "option": "--preset2",
+          "required": false,
+          "help": "Second preset to compare"
+        },
+        {
+          "name": "model",
+          "kind": "text",
+          "positional": false,
+          "option": "--model",
+          "required": false,
+          "help": "LLM model name"
+        },
+        {
+          "name": "provider",
+          "kind": "choice",
+          "positional": false,
+          "option": "--provider",
+          "required": false,
+          "help": "Force a specific LLM provider",
+          "choices": [
+            "apfel",
+            "custom",
+            "deepseek",
+            "groq",
+            "ollama",
+            "openai",
+            "openrouter",
+            "openvino",
+            "together"
+          ]
+        },
+        {
+          "name": "openvino_device",
+          "kind": "text",
+          "positional": false,
+          "option": "--openvino-device",
+          "required": false,
+          "help": "OpenVINO device to use (AUTO, CPU, GPU, NPU, USB)"
+        }
+      ],
+      "actions": [
+        {
+          "action": "ask",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "configure",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "providers",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "analyze",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "watch",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "explain",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "compare",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "suggest",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "devices",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "chain",
+      "module": "chain",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "name",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Chain name"
+        },
+        {
+          "name": "steps",
+          "kind": "text",
+          "positional": false,
+          "option": "--steps",
+          "required": false,
+          "help": "Steps definition (for define)"
+        },
+        {
+          "name": "description",
+          "kind": "text",
+          "positional": false,
+          "option": "--description",
+          "required": false,
+          "help": "Chain description"
+        },
+        {
+          "name": "interval",
+          "kind": "int",
+          "positional": false,
+          "option": "--interval",
+          "required": false,
+          "help": "Watch interval in seconds"
+        },
+        {
+          "name": "max",
+          "kind": "int",
+          "positional": false,
+          "option": "--max",
+          "required": false,
+          "help": "Max iterations for watch"
+        },
+        {
+          "name": "prompt",
+          "kind": "text",
+          "positional": false,
+          "option": "--prompt",
+          "required": false,
+          "help": "Prompt for AI analysis"
+        },
+        {
+          "name": "file",
+          "kind": "text",
+          "positional": false,
+          "option": "--file",
+          "required": false,
+          "help": "File for export/import"
+        }
+      ],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "run",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "define",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "delete",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "watch",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "export",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "import",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "deps",
+      "module": "deps",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "fix",
+          "kind": "flag",
+          "positional": false,
+          "option": "--fix",
+          "required": false,
+          "help": "Auto-fix issues"
+        },
+        {
+          "name": "install",
+          "kind": "text",
+          "positional": false,
+          "option": "--install",
+          "required": false,
+          "help": "Install specific package"
+        },
+        {
+          "name": "check",
+          "kind": "text",
+          "positional": false,
+          "option": "--check",
+          "required": false,
+          "help": "Check specific package"
+        }
+      ],
+      "actions": [
+        {
+          "action": "status",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "doctor",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "check",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "install",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "fix",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "install-all",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "tune",
+      "module": "tune",
+      "style": "flat",
+      "shared_args": [
+        {
+          "name": "dry_run",
+          "kind": "flag",
+          "positional": false,
+          "option": "--dry-run",
+          "required": false,
+          "help": "Preview fixes"
+        }
+      ],
+      "actions": [
+        {
+          "action": "check",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "fix",
+          "args": [],
+          "args_source": "unassigned"
+        },
+        {
+          "action": "top",
+          "args": [],
+          "args_source": "unassigned"
+        }
+      ]
+    },
+    {
+      "group": "forensics",
+      "module": "forensics",
+      "style": "subparsers",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "scan",
+          "args": [
+            {
+              "name": "path",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Target path or mount point (e.g. /Volumes/NO NAME)"
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "inspect",
+          "args": [
+            {
+              "name": "file",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Path to ._* AppleDouble file"
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "correlate",
+          "args": [
+            {
+              "name": "volume",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Volume mount point (e.g. /Volumes/NO NAME)"
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "spotlight",
+          "args": [
+            {
+              "name": "volume",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Volume mount point (e.g. /Volumes/NO NAME)"
+            }
+          ],
+          "args_source": "subparser"
+        },
+        {
+          "action": "clean",
+          "args": [
+            {
+              "name": "path",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "Target path to clean"
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Preview files to be deleted without removing",
+              "default": true
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--force",
+              "required": false,
+              "help": "Actually delete files",
+              "default": true
+            }
+          ],
+          "args_source": "subparser"
+        }
+      ]
+    },
+    {
+      "group": "shell",
+      "module": "main",
+      "style": "main",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "audit",
+          "args": [
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Show findings only, without prompting to apply fixes"
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--fix",
+              "required": false,
+              "help": "Apply repairs for --scope without prompting (default: auto_safe)",
+              "default": true
+            },
+            {
+              "name": "profile",
+              "kind": "choice",
+              "positional": false,
+              "option": "--profile",
+              "required": false,
+              "help": "Audit profile (default: personal)",
+              "choices": [
+                "developer",
+                "enterprise",
+                "high_security",
+                "personal"
+              ],
+              "default": "personal"
+            },
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": false,
+              "help": "Write findings to file instead of stdout"
+            },
+            {
+              "name": "fix_only",
+              "kind": "flag",
+              "positional": false,
+              "option": "--fix-only",
+              "required": false,
+              "help": "Only apply repairs, skip audit"
+            },
+            {
+              "name": "categories",
+              "kind": "choice",
+              "positional": false,
+              "option": "--categories",
+              "required": false,
+              "help": "Audit categories to include (default: all)",
+              "choices": [
+                "completion",
+                "executable",
+                "package_manager",
+                "path",
+                "symlink",
+                "zsh_startup"
+              ],
+              "multi": true
+            },
+            {
+              "name": "no_confirm",
+              "kind": "flag",
+              "positional": false,
+              "option": "--no-confirm",
+              "required": false,
+              "help": "Skip confirmation prompts for guided repairs"
+            },
+            {
+              "name": "scope",
+              "kind": "choice",
+              "positional": false,
+              "option": "--scope",
+              "required": false,
+              "help": "Repair class to apply with --fix, and the default menu choice (default: auto_safe)",
+              "choices": [
+                "advisory",
+                "all",
+                "auto_safe",
+                "guided"
+              ],
+              "default": "auto_safe"
+            },
+            {
+              "name": "ai",
+              "kind": "flag",
+              "positional": false,
+              "option": "--ai",
+              "required": false,
+              "help": "Offer guided-with-AI repairs (the model proposes each edit, you approve)"
+            }
+          ],
+          "args_source": "module:shell_audit_cli"
+        },
+        {
+          "action": "repair",
+          "args": [
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": "Show findings only, without prompting to apply fixes"
+            },
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--fix",
+              "required": false,
+              "help": "Apply repairs for --scope without prompting (default: auto_safe)",
+              "default": true
+            },
+            {
+              "name": "profile",
+              "kind": "choice",
+              "positional": false,
+              "option": "--profile",
+              "required": false,
+              "help": "Audit profile (default: personal)",
+              "choices": [
+                "developer",
+                "enterprise",
+                "high_security",
+                "personal"
+              ],
+              "default": "personal"
+            },
+            {
+              "name": "output",
+              "kind": "text",
+              "positional": false,
+              "option": "--output",
+              "required": false,
+              "help": "Write findings to file instead of stdout"
+            },
+            {
+              "name": "categories",
+              "kind": "choice",
+              "positional": false,
+              "option": "--categories",
+              "required": false,
+              "help": "Audit categories to include (default: all)",
+              "choices": [
+                "completion",
+                "executable",
+                "package_manager",
+                "path",
+                "symlink",
+                "zsh_startup"
+              ],
+              "multi": true
+            },
+            {
+              "name": "no_confirm",
+              "kind": "flag",
+              "positional": false,
+              "option": "--no-confirm",
+              "required": false,
+              "help": "Skip confirmation prompts for guided repairs"
+            },
+            {
+              "name": "scope",
+              "kind": "choice",
+              "positional": false,
+              "option": "--scope",
+              "required": false,
+              "help": "Repair class to apply with --fix, and the default menu choice (default: auto_safe)",
+              "choices": [
+                "advisory",
+                "all",
+                "auto_safe",
+                "guided"
+              ],
+              "default": "auto_safe"
+            },
+            {
+              "name": "ai",
+              "kind": "flag",
+              "positional": false,
+              "option": "--ai",
+              "required": false,
+              "help": "Offer guided-with-AI repairs (the model proposes each edit, you approve)"
+            }
+          ],
+          "args_source": "module:shell_audit_cli (--fix-only)"
+        }
+      ]
+    },
+    {
+      "group": "config",
+      "module": "main",
+      "style": "main",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "list",
+          "args": [],
+          "args_source": "main"
+        },
+        {
+          "action": "set",
+          "args": [
+            {
+              "name": "key",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": "section.key"
+            },
+            {
+              "name": "value",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "help": ""
+            }
+          ],
+          "args_source": "main"
+        }
+      ]
+    },
+    {
+      "group": "ask",
+      "module": "main",
+      "style": "main",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "",
+          "args": [
+            {
+              "name": "prompt",
+              "kind": "text",
+              "positional": true,
+              "option": null,
+              "required": true,
+              "multi": true,
+              "help": "Question; system diagnostics are attached as context"
+            }
+          ],
+          "args_source": "main"
+        }
+      ]
+    },
+    {
+      "group": "doctor",
+      "module": "main",
+      "style": "main",
+      "shared_args": [],
+      "actions": [
+        {
+          "action": "",
+          "args": [],
+          "args_source": "main (deps.doctor)"
+        },
+        {
+          "action": "fix",
+          "args": [
+            {
+              "name": "dry_run",
+              "kind": "flag",
+              "positional": false,
+              "option": "--dry-run",
+              "required": false,
+              "help": ""
+            },
+            {
+              "name": "yes",
+              "kind": "text",
+              "positional": false,
+              "option": "--yes",
+              "required": false,
+              "help": "approval token"
+            }
+          ],
+          "args_source": "main (doctor_fix_gate)"
+        }
+      ]
+    }
+  ]
+}
