@@ -205,56 +205,115 @@ class DependencyManager:
                 req = "Required" if dep.get("required") else "Optional"
                 print(f"[{status.value}] {name} - {req}")
 
-    def _shell_startup_check(self) -> list[tuple[str, str, str]]:
-        """Check shell startup performance. Returns list of (severity, title, detail)."""
-        shell_issues: list[tuple[str, str, str]] = []
-        def _parse_seconds(text: str) -> float:
-            m = re.search(r"([\d.]+)\s*total", text)
-            if m:
-                return float(m.group(1))
-            m = re.search(r"real\s+(?:(\d+)m)?([\d.]+)s", text, re.IGNORECASE)
-            if m:
-                return (float(m.group(1) or 0) * 60) + float(m.group(2))
-            return 0.0
+    # ── health (consumes persisted scan bundle — single source) ──
 
+    _DOMAIN_HEADINGS = [
+        ("shell", "Shell:"),
+        ("system", "System:"),
+        ("permissions", "Protected files:"),
+        ("security", "Security:"),
+    ]
+
+    def _offer_scan(self) -> None:
+        """Offer to run a scan when no results are available (TTY only)."""
+        if not sys.stdin.isatty():
+            return
         try:
-            ok, out = self._run_cmd("time ( zsh -i -c exit ) 2>&1")
-            seconds = _parse_seconds(out)
-            if seconds > 0:
-                ms = seconds * 1000
-                if ms > 500:
-                    shell_issues.append(("HIGH", "Zsh startup is slow", f"{ms:.0f}ms (target: <150ms). Run 'msp tune fix' to auto-fix (lazy-load NVM, trim history), or 'msp tune check' for details."))
-                elif ms > 150:
-                    shell_issues.append(("MEDIUM", "Zsh startup could be faster", f"{ms:.0f}ms (target: <150ms)."))
+            from src.scanner import SecurityScanner
+            from src.command import interactive_select
+            choice = interactive_select([
+                ("quick", "Quick scan (~30s) — shell, system, permissions", None),
+                ("full", "Full scan (~5 min) — everything incl. persistence checks", None),
+                ("skip", "Skip for now", None),
+            ], title="No scan results found. Run a scan now?")
         except Exception:
-            pass
+            return
+        if not choice:
+            return
+        mode = choice[0]
+        if mode == "quick":
+            SecurityScanner().scan_quick()
+        elif mode == "full":
+            SecurityScanner().scan_deep()
 
-        history = Path.home() / ".zsh_history"
-        if history.exists():
-            try:
-                _, out = self._run_cmd(f"wc -l < {history}")
-                lines = int(out.strip()) if out.strip().isdigit() else 0
-                if lines > 100000:
-                    shell_issues.append(("MEDIUM", "Large zsh history", f"{lines} lines affects startup/search speed."))
-                ok, file_out = self._run_cmd(f"file {history}")
-                if ok and "ASCII" not in file_out:
-                    shell_issues.append(("HIGH", "Corrupted zsh history", "Run 'msp tune fix' to repair (backs up and extracts readable entries)."))
-            except Exception:
-                pass
+    def _render_health(self) -> bool:
+        """Render health from the persisted scan bundle (~/.msp/scans/latest.json).
 
-        zshrc = Path.home() / ".zshrc"
-        if zshrc.exists():
-            text = zshrc.read_text()
-            dupes = len(re.findall(r"export PATH=.*antigravity", text)) - 1
-            if dupes > 0:
-                shell_issues.append(("LOW", "Duplicate PATH entries", f"{dupes} duplicate Antigravity IDE entries."))
+        doctor no longer runs checks inline — `msp scan` is the collector.
+        Returns True when no issue-severity checks are recorded.
+        """
+        from src.scanner import read_latest_scan, scan_bundle_path
+        bundle = read_latest_scan()
+        if bundle is None:
+            self._offer_scan()
+            bundle = read_latest_scan()
+        if bundle is None:
+            print("Health:\n")
+            print(f"  No scan results yet ({scan_bundle_path()}).")
+            print("  Run 'msp scan quick' (fast) or 'msp scan deep' (thorough) to collect them.\n")
+            return True
 
-        return shell_issues
+        from datetime import datetime as _dt
+        health_ok = True
+        try:
+            ts = _dt.fromisoformat(bundle.get("timestamp", ""))
+            age_days = (_dt.now() - ts).days
+            if age_days >= 7:
+                print(f"  Note: scan results are {age_days} days old — run 'msp scan quick' to refresh.\n")
+            print(f"Health (scan from {ts:%Y-%m-%d %H:%M}):\n")
+        except (ValueError, TypeError):
+            print("Health:\n")
+
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
+        for c in bundle.get("checks", []):
+            grouped.setdefault(c.get("domain", "security"), []).append(c)
+
+        rendered = False
+        for domain, heading in self._DOMAIN_HEADINGS:
+            entries = grouped.get(domain)
+            if not entries:
+                continue
+            print(f"{heading}\n")
+            for c in entries:
+                rendered = True
+                status = c.get("status", "n/a")
+                title = c.get("title", "")
+                detail = c.get("detail", "")
+                if status == "ok":
+                    if RICH_AVAILABLE and console:
+                        console.print(f"  [green]✓[/green] {title} — {detail}")
+                    else:
+                        print(f"  [OK] {title} — {detail}")
+                elif status == "n/a":
+                    if RICH_AVAILABLE and console:
+                        console.print(f"  [dim]– {title} — {detail}[/dim]")
+                    else:
+                        print(f"  [--] {title} — {detail}")
+                else:
+                    color = {"high": "red", "medium": "yellow", "low": "cyan"}.get(status, "white")
+                    if RICH_AVAILABLE and console:
+                        console.print(f"  [{color}]{status.upper()}[/{color}] {title}")
+                    else:
+                        print(f"  [{status.upper()}] {title}")
+                    print(f"       {detail}")
+                    if c.get("fixable"):
+                        if RICH_AVAILABLE and console:
+                            console.print(f"  [dim]       (fix: msp doctor fix)[/dim]")
+                        else:
+                            print(f"       (fix: msp doctor fix)")
+                    health_ok = False
+            print()
+
+        if not rendered:
+            print("  Health: no checks recorded in the scan bundle.\n")
+        return health_ok
 
     def doctor(self, verbose: bool = False) -> bool:
-        """Run dependency check and fix issues."""
+        """Run dependency check and show health from persisted scan results."""
         print("Running msp doctor...\n")
         results = self.check_all()
+        total = len(results)
+        n_required = sum(1 for dep in self.deps.values() if dep.get("required"))
 
         issues = []
         for name, status in results.items():
@@ -263,32 +322,33 @@ class DependencyManager:
                 if dep.get("required"):
                     issues.append((name, "required", dep))
 
+        print("Dependencies:\n")
         if issues:
-            print(f"Missing required dependencies:\n")
             for name, req_type, dep in issues:
                 print(f"  - {name}: {dep.get('description', '')}")
                 print(f"    Install: {dep.get('install_cmd', 'N/A')}\n")
+        elif total == 0:
+            print("  No dependencies defined — check skipped.\n")
         else:
-            print("  All required dependencies are installed.\n")
+            missing_optional = [name for name, status in results.items()
+                                if status != DepStatus.INSTALLED
+                                and not self.deps[name].get("required")]
+            line = f"  All {n_required} required dependencies installed (checked {total})."
+            if RICH_AVAILABLE and console:
+                console.print(f"  [green]✓[/green] {line.strip()}")
+            else:
+                print(f"  [OK] {line.strip()}")
+            if missing_optional:
+                opt = f"  Optional, not installed ({len(missing_optional)}): {', '.join(missing_optional)}"
+                (console.print if RICH_AVAILABLE and console else print)(opt)
+            print()
 
-        # Shell performance checks
-        shell_issues = self._shell_startup_check()
-        if shell_issues:
-            print("Shell performance:\n")
-            for severity, title, detail in shell_issues:
-                color = {"HIGH": "red", "MEDIUM": "yellow", "LOW": "cyan"}.get(severity, "white")
-                if RICH_AVAILABLE and console:
-                    console.print(f"  [{color}]{severity}[/{color}] {title}")
-                else:
-                    print(f"  [{severity}] {title}")
-                print(f"       {detail}\n")
-        else:
-            print("  Shell performance: OK\n")
+        health_ok = self._render_health()
 
         if issues and not verbose:
             print("Run 'msp doctor --fix' to install missing dependencies.")
 
-        return len(issues) == 0 and len(shell_issues) == 0
+        return len(issues) == 0 and health_ok
 
     def fix(self) -> bool:
         """Install missing required dependencies."""
@@ -321,6 +381,7 @@ def interactive_menu(manager: DependencyManager, json_output: bool = False):
             {"name": "🔍  Check a specific package", "value": "check"},
             {"name": "📦  Install a package", "value": "install"},
             {"name": "🔧  Install missing required dependencies", "value": "fix"},
+            {"name": "⚡  Doctor fix (shell/system performance auto-fixes)", "value": "doctor_fix"},
             {"name": "🚀  Install all missing packages", "value": "install-all"},
             {"name": f"🔄  Change sort order (current: {current_sort})", "value": "sort"},
             {"name": "❌  Exit", "value": "exit"},
@@ -357,6 +418,9 @@ def interactive_menu(manager: DependencyManager, json_output: bool = False):
                 print("Package name required")
         elif action == "fix":
             manager.fix()
+        elif action == "doctor_fix":
+            from src.tune import Tuner
+            Tuner().fix(dry_run=False, json_output=json_output)
         elif action == "install-all":
             results = manager.install_all()
             for name, success, msg in results:

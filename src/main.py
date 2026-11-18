@@ -32,8 +32,8 @@ Commands:
     ask                AI-powered analysis (alias: ai)
     chain              Method chaining
 
-    doctor             Check dependencies
-    tune               System performance tuning
+    doctor             Health: dependencies + latest scan results
+    tune               (alias, merging into doctor)
     presets            Manage presets
 
     tui                Interactive security assistant (Textual TUI)
@@ -269,12 +269,13 @@ Examples:
   msp ask "what's suspicious?"      AI analysis
   msp chain run daily               Run daily check
 
-  msp doctor                        Check dependencies
+  msp doctor                        Health: deps + latest scan results
+  msp doctor fix                    Apply shell/system performance auto-fixes
+  msp scan quick                    Collect health + security results
   msp tui                           Open the Textual security console
-  msp tui --v1                      Open the legacy dashboard
-  msp tune check                    Run all diagnostics
-  msp tune fix                      Apply auto-fixes
-  msp tune top                      Show top CPU/memory, memory pressure, load
+  msp tune check                    (alias) Run all diagnostics
+  msp tune fix                      (alias) Apply auto-fixes
+  msp tune top                      (alias) Show top CPU/memory, pressure, load
         """
     )
 
@@ -623,6 +624,21 @@ Examples:
         # Doctor routes directly to DependencyManager doctor()
         if command == "doctor":
             from src.deps import DependencyManager
+            if args.args and args.args[0].lower() == "fix":
+                from src.tune import Tuner
+                from src.scanner import fix_permission_issues
+                dry_run = "--dry-run" in args.args[1:]
+                ok = Tuner().fix(dry_run=dry_run, json_output=args.json)
+                perm_results = fix_permission_issues(dry=dry_run)
+                if perm_results and not args.json:
+                    print("\nProtected-file permissions:")
+                    for name, success, msg in perm_results:
+                        print(f"  {'✓' if success else '✗'} {name}: {msg}")
+                    if any(s for _, s, _ in perm_results) and not dry_run:
+                        print("\nRe-run 'msp scan quick' to refresh results.")
+                if perm_results:
+                    ok = ok and all(s for _, s, _ in perm_results)
+                return
             dm = DependencyManager()
             dm.doctor(verbose=args.verbose)
             return

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
@@ -16,6 +17,7 @@ from src.command import (
     interactive_select,
 )
 from src.command import pause_for_enter
+from src.state import latest_scan_bundle, reports_dir
 
 try:
     from rich.console import Console
@@ -35,6 +37,97 @@ class Finding:
     description: str
     recommendation: str
     data: Optional[Dict[str, Any]] = None
+
+
+# ── canonical scan bundle (~/.msp/scans/latest.json) ───────────
+# The single source consumed by `msp doctor` (health surface) so that
+# doctor never re-runs checks inline. Written by every scan mode.
+
+SCAN_BUNDLE_SCHEMA = "1.0"
+
+
+def scan_bundle_path() -> Path:
+    return latest_scan_bundle()
+
+
+def write_scan_bundle(mode: str, checks: List[Dict[str, Any]]) -> Path:
+    """Persist canonical health checks. One entry per check — healthy
+    ('ok'), skipped ('n/a'), or an issue with its severity."""
+    path = scan_bundle_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    bundle = {
+        "schema": SCAN_BUNDLE_SCHEMA,
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "mode": mode,
+        "checks": checks,
+    }
+    path.write_text(json.dumps(bundle, indent=2) + "\n")
+    return path
+
+
+def read_latest_scan() -> Optional[Dict[str, Any]]:
+    """Load the latest scan bundle, or None if missing/invalid."""
+    path = scan_bundle_path()
+    if not path.exists():
+        return None
+    try:
+        bundle = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(bundle, dict) or "checks" not in bundle:
+        return None
+    return bundle
+
+
+def collect_health_checks() -> List[Dict[str, Any]]:
+    """Gather canonical health checks from all collectors.
+
+    Single composition point: tune's checks (single implementation after
+    the doctor/tune merge) + scanner's permission audit.
+    """
+    from src.tune import Tuner  # lazy: keep scan imports light
+    tuner = Tuner()
+    checks = tuner.collect_health()
+    scanner = SecurityScanner()
+    scanner._check_file_permissions()
+    checks.extend(getattr(scanner, "permission_results", []))
+    return checks
+
+
+def fix_permission_issues(dry: bool = False) -> List[tuple[str, bool, str]]:
+    """Apply the chmod fixes for fixable permission entries in the bundle.
+
+    Tightening permissions on protected paths is safe and idempotent.
+    Returns (name, success, message) per fixable entry; empty when no
+    bundle exists.
+    """
+    bundle = read_latest_scan()
+    if not bundle:
+        return []
+    results: List[tuple[str, bool, str]] = []
+    for c in bundle.get("checks", []):
+        if c.get("domain") != "permissions" or not c.get("fixable"):
+            continue
+        fix_cmd = c.get("fix_cmd", "")
+        if not fix_cmd.startswith("chmod "):
+            continue
+        name = c.get("name", fix_cmd)
+        try:
+            parts = fix_cmd.split()
+            mode = int(parts[1], 8)
+            path = Path(parts[2])
+            old = path.stat().st_mode & 0o777
+            if old == mode:
+                results.append((name, True, "already fixed"))
+                continue
+            if dry:
+                results.append((name, True, f"would fix: {oct(old)} → {oct(mode)}"))
+                continue
+            path.chmod(mode)
+            results.append((name, True, f"{oct(old)} → {oct(mode)}"))
+        except (OSError, ValueError, IndexError) as e:
+            results.append((name, False, str(e)))
+    return results
 
 
 class SecurityScanner:
@@ -77,6 +170,7 @@ class SecurityScanner:
         self._check_established_connections()
         self._check_system_updates()
 
+        self._persist_health("quick", json_output)
         return self._display_findings(json_output, sort_by)
 
     def scan_deep(self, json_output: bool = False, sort_by: str = "severity") -> List[Finding]:
@@ -93,6 +187,7 @@ class SecurityScanner:
         self._check_recent_files()
         self._check_telemetry()
 
+        self._persist_health("deep", json_output)
         return self._display_findings(json_output, sort_by)
 
     def scan_suspicious(self, json_output: bool = False, sort_by: str = "severity") -> List[Finding]:
@@ -105,7 +200,20 @@ class SecurityScanner:
         self._check_new_persistence()
         self._check_suspicious_process_names()
 
+        self._persist_health("suspicious", json_output)
         return self._display_findings(json_output, sort_by)
+
+    def _persist_health(self, mode: str, json_output: bool) -> None:
+        """Collect health checks (single canonical source) and persist the
+        scan bundle consumed by `msp doctor`."""
+        try:
+            checks = collect_health_checks()
+            bundle_path = write_scan_bundle(mode, checks)
+            if not json_output:
+                print(f"Health snapshot saved to: {bundle_path}")
+        except Exception as e:
+            if not json_output:
+                print(f"Warning: could not save health snapshot: {e}")
 
     def _check_listening_ports(self) -> None:
         success, output = self._run_cmd("lsof -iTCP -sTCP:LISTEN -nP 2>/dev/null")
@@ -173,12 +281,27 @@ class SecurityScanner:
                             ))
 
     def _check_file_permissions(self) -> None:
-        critical_paths = ["/etc/passwd", "/etc/sudoers", "/etc/shadow"]
-        for path in critical_paths:
+        """Check critical system paths and protected user files/dirs.
+
+        Populates self.findings (Security Finding shape) AND
+        self.permission_results (canonical check entries consumed by the
+        scan bundle), so doctor can show every protected path's state.
+        """
+        self.permission_results: List[Dict[str, Any]] = []
+
+        # ── critical system paths ──
+        for path in ["/etc/passwd", "/etc/sudoers", "/etc/shadow"]:
             if os.path.exists(path):
-                stat = os.stat(path)
-                mode = stat.st_mode & 0o777
-                if mode & 0o002:
+                mode = os.stat(path).st_mode & 0o777
+                ok = not (mode & 0o002)
+                detail = f"mode {oct(mode)}"
+                if ok:
+                    self.permission_results.append({
+                        "domain": "permissions", "name": f"Protected: {path}",
+                        "status": "ok", "title": f"Protected: {path}",
+                        "detail": detail, "fixable": False, "fix_cmd": "",
+                    })
+                else:
                     self.findings.append(Finding(
                         severity="high",
                         category="Permissions",
@@ -186,6 +309,73 @@ class SecurityScanner:
                         description=f"{path} is world-writable (mode {oct(mode)})",
                         recommendation="Fix permissions with: sudo chmod o-w " + path
                     ))
+                    self.permission_results.append({
+                        "domain": "permissions", "name": f"Protected: {path}",
+                        "status": "high", "title": f"World-writable: {path}",
+                        "detail": f"{detail} — must not be world-writable",
+                        "fixable": False, "fix_cmd": "",
+                    })
+
+        # ── protected user paths (permissions must not exceed these) ──
+        protected_user_paths = [
+            (".ssh", 0o700, "SSH config directory"),
+            (".ssh/id_rsa", 0o600, "SSH private key"),
+            (".ssh/id_ed25519", 0o600, "SSH private key"),
+            (".ssh/id_dsa", 0o600, "SSH private key"),
+            (".ssh/id_ecdsa", 0o600, "SSH private key"),
+            (".gnupg", 0o700, "GPG keyring"),
+            (".aws", 0o700, "AWS credentials"),
+            (".netrc", 0o600, "Network credentials"),
+            (".kube/config", 0o600, "Kubernetes credentials"),
+            (".zsh_history", 0o600, "Shell history"),
+        ]
+        for rel, expected, what in protected_user_paths:
+            path = Path.home() / rel
+            if not path.exists():
+                self.permission_results.append({
+                    "domain": "permissions", "name": f"Protected: ~/{rel}",
+                    "status": "n/a", "title": f"Protected: ~/{rel}",
+                    "detail": f"{what} not present — skipped",
+                    "fixable": False, "fix_cmd": "",
+                })
+                continue
+            mode = path.stat().st_mode & 0o777
+            group_world = mode & 0o077
+            world_writable = bool(mode & 0o002)
+            if world_writable:
+                sev = "high"
+                issue = f"~/{rel} is world-writable (mode {oct(mode)})"
+                fix = f"chmod {oct(expected)[2:]} {path}"
+                self.findings.append(Finding(
+                    severity="high", category="Permissions",
+                    item=f"World-writable: ~/{rel}",
+                    description=f"{what} at ~/{rel} is world-writable.",
+                    recommendation=f"Fix permissions with: {fix}"
+                ))
+            elif group_world:
+                sev = "medium"
+                issue = f"~/{rel} readable by group/others (mode {oct(mode)})"
+                fix = f"chmod {oct(expected)[2:]} {path}"
+                self.findings.append(Finding(
+                    severity="medium", category="Permissions",
+                    item=f"Over-permissive: ~/{rel}",
+                    description=f"{what} at ~/{rel} should be {oct(expected)}, is {oct(mode)}.",
+                    recommendation=f"Fix permissions with: {fix}"
+                ))
+            else:
+                self.permission_results.append({
+                    "domain": "permissions", "name": f"Protected: ~/{rel}",
+                    "status": "ok", "title": f"Protected: ~/{rel}",
+                    "detail": f"{what} — mode {oct(mode)} OK",
+                    "fixable": False, "fix_cmd": "",
+                })
+                continue
+            self.permission_results.append({
+                "domain": "permissions", "name": f"Protected: ~/{rel}",
+                "status": sev, "title": issue,
+                "detail": f"{what}: expected {oct(expected)}, found {oct(mode)} — fix with {fix}",
+                "fixable": True, "fix_cmd": fix,
+            })
 
     def _check_code_signatures(self) -> None:
         success, output = self._run_cmd("ps aux 2>/dev/null")
@@ -519,8 +709,8 @@ def interactive_menu(scanner: SecurityScanner, json_output: bool = False):
             else:
                 print("Path required")
         elif action == "report":
-            output = input("Output file [~/.msp/reports/scan_report.json]: ").strip()
-            output = output or os.path.expanduser("~/.msp/reports/scan_report.json")
+            output = input(f"Output file [{reports_dir() / 'scan_report.json'}]: ").strip()
+            output = output or str(reports_dir() / "scan_report.json")
             scanner.generate_report(output)
 
         pause_for_enter()
@@ -561,7 +751,7 @@ def main():
             sys.exit(1)
         scanner.signature_info(args.path, json_output=args.json)
     elif args.action == "report":
-        output = args.output or os.path.expanduser("~/.msp/reports/scan_report.json")
+        output = args.output or str(reports_dir() / "scan_report.json")
         scanner.generate_report(output)
 
 

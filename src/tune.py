@@ -51,6 +51,7 @@ class Finding:
     fixable: bool
     fix_cmd: str = ""
     detail: str = ""
+    check_id: str = ""
 
 
 def _run(cmd: str | list[str], timeout: int = 30, shell: bool = True) -> tuple[int, str]:
@@ -155,46 +156,51 @@ class Tuner:
                 console.print(f"  [{c}]{f.severity.upper()}[/{c}] [{c}]{f.domain}[/{c}] {f.title}")
                 console.print(f"       {f.description}")
                 if f.fixable:
-                    console.print("       → msp tune fix")
+                    console.print("       → msp doctor fix")
                 console.print()
         else:
             for f in self.findings:
                 print(f"[{f.severity.upper()}] [{f.domain}] {f.title}")
                 print(f"  {f.description}")
                 if f.fixable:
-                    print(f"  → msp tune fix")
+                    print(f"  → msp doctor fix")
                 print()
 
     # ── zsh checks ──
 
-    def _check_zsh_startup(self) -> None:
+    def _check_zsh_startup(self) -> Optional[str]:
+        """Returns healthy detail string, or None when unmeasurable."""
         _, out = _run("time ( zsh -i -c exit ) 2>&1")
         ms = _parse_seconds(out) * 1000
         if ms < 1:
-            return
-        severity = "high" if ms > 500 else "medium"
-        self.findings.append(Finding(
-            domain="zsh", severity=severity,
-            title=f"Startup: {_fmt_ms(ms)} (target <150ms)",
-            description=f"Interactive zsh takes {_fmt_ms(ms)}. " +
-                        ("Lazy-load NVM, trim history, or audit oh-my-zsh plugins." if ms > 150 else ""),
-            fixable=False,
-        ))
+            return None
+        if ms > 150:
+            severity = "high" if ms > 500 else "medium"
+            self.findings.append(Finding(
+                domain="zsh", severity=severity,
+                title=f"Startup: {_fmt_ms(ms)} (target <150ms)",
+                description=f"Interactive zsh takes {_fmt_ms(ms)}. "
+                            "Fixable zsh issues (if any) are listed below; 'msp doctor fix' applies them.",
+                fixable=False, check_id="zsh_startup",
+            ))
+            return f"{_fmt_ms(ms)} (target: <150ms)"
+        return f"{_fmt_ms(ms)} (target: <150ms)"
 
-    def _check_zsh_nvm(self) -> None:
+    def _check_zsh_nvm(self) -> Optional[str]:
         if not NVM_SH.exists() or not ZSHRC.exists():
-            return
+            return None
         if "nvm.sh" in ZSHRC.read_text() and "Lazy" not in ZSHRC.read_text():
             self.findings.append(Finding(
                 domain="zsh", severity="high",
                 title="NVM loaded eagerly",
                 description="nvm.sh sourced on every shell start (+200-400ms). Use lazy-load stubs.",
-                fixable=True, fix_cmd="nvm_lazy",
+                fixable=True, fix_cmd="nvm_lazy", check_id="zsh_nvm",
             ))
+        return "nvm not sourced eagerly in ~/.zshrc"
 
-    def _check_zsh_history(self) -> None:
+    def _check_zsh_history(self) -> Optional[str]:
         if not ZSH_HISTORY.exists():
-            return
+            return None
         _, out = _run(f"wc -l < {ZSH_HISTORY}")
         lines = int(out.strip()) if out.strip().isdigit() else 0
         if lines > 100000:
@@ -202,20 +208,25 @@ class Tuner:
                 domain="zsh", severity="medium",
                 title=f"History: {lines} lines",
                 description="Large history slows compinit and search.",
-                fixable=True, fix_cmd="history_trim",
+                fixable=True, fix_cmd="history_trim", check_id="zsh_history",
             ))
         rc, file_out = _run(f"file {ZSH_HISTORY}")
-        if rc == 0 and "ASCII" not in file_out:
+        corrupted = rc == 0 and "ASCII" not in file_out
+        if corrupted:
             self.findings.append(Finding(
                 domain="zsh", severity="high",
                 title="History file corrupted",
                 description=f"Type: {file_out.strip()}. Extract with 'strings'.",
-                fixable=True, fix_cmd="history_repair",
+                fixable=True, fix_cmd="history_repair", check_id="zsh_history",
             ))
+        if lines == 0:
+            return None
+        fmt = "text format OK" if not corrupted else "corrupted"
+        return f"{lines:,} lines, {fmt}"
 
-    def _check_zsh_path_dupes(self) -> None:
+    def _check_zsh_path_dupes(self) -> Optional[str]:
         if not ZSHRC.exists():
-            return
+            return None
         text = ZSHRC.read_text()
         entries = []
         for m in re.finditer(r'^export\s+PATH=.*["\']?(.*?)["\']?\s*$', text, re.M):
@@ -235,36 +246,42 @@ class Tuner:
                 domain="zsh", severity="low",
                 title=f"PATH: {dups} duplicate entries",
                 description="Repeated PATH exports waste startup time.",
-                fixable=False,
+                fixable=False, check_id="zsh_path_dupes",
             ))
+            return f"{dups} duplicate PATH entries in ~/.zshrc"
+        return "no duplicate PATH entries in ~/.zshrc"
 
-    def _check_zsh_async(self) -> None:
+    def _check_zsh_async(self) -> Optional[str]:
         if not ZSHRC.exists():
-            return
+            return None
         text = ZSHRC.read_text()
         if "zsh-autosuggestions" in text and "ZSH_AUTOSUGGEST_USE_ASYNC" not in text:
             self.findings.append(Finding(
                 domain="zsh", severity="medium",
                 title="Auto-suggestions blocking prompt",
                 description="zsh-autosuggestions loaded without ZSH_AUTOSUGGEST_USE_ASYNC=1.",
-                fixable=True, fix_cmd="async",
+                fixable=True, fix_cmd="async", check_id="zsh_async",
             ))
+            return "zsh-autosuggestions loaded synchronously"
+        return "zsh-autosuggestions async or absent"
 
-    def _check_zsh_brew(self) -> None:
+    def _check_zsh_brew(self) -> Optional[str]:
         if not ZSHRC.exists():
-            return
+            return None
         text = ZSHRC.read_text()
         if "brew shellenv" in text and "HOMEBREW_PREFIX" not in text:
             self.findings.append(Finding(
                 domain="zsh", severity="medium",
                 title="brew shellenv runs every time",
                 description="eval $(brew shellenv) on every shell start. Guard with HOMEBREW_PREFIX check.",
-                fixable=True, fix_cmd="brew_shellenv",
+                fixable=True, fix_cmd="brew_shellenv", check_id="zsh_brew",
             ))
+            return "brew shellenv runs unguarded"
+        return "brew shellenv guarded or absent"
 
     # ── system checks ──
 
-    def _check_disk(self) -> None:
+    def _check_disk(self) -> Optional[str]:
         rc, out = _run("df -g / 2>/dev/null | tail -1")
         parts = out.split()
         if len(parts) >= 4:
@@ -276,12 +293,15 @@ class Tuner:
                         domain="disk", severity="high",
                         title=f"Disk: {used_pct}% used ({free_gb}GB free)",
                         description=f"Boot volume is {used_pct}% full. Free space affects system performance.",
-                        fixable=False,
+                        fixable=False, check_id="disk",
                     ))
+                    return f"{used_pct}% used, {free_gb}GB free"
+                return f"{used_pct}% used, {free_gb}GB free"
             except (ValueError, IndexError):
                 pass
+        return None
 
-    def _check_memory(self) -> None:
+    def _check_memory(self) -> Optional[str]:
         rc, out = _run("memory_pressure 2>/dev/null | head -5")
         if not out:
             rc, out = _run("vm_stat 2>/dev/null | head -10")
@@ -293,9 +313,9 @@ class Tuner:
                     domain="memory", severity="high",
                     title=f"Memory pressure: {pct}% free",
                     description="Low available memory. Check for memory leaks in active processes.",
-                    fixable=False,
+                    fixable=False, check_id="memory",
                 ))
-
+                return f"{pct}% free"
         rc, out = _run(["sysctl", "vm.swapusage"], shell=False)
         swap_match = re.search(r"used = (\d+\.?\d*)([KMGT])", out)
         if swap_match:
@@ -308,10 +328,15 @@ class Tuner:
                     domain="memory", severity="medium",
                     title=f"Swap: {used_mb:.0f}MB used",
                     description="High swap usage indicates memory pressure. Consider closing apps or adding RAM.",
-                    fixable=False,
+                    fixable=False, check_id="memory",
                 ))
+                return f"swap {used_mb:.0f}MB used"
+        if pressure_match:
+            pct = int(pressure_match.group(1))
+            return f"{pct}% free, swap usage OK"
+        return None
 
-    def _check_brew(self) -> None:
+    def _check_brew(self) -> Optional[str]:
         rc, out = _run("brew cleanup --dry-run 2>&1")
         if rc == 0 and out.strip():
             lines = [l for l in out.splitlines() if l.strip() and "Would remove" in l]
@@ -328,10 +353,13 @@ class Tuner:
                     domain="brew", severity="low",
                     title=f"Cleanup: {len(lines)} stale bottles ({_fmt_gb(total_bytes)} reclaimable)",
                     description="Run 'brew cleanup' to free space.",
-                    fixable=False,
+                    fixable=False, check_id="brew",
                 ))
+                return f"{len(lines)} stale bottles ({_fmt_gb(total_bytes)} reclaimable)"
+            return "no stale bottles"
+        return None
 
-    def _check_docker(self) -> None:
+    def _check_docker(self) -> Optional[str]:
         rc, out = _run("docker system df --format '{{.Type}} {{.Size}} {{.Reclaimable}}' 2>/dev/null")
         if rc == 0 and out.strip():
             reclaimable = 0
@@ -344,22 +372,26 @@ class Tuner:
                     domain="docker", severity="low",
                     title=f"Docker: {_fmt_gb(reclaimable)} reclaimable",
                     description="Run 'docker system prune' to clean up.",
-                    fixable=False,
+                    fixable=False, check_id="docker",
                 ))
+                return f"{_fmt_gb(reclaimable)} reclaimable"
+            return "no significant reclaimable data"
+        return None
 
-    def _check_cache(self) -> None:
+    def _check_cache(self) -> Optional[str]:
         _, out = _run("du -sh ~/Library/Caches 2>/dev/null | cut -f1")
         cache_size = out.strip()
         if not cache_size or cache_size == "timed out":
-            return
+            return None
         self.findings.append(Finding(
             domain="system", severity="low",
             title=f"User caches: ~{cache_size}",
             description=f"Cache directory at ~/Library/Caches. Contents are safe to remove.",
-            fixable=False,
+            fixable=False, check_id="cache",
         ))
+        return f"~{cache_size}"
 
-    def _check_launch_daemons(self) -> None:
+    def _check_launch_daemons(self) -> Optional[str]:
         _, out = _run("launchctl list 2>/dev/null | grep -v 'com.apple' | wc -l")
         count = int(out.strip()) if out.strip().isdigit() else 0
         if count > 50:
@@ -367,8 +399,66 @@ class Tuner:
                 domain="system", severity="low",
                 title=f"Launch agents: {count} non-Apple",
                 description=f"{count} third-party launch agents/daemons registered. Each adds to boot time.",
-                fixable=False,
+                fixable=False, check_id="launch_daemons",
             ))
+            return f"{count} non-Apple launch agents"
+        return f"{count} non-Apple launch agents"
+
+    # ── canonical health collection (scan bundle source) ──
+
+    _HEALTH_CHECKS = [
+        # (domain, display name, method, detail shown when check cannot run)
+        ("shell", "Zsh startup time", "_check_zsh_startup", "could not measure — skipped"),
+        ("shell", "NVM loading", "_check_zsh_nvm", "nvm not present — skipped"),
+        ("shell", "Zsh history", "_check_zsh_history", "~/.zsh_history not present — skipped"),
+        ("shell", "Shell config", "_check_zsh_path_dupes", "~/.zshrc not present — skipped"),
+        ("shell", "Zsh autosuggestions", "_check_zsh_async", "~/.zshrc not present — skipped"),
+        ("shell", "Homebrew shellenv", "_check_zsh_brew", "~/.zshrc not present — skipped"),
+        ("system", "Disk space", "_check_disk", "could not measure — skipped"),
+        ("system", "Memory", "_check_memory", "could not measure — skipped"),
+        ("system", "Homebrew cleanup", "_check_brew", "brew not available — skipped"),
+        ("system", "Docker disk usage", "_check_docker", "docker not installed — skipped"),
+        ("system", "User caches", "_check_cache", "could not measure — skipped"),
+        ("system", "Launch agents", "_check_launch_daemons", "could not measure — skipped"),
+    ]
+
+    def collect_health(self) -> List[Dict[str, Any]]:
+        """Run every check and return one canonical entry per check.
+
+        This is the single source consumed by `msp scan` persistence and
+        `msp doctor` rendering — check()/_print_check() remain the legacy
+        display path. Entry shape:
+        {domain, name, status, title, detail, fixable, fix_cmd}
+        where status is one of: ok | n/a | low | medium | high.
+        """
+        self.findings = []
+        entries: List[Dict[str, Any]] = []
+        for domain, name, method_name, na_detail in self._HEALTH_CHECKS:
+            fn = getattr(self, method_name)
+            cid = method_name.replace("_check_", "")
+            healthy = fn()
+            fs = [f for f in self.findings if f.check_id == cid]
+            if fs:
+                for f in fs:
+                    entries.append({
+                        "domain": domain, "name": name,
+                        "status": f.severity, "title": f.title,
+                        "detail": f.description,
+                        "fixable": f.fixable, "fix_cmd": f.fix_cmd,
+                    })
+            elif healthy is None:
+                entries.append({
+                    "domain": domain, "name": name,
+                    "status": "n/a", "title": name, "detail": na_detail,
+                    "fixable": False, "fix_cmd": "",
+                })
+            else:
+                entries.append({
+                    "domain": domain, "name": name,
+                    "status": "ok", "title": name, "detail": healthy,
+                    "fixable": False, "fix_cmd": "",
+                })
+        return entries
 
     # ── top ────────────────────────────────────────────────
 
@@ -729,6 +819,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_parser()
     setup_completion(parser)
     args = parser.parse_args(argv)
+    print(
+        "Note: 'msp tune' is merging into 'msp doctor' — prefer 'msp doctor' "
+        "for health and 'msp doctor fix' for auto-fixes. This alias still works.",
+        file=sys.stderr,
+    )
     tuner = Tuner(verbose=args.verbose)
     if not args.action:
         interactive_menu(tuner, args.json)

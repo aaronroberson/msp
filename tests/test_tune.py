@@ -157,6 +157,17 @@ def test_fix_nvm_only_touches_nvm_source_line(monkeypatch):
     assert "nvm()" in lines[1]
 
 
+def test_startup_finding_lists_no_hardcoded_remedies(monkeypatch):
+    """The slow-startup description must not enumerate unverified remedies
+    (e.g. NVM lazy-load) — applicable fixes are context-specific findings."""
+    monkeypatch.setattr(tune, "_run", lambda cmd, timeout=30, shell=True: (0, "1.5 total"))
+    t = Tuner()
+    t._check_zsh_startup()
+    assert len(t.findings) == 1 and t.findings[0].severity == "high"
+    assert "NVM" not in t.findings[0].description
+    assert "nvm" not in t.findings[0].description.lower()
+
+
 def test_cleanup_backups_delete(home, monkeypatch):
     t = Tuner()
     b1 = t._make_backup(home["history"])

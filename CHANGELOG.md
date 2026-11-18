@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `msp doctor` shell-performance output rendered raw Rich markup (`[red]HIGH[/red]`) instead of color; it now prints via `console.print`.
 - `msp doctor` suggested nonexistent commands: `msp tune profile` (slow startup) and `msp tune apply` (corrupted history) now point to `msp tune fix` / `msp tune check`.
+- `msp doctor` and `msp tune` startup findings no longer list hard-coded remedies (NVM lazy-load, history trim); applicable fixes are enumerated per machine by `msp tune check`.
 - `msp tune` check output leaked raw Rich markup (`[red]HIGH[/red] [red]zsh[/red]`) in the severity lines; now rendered with `console.print`.
 
 ### Changed
@@ -17,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `tests/test_tune.py` covering backup creation, rollback on handler/write failure, dry-run isolation, backup cleanup, and JSON output of backup paths.
+
+### Added
+- `msp doctor` now prints every check's outcome instead of staying silent: healthy shell checks as ✓ lines (e.g. "✓ Zsh history — 8,902 lines, text format OK"), unavailable checks as skipped (–) lines, and a dependency summary with counts (required installed, total checked) plus missing optional dependencies.
+- `tests/test_deps.py` covering healthy/partitioned/skipped shell-check reporting and the doctor dependency summary.
+
+### Changed (doctor/scan/tune merge — phase 1)
+- **`msp scan` is now the single collector.** Every scan mode (quick/deep/suspicious) collects shell + system + file-permission health via one canonical implementation (`Tuner.collect_health()` + extended `_check_file_permissions`) and persists a versioned bundle to `~/.msp/scans/latest.json` — one entry per check with status ok / n/a / issue-severity, including healthy and skipped checks.
+- **`msp doctor` is the single health surface.** It renders the persisted scan bundle (no re-running checks inline), grouped by Shell / System / Protected files, with provenance ("scan from …") and a staleness note after 7 days. When no results exist it offers to run a scan (quick/full, interactive only); non-interactive runs print the hint.
+- **`msp doctor fix` is the merged remediation command** — applies performance auto-fixes (tune engine with backup/rollback) plus safe `chmod` fixes for over-permissive protected paths found in the bundle; dry-run previews both. TUI palette and help text updated; deps interactive menu gains "Doctor fix".
+- **File-permission audit extended**: `msp scan` now checks protected user paths (`~/.ssh` 700, private keys 600, `~/.gnupg`, `~/.aws`, `~/.netrc`, `~/.kube/config`, `~/.zsh_history`) for group/world access in addition to the existing critical system paths.
+- **`msp tune` is a deprecated alias**: still fully functional (check/fix/top), prints a merge notice on stderr; `msp doctor`'s duplicated inline shell checks were removed (single implementation now lives in the tune collector consumed by scan).
+- `tests/test_scan_bundle.py` (bundle roundtrip, corrupt handling, permission canonical entries, chmod fix idempotence, collector composition) and rewritten `tests/test_deps.py` (bundle-driven doctor rendering, no-scan prompt, staleness note).
 
 ## [0.2.0] - 2026-09-02
 

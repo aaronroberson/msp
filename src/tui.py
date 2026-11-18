@@ -228,7 +228,7 @@ def _get_system_content() -> str:
 Uptime: {info.get('uptime', 'unknown')}
 Disk: {info.get('disk', 'unknown')}
 Swap: {info.get('swap', 'unknown')}
-Top: run 'msp tune top' for CPU/memory/pressure/load"""
+Top: run 'msp doctor' for health, 'msp doctor fix' for auto-fixes"""
 
 
 class ConfirmScreen(Screen):
@@ -707,7 +707,7 @@ class HelpScreen(Screen):
             yield Label("  [bold]s/n/a[/bold]     Focus Security/Network/Startup widget")
             yield Label("")
             yield Label("[bold]CLI Commands:[/bold]")
-            yield Label("  [bold]msp tune top[/bold]  Show top CPU/memory, pressure, load")
+            yield Label("  [bold]msp doctor fix[/bold]  Apply shell/system performance auto-fixes")
             yield Label("  [bold]msp net camsweep[/bold]  Sweep LAN for hidden cameras")
             yield Label("")
             yield Label("[bold]View Navigation:[/bold]")

@@ -73,6 +73,8 @@ def _requires_confirmation(tokens: list[str]) -> bool:
         return bool(args and args[0] not in {"list", "show", "help"})
     if command == "tune":
         return bool(args and args[0] in {"fix", "apply", "enable", "disable"})
+    if command == "doctor":
+        return bool(args and args[0].lower() == "fix")
     if command == "privacy_settings":
         return bool(args and args[0] in {"enable", "disable", "set", "apply", "preset"})
     if command == "config":
@@ -97,7 +99,8 @@ RUNNABLES: list[dict[str, str]] = [
     {"verb": "net camsweep --json", "title": "Run: net camsweep", "desc": "Sweep LAN for hidden cameras"},
     {"verb": "tcc list --json", "title": "Run: tcc list", "desc": "TCC permission dump"},
     {"verb": "report", "title": "Run: report", "desc": "Generate a security report"},
-    {"verb": "doctor", "title": "Run: doctor", "desc": "Dependency doctor"},
+    {"verb": "doctor", "title": "Run: doctor", "desc": "Health: deps + latest scan results"},
+    {"verb": "doctor fix", "title": "Run: doctor fix", "desc": "Shell/system performance auto-fixes"},
     {"verb": "net list", "title": "Run: net list", "desc": "Listening network ports"},
     {"verb": "startup managed --json", "title": "Run: startup managed", "desc": "Current-user Login Items and LaunchAgents"},
     {"verb": "startup login-items --json", "title": "Run: startup login-items", "desc": "Current-user Login Items"},
