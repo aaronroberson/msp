@@ -100,7 +100,7 @@ def run_command(
     cwd: Optional[Union[str, os.PathLike[str]]] = None,
     env: Optional[Mapping[str, str]] = None,
     sensitive_values: Optional[Sequence[str]] = None,
-    redact_ips: bool = True,
+    redact_ips: bool = False,
 ) -> CommandResult:
     """Run a local command and return a normalized, redacted result.
 
