@@ -207,87 +207,32 @@ def doctor_fix_gate(raw_args, *, stream=None):
     return False
 
 
+def _args_after_command(command: str) -> list[str]:
+    """Raw argv tokens after the command word, regardless of where global flags sit.
+
+    ``msp --json snapshot list`` and ``msp snapshot list --json`` must both see
+    ``["list", ...]``; slicing ``sys.argv[2:]`` only handles the second form.
+    """
+    for index, token in enumerate(sys.argv[1:], start=1):
+        if token.lower() == command:
+            return sys.argv[index + 1:]
+    return []
+
+
+def _flag_value(raw_args: list[str], flag: str) -> Optional[str]:
+    if flag in raw_args:
+        index = raw_args.index(flag)
+        if index + 1 < len(raw_args):
+            return raw_args[index + 1]
+    return None
+
+
 def main():
-    if len(sys.argv) >= 3 and sys.argv[1].lower() in COMMAND_MODULES and any(
-        arg in ("-h", "--help") for arg in sys.argv[2:]
+    positionals = [token for token in sys.argv[1:] if not token.startswith("-")]
+    if positionals and positionals[0].lower() in COMMAND_MODULES and any(
+        arg in ("-h", "--help") for arg in sys.argv[1:]
     ):
-        run_command(COMMAND_MODULES[sys.argv[1].lower()], "", ["--help"], None)
-        return
-
-    # Pre-parse to intercept snapshot commands before argparse consumes flags
-    if len(sys.argv) >= 2 and sys.argv[1] == "snapshot":
-        from src.snapshot import SnapshotManager
-        sm = SnapshotManager(verbose="-v" in sys.argv or "--verbose" in sys.argv)
-
-        # Parse snapshot command manually
-        raw_args = sys.argv[2:]
-        action = raw_args[0] if raw_args else None
-
-        if action == "capture":
-            name = raw_args[1] if len(raw_args) > 1 else None
-            include_net = "--include-network" in raw_args
-            include_startup = "--include-startup" in raw_args
-            sm.capture(name=name, include_network=include_net, include_startup=include_startup)
-        elif action == "list":
-            sort_by = None
-            if "--sort" in raw_args:
-                idx = raw_args.index("--sort")
-                if idx + 1 < len(raw_args):
-                    sort_by = raw_args[idx + 1]
-            sm.list_snapshots(json_output="--json" in sys.argv, sort_by=sort_by or "timestamp")
-        elif action == "diff":
-            name = raw_args[1] if len(raw_args) > 1 else None
-            if name:
-                sm.diff(name, json_output="--json" in sys.argv)
-            else:
-                print("Usage: msp snapshot diff <name>")
-        elif action == "restore":
-            name = raw_args[1] if len(raw_args) > 1 else None
-            dry_run = "--dry-run" in raw_args
-            if name:
-                sm.restore(name, dry_run=dry_run)
-            else:
-                print("Usage: msp snapshot restore <name> [--dry-run]")
-        elif action == "watch":
-            name = raw_args[1] if len(raw_args) > 1 else "default"
-            interval = 300
-            if "--interval" in raw_args:
-                idx = raw_args.index("--interval")
-                if idx + 1 < len(raw_args):
-                    try:
-                        interval = int(raw_args[idx + 1])
-                    except ValueError:
-                        pass
-            auto_restore = "--auto-restore" in raw_args
-            sm.watch(name, interval=interval, auto_restore=auto_restore)
-        elif action == "delete":
-            name = raw_args[1] if len(raw_args) > 1 else None
-            if name:
-                sm.delete(name)
-            else:
-                print("Usage: msp snapshot delete <name>")
-        else:
-            # No action specified - run interactive mode
-            json_output = "--json" in sys.argv
-            sort_by = None
-            if "--sort" in sys.argv:
-                idx = sys.argv.index("--sort")
-                if idx + 1 < len(sys.argv):
-                    sort_by = sys.argv[idx + 1]
-            # Simulate calling the module's main with no action
-            # We'll just show the interactive menu directly
-            if hasattr(SnapshotManager, '_sort_snapshots'):  # Check if enhanced version
-                # We need to run the module's interactive mode
-                module = __import__("src.snapshot", fromlist=["main"])
-                # Set up args for interactive mode
-                sys.argv = ["snapshot"]
-                if json_output:
-                    sys.argv.append("--json")
-                if sort_by:
-                    sys.argv.extend(["--sort", sort_by])
-                module.main()
-            else:
-                print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
+        run_command(COMMAND_MODULES[positionals[0].lower()], "", ["--help"], None)
         return
 
     parser = argparse.ArgumentParser(
@@ -457,11 +402,15 @@ Examples:
         sm = SnapshotManager(verbose=args.verbose)
 
         # Manually parse snapshot args to avoid argparse flag issues
-        raw_args = sys.argv[2:] if len(sys.argv) > 2 else []
+        raw_args = _args_after_command("snapshot")
         action = raw_args[0] if raw_args else None
 
-        # Filter out global flags before passing to snapshot module
-        filtered_args = [a for a in raw_args[1:] if not a.startswith("--")]
+        # Positional arguments only: drop flags and the values of value-taking flags.
+        value_flags = {"--sort", "--interval"}
+        filtered_args = [
+            a for i, a in enumerate(raw_args[1:], start=1)
+            if not a.startswith("--") and raw_args[i - 1] not in value_flags
+        ]
 
         if action == "capture":
             name = filtered_args[0] if filtered_args else None
@@ -475,7 +424,7 @@ Examples:
                 include_custom=include_custom,
             )
         elif action == "list":
-            sm.list_snapshots(json_output=args.json)
+            sm.list_snapshots(json_output=args.json, sort_by=args.sort or _flag_value(raw_args, "--sort") or "timestamp")
         elif action == "diff":
             name = filtered_args[0] if filtered_args else None
             if name:
@@ -492,13 +441,19 @@ Examples:
         elif action == "watch":
             name = filtered_args[0] if filtered_args else "default"
             auto_restore = "--auto-restore" in raw_args
-            sm.watch(name, interval=300, auto_restore=auto_restore)
+            interval_value = _flag_value(raw_args, "--interval")
+            interval = int(interval_value) if interval_value and interval_value.isdigit() else 300
+            sm.watch(name, interval=interval, auto_restore=auto_restore)
         elif action == "delete":
             name = filtered_args[0] if filtered_args else None
             if name:
                 sm.delete(name)
             else:
                 print("Usage: msp snapshot delete <name>")
+        elif action is None:
+            module = __import__("src.snapshot", fromlist=["main"])
+            sys.argv = ["snapshot"] + (["--json"] if args.json else [])
+            module.main()
         else:
             print("Usage: msp snapshot <capture|list|diff|restore|watch|delete> [args]")
         return
@@ -507,7 +462,7 @@ Examples:
     if command == "shell":
         from src.shell_audit_cli import main as shell_audit_main
         # Parse shell args: msp shell audit [options] | msp shell repair
-        raw_args = sys.argv[2:] if len(sys.argv) > 2 else []
+        raw_args = _args_after_command("shell")
         action = raw_args[0] if raw_args else None
 
         if action == "audit":
