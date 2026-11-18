@@ -58,3 +58,17 @@
 ## 8. Prior-audit reconciliation
 
 All of O-1…O-13 and G-1…G-25 from `docs/audits/command-suite-audit.md` were spot-verified as still true at HEAD except where Phase 1 closed them (shell triple → merged `scan`; finding shape #4 now canonical for scan/doctor). See the plan for consumption of those findings.
+
+## 9. Phase 0 status update (2026-11-17)
+
+Corrections to this evidence snapshot after the first implementation slice (commits 2592bd9, 945a78b, 12ddde9, b2883a0, 577af51, e171a34; plan §10.1):
+
+- **Line 17/§2 "deps.py writes root deps.json"** — false as stated: `src/deps.py:60` is reader-only; no writer exists. `deps.json` therefore stays in the repo tree (bundled package data). Resolves plan §12 Q7.
+- **Line 28 "exactly 10 rules"** — stale at time of this slice: the rule set was already 16 when T-03 seeded the registry (`FW-001/002`, `FV-001`, `GK-001`, `SH-001/002`, `TCC-001/002`, `ST-001/002`, `NW-001/002`, `SEC-001/002/003`, `DEV-001`).
+- **Line 28 SEC-001 orphan** — resolved by implementation: the remediate mapping was real and correct; T-03 added the rule definition and the registry control (`12ddde9`).
+- **Line 41 `presets_dir` latent path bug** — fixed by deletion: the attribute was dead code never read (`577af51`).
+- **Line 42 preset drift / FileVault no-op** — fixed: `PresetManager.PRESETS` now imports the single source (`src/presets.py`), `nist` is reachable via CLI and delete-protected, and FileVault application is an honest skip with guidance instead of a silent `[FAIL]`/hang.
+- **Line 44 `firewall.py:33` "should be --getallowsignedapp"** — withdrawn: `--getallowsignedapp` does not exist (socketfilterfw usage verified; exits 255). The `:33` mapping to `--getallowsigned` is intentional — one call returns both signed-software lines and firewall.py parses each. The invalid-flag queries that did exist (`--getallowsignedapp`, `--getincoming`, `--getoutgoing`) were in `privacy_settings.py` and are now removed; `--listapps` is parsed into structured `{path, name, status}` app rules (`e171a34`).
+- **Verdict substring bugs** (`privacy_settings.py:289,341`) — confirmed real and fixed with captured output fixtures: `--getallowsigned` emits `ENABLED.`/`DISABLED.` so the old `"on"` test never matched, and FileVault mid-conversion was counted as encrypted (`b2883a0`).
+
+Suite state after the slice: 233 tests / 0 failures; mypy delta 0 vs the 263-error baseline; every new verdict fixture uses output captured from the real `socketfilterfw`/`fdesetup`/`spctl` on macOS.

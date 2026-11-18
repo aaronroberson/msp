@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (phase 0 — foundation refactor)
+- **Central state registry (`src/state.py`)**: every `~/.msp` path (scans, reports, backups, baselines, snapshots, settings, config) resolves through one module honoring the `MSP_HOME` environment variable at call time. All collectors (scanner, tune, privacy settings, snapshot, ai, fswatch, shell audit, errors) migrated off ad-hoc path literals.
+- **Canonical finding schema (`src/schema.py`, v2)**: `FindingV2` dataclass (title/category/severity/control_id/check_id/evidence_refs/provenance/…) with duck-typed adapters from the four historical finding shapes (scanner items, rules findings, tune checks, remediation results) and `canonicalize_check` for health-check entries. Scan bundle schema bumped to `2.0` while keeping every legacy key; `msp scan --json` and reports now emit canonical findings plus the legacy `item`/`rule_id` aliases consumers rely on.
+- **Control registry (`src/controls.py`)**: all 16 rules, 13 health checks and 7 preset settings registered as controls with remediation id, safety class and references. `rules.default_rules()` fails fast on unregistered ids and the remediation planner skips findings whose control id is unknown instead of silently planning them. Completeness tests pin rules/registry/remediate parity (SEC-001 orphan resolved).
+- **Structured firewall app rules**: `msp firewall status` now parses `socketfilterfw --listapps` two-line output (path line + `(Allow|Block incoming connections)` verdict) into `{path, name, status}` entries under `apps` alongside the raw `apps_output`; the TUI firewall view prefers the structured list.
+
+### Fixed (phase 0)
+- **Firewall verdicts were read-only lies** (`msp audit`/scan): `--getallowsigned` outputs say `ENABLED.`/`DISABLED.`, so the old `"on" in output` test never matched and signed-software allowance was always reported off; the firewall status also queried nonexistent flags (`--getallowsignedapp`, `--getincoming`, `--getoutgoing`, which exit 255) and never reported their results. Verdicts now match real output; dead queries and their always-false keys removed.
+- **FileVault status treated mid-conversion as encrypted**: `fdesetup status` "Encryption in progress" no longer counts as encrypted; honest enabled/encrypted verdicts.
+- **Presets had two drifted sources of truth**: `privacy_settings.PresetManager` shipped its own 4-preset copy while `src/presets.py` had 5 (including `nist`, invisible via CLI). The manager now imports the single source; `nist` applies via CLI and is delete-protected like the built-ins.
+- **Preset apply hung/fake-failed on FileVault**: enabling FileVault requires interactive auth and a recovery key, so unattended `fdesetup enable` would hang. Preset application now skips FileVault with actionable guidance (System Settings path or manual `sudo fdesetup enable`) instead of printing `[FAIL]`.
+- **Shell execution hardened**: privacy-settings commands run as argv via `subprocess.run(shell=False)` with `shlex.split`; the pipe/redirect callers (`lsof`, `launchctl | grep`, `defaults` reads) were rewritten to filter in Python.
+- **README preset table** synced with the real five presets.
+
 ### Fixed
 - `msp doctor` shell-performance output rendered raw Rich markup (`[red]HIGH[/red]`) instead of color; it now prints via `console.print`.
 - `msp doctor` suggested nonexistent commands: `msp tune profile` (slow startup) and `msp tune apply` (corrupted history) now point to `msp tune fix` / `msp tune check`.

@@ -37,7 +37,7 @@ Phases are ordered so each lands the enabling substrate for the next; utility-ex
 
 | Phase | Theme | Ships | Depends on |
 |---|---|---|---|
-| **0 — Foundation** | Registry + schema + bugfix | `state.py`, finding schema v2 in scanner/rules/remediate, `controls.py` seeding existing 10 rules + scanner checks + 4 remediation mappings, fix substring verdict bugs (privacy_settings.py:289,341), presets path bug, `--getallowsignedapp`, retire SEC-001 orphan, deps.json → ~/.msp | none |
+| **0 — Foundation** | Registry + schema + bugfix | `state.py`, finding schema v2 in scanner/rules/remediate, `controls.py` seeding existing 10 rules + scanner checks + 4 remediation mappings, fix substring verdict bugs (privacy_settings.py:289,341), presets path bug, `--getallowsignedapp`, retire SEC-001 orphan, deps.json → ~/.msp | none — **DONE 2026-11-17** (commits 2592bd9, 945a78b, 12ddde9, b2883a0, 577af51, e171a34; 233 tests green; mypy delta 0; corrections in §13.1) |
 | **1 — Trust** | Gate + privilege | `gate.py` engine-enforced approval (risk classes, tokens, ledger), `privilege.py` broker + migration of sudo-prepend call sites, evidence store with sealed raw + presentation redaction, blanket-IP-redaction → opt-in | Phase 0 |
 | **2 — Automation** | Executor | workflow schema v2, executor w/ state machine + checkpoints + crash-resume + rollback + retries (reuse `sdk.retry_with_backoff`), daily/incident/harden/evidence as executable DAGs, retire `chain.py` duplicate | Phase 1 |
 | **3 — AI hygiene** | Redaction + unify | `redact.py` gate on all outbound, `local_only` enforced in code, delete ai.py:998 dead block, unify ai/llm/sdk into one registry, AI parity in TUI | Phase 1 (gate) |
@@ -93,6 +93,20 @@ Rationale: it is pure refactor guarded by 193 green tests, it unlocks every late
 5. Update `CHANGELOG.md`, run `python3 -m py_compile` on touched files, full `pytest`, `mypy src`.
 
 Exit criteria: all existing tests pass; new regression tests for the three bug classes; no `~/.msp` literal outside state.py; `msp scan`, `msp doctor`, `msp doctor fix` behave identically to HEAD except corrected verdicts.
+
+### 10.1 Phase 0 outcome and plan corrections (2026-11-17)
+
+Landed as six conventional commits on `main` (no PR series; user authorized direct commits): T-01 `2592bd9`, T-02 `945a78b`, T-03 `12ddde9`, T-04 `b2883a0`, T-05 `577af51`, T-06 `e171a34`. Suite 233 tests / 0 failures (was 193); `py_compile` clean; mypy **delta 0** against the 263-error baseline (pre-existing: rich guarded imports, `interactive_select` list invariance, optional openvino import).
+
+Corrections to plan premises discovered during implementation:
+
+1. **Rules count**: `rules.default_rules()` defines **16 rules**, not 10 (expanded in the phase-1 checkpoint before this slice). T-03 registry seeds all 16 plus 13 health checks plus 7 preset-setting controls (36 total).
+2. **SEC-001**: implemented, not deleted — the remediation mapping at `remediate.py:354` was real and correct; the missing piece was a rule definition. T-03 added the rule + registry control, so the orphan is resolved (`12ddde9`).
+3. **T-06 scope changed**: `firewall.py:33` mapping `allows_signed_app → --getallowsigned` is **intentional and correct** — one `--getallowsigned` call returns two lines (built-in + downloaded signed software) and firewall.py parses each. The invalid flags (`--getallowsignedapp`, `--getincoming`, `--getoutgoing`) lived in `privacy_settings.py` and were removed by T-04. T-06's real work: parse `--listapps` two-line output into structured `apps` entries (`e171a34`).
+4. **deps.json stays in the repo tree** (§12 Q7 resolution): `src/deps.py:60` only *reads* the repo-tree `deps.json`; no writer exists. Moving it to `~/.msp` would add no value and would break the bundled distribution — T-01 deliberately did not move it. §F2's "deps.json moves to `~/.msp`" premise is dropped unless a writer is added later.
+5. **Remediation plan schema stays v1**: `RemediationPlan` is its own versioned artifact, not a finding shape; `finding_v2_from_remediation_result` exists in `src/schema.py` but is unused until the Phase-2 executor adds real post-apply re-verification (today `verified` is always `None` — exit codes alone must not be claimed as verification).
+6. **Findings-schema tolerance**: the scan bundle reader stays schema-agnostic; the bump to `"2.0"` is additive (all legacy flat keys preserved), so legacy bundles keep rendering. `read_latest_scan()` needed no change.
+7. **§12 Q3/Q6 revisit** after first slice with real usage: still pending, now due.
 
 ---
 
