@@ -2,7 +2,9 @@
 """Conservative remediation planning and execution primitives.
 
 The remediation layer turns rule findings into explicit actions. It defaults to
-planning and dry-runs; callers must opt in to applying commands.
+planning and dry-runs; callers must opt in to applying commands. When a gate is
+supplied, every executable action must be authorized by
+``src.gate.Gate.decide``/``validate`` before the executor runs it.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 from src.command import pause_for_enter
 from src.controls import get_control
+from src.gate import DEFAULT_TOKEN_TTL_SECONDS, Gate
 
 try:
     from src.command import (
@@ -38,6 +41,14 @@ except ImportError:  # pragma: no cover - allows direct module execution during 
 
 SAFETY_LEVELS = ("low", "medium", "high", "destructive")
 SAFETY_RANK = {level: index for index, level in enumerate(SAFETY_LEVELS)}
+
+# Gate risk class for each remediation safety level (src.gate.RISK_CLASSES).
+SAFETY_TO_RISK = {
+    "low": "safe_write",
+    "medium": "confirm",
+    "high": "dangerous",
+    "destructive": "dangerous",
+}
 
 
 Executor = Callable[..., CommandResult]
@@ -221,6 +232,9 @@ class RemediationPlanner:
         allow_high_risk: bool = False,
         max_safety: str = "destructive",
         timeout: float = 60,
+        gate: Optional[Gate] = None,
+        tokens: Optional[Sequence[str]] = None,
+        prompt: Optional[Callable[[str], bool]] = None,
     ) -> List[RemediationResult]:
         self._validate_safety(max_safety)
         results: List[RemediationResult] = []
@@ -275,6 +289,22 @@ class RemediationPlanner:
                     )
                 )
                 continue
+
+            if gate is not None:
+                decision = self._gate_decision(gate, action, tokens)
+                if decision.status == "requires_interactive" and prompt is not None:
+                    if prompt(f"Apply {action.id}?"):
+                        decision = gate.decide(
+                            risk_class=SAFETY_TO_RISK[action.safety],
+                            control_id=action.finding_id,
+                            target=self._action_target(action),
+                            interactive=True,
+                        )
+                if not decision.allowed:
+                    results.append(
+                        self._requires_approval(action, decision.message)
+                    )
+                    continue
 
             command_result = self.executor(
                 action.command,
@@ -559,6 +589,48 @@ class RemediationPlanner:
             rollback=self._rollback_payload(action),
         )
 
+    def _requires_approval(
+        self,
+        action: RemediationAction,
+        message: str,
+    ) -> RemediationResult:
+        return RemediationResult(
+            action_id=action.id,
+            finding_id=action.finding_id,
+            status="requires_approval",
+            dry_run=False,
+            message=message or "Requires approval.",
+            rollback=self._rollback_payload(action),
+        )
+
+    @staticmethod
+    def _action_target(action: RemediationAction) -> str:
+        """The gate target for an action: the exact command it would run."""
+        return " ".join(action.command) if action.command else ""
+
+    @staticmethod
+    def _gate_decision(
+        gate: Gate,
+        action: RemediationAction,
+        tokens: Optional[Sequence[str]],
+    ) -> Any:
+        """Authorize ``action``: try supplied tokens first; a supplied token
+        that fails validation is a refusal (never a fallback to prompting)."""
+        target = RemediationPlanner._action_target(action)
+        refused = None
+        for token in tokens or ():
+            decision = gate.validate(token, action.finding_id, target)
+            if decision.allowed:
+                return decision
+            refused = decision
+        if refused is not None:
+            return refused
+        return gate.decide(
+            risk_class=SAFETY_TO_RISK[action.safety],
+            control_id=action.finding_id,
+            target=target,
+        )
+
     @staticmethod
     def _rollback_payload(action: RemediationAction) -> Optional[Dict[str, Any]]:
         if not action.rollback_command and not action.rollback_guidance:
@@ -655,6 +727,9 @@ def _results_to_dict(results: Sequence[RemediationResult]) -> Dict[str, Any]:
             "skipped": sum(1 for result in results if result.status == "skipped"),
             "dry_run": sum(1 for result in results if result.status == "dry_run"),
             "guidance": sum(1 for result in results if result.status == "guidance"),
+            "requires_approval": sum(
+                1 for result in results if result.status == "requires_approval"
+            ),
         },
     }
 
@@ -711,6 +786,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-high-risk",
         action="store_true",
         help="Allow high or destructive actions to run.",
+    )
+    apply_parser.add_argument(
+        "--yes",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="TOKEN",
+        help="Affirm applying. Repeat with a token (--yes TOKEN) to authorize confirm/dangerous actions.",
+    )
+
+    approve_parser = subparsers.add_parser(
+        "approve", help="Mint an approval token for a plan action."
+    )
+    approve_parser.add_argument("plan_json", help="Path to remediation plan JSON.")
+    approve_parser.add_argument("--action", required=True, help="Action id to approve.")
+    approve_parser.add_argument(
+        "--ttl",
+        type=int,
+        default=DEFAULT_TOKEN_TTL_SECONDS,
+        help="Token time-to-live in seconds.",
     )
 
     return parser
@@ -793,6 +888,31 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     planner = RemediationPlanner()
 
     try:
+        if args.command == "approve":
+            plan = RemediationPlan.from_dict(_read_json_file(args.plan_json))
+            action = next(
+                (candidate for candidate in plan.actions if candidate.id == args.action),
+                None,
+            )
+            if action is None:
+                print(f"remediate: no action named {args.action} in plan.", file=sys.stderr)
+                return 2
+            if not action.command:
+                print(
+                    f"remediate: {args.action} is guidance-only; nothing to approve.",
+                    file=sys.stderr,
+                )
+                return 2
+            gate = Gate()
+            payload = gate.approve(
+                action.finding_id,
+                RemediationPlanner._action_target(action),
+                ttl_seconds=args.ttl,
+            )
+            payload["action_id"] = action.id
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
         if args.command == "plan":
             payload = _read_json_file(args.findings_json)
             plan = planner.plan_from_findings(
@@ -804,11 +924,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 0
 
         plan = RemediationPlan.from_dict(_read_json_file(args.plan_json))
+        gate = None
+        yes_tokens: List[str] = []
+        prompt = None
+        if args.apply:
+            gate = Gate()
+            yes_values = args.yes or []
+            yes_tokens = [token for token in yes_values if token]
+            bare_yes = "" in yes_values
+            if sys.stdin.isatty() and not bare_yes:
+                prompt = _interactive_prompt
         results = planner.apply_plan(
             plan,
             apply=args.apply,
             allow_high_risk=args.allow_high_risk,
             max_safety=args.max_safety,
+            gate=gate,
+            tokens=yes_tokens,
+            prompt=prompt,
         )
         result_payload = _results_to_dict(results)
         output = (
@@ -817,10 +950,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             else _human_results(results)
         )
         _write_output(output, args.output)
+        if any(result.status == "requires_approval" for result in results):
+            return 2
         return 1 if any(result.status == "failed" for result in results) else 0
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"remediate: {exc}", file=sys.stderr)
         return 2
+
+
+def _interactive_prompt(question: str) -> bool:
+    return input(f"{question} [y/N]: ").strip().lower() == "y"
 
 
 if __name__ == "__main__":
