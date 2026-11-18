@@ -106,6 +106,74 @@ _CHECK_CONTROLS = (
     Control("check.file_permissions", "File permissions", "check", "permissions", source="scanner.permissions"),
 )
 
+# ── utility-expansion checks (Phase 4) ──
+# G-2  Outbound exfiltration detection w/ per-process attribution
+_CONTROL_G2 = Control(
+    "NW-EXFIL", "Outbound exfiltration detection", "check", "network",
+    severity="high", remediation_id="network.review_exposed_services",
+    requires_sudo=False, source="utility-expansion",
+    references=("nettop -P -L", "pfctl counters", "tcpdump attribution"),
+)
+
+# G-3  P2P/torrent node detection
+_CONTROL_G3 = Control(
+    "NW-P2P", "P2P/torrent node detection", "check", "network",
+    severity="high", remediation_id="network.review_developer_ports",
+    requires_sudo=False, source="utility-expansion",
+    references=("lsof -i", "nmap service fingerprinting"),
+)
+
+# G-4  Resource-hog / fork-bomb detection
+_CONTROL_G4 = Control(
+    "SYSTEM-FORK", "Resource-hog / fork-bomb detection", "check", "system",
+    severity="high", remediation_id="startup.review_unsigned",
+    requires_sudo=False, source="utility-expansion",
+    references=("ps -axo ppid,pid,%cpu,%mem,comm", "ulimit"),
+)
+
+# G-5  File-integrity baselining
+_CONTROL_G5 = Control(
+    "FSEC-HASH", "File-integrity baselining", "check", "system",
+    severity="high", remediation_id="system.review_file_permissions",
+    requires_sudo=False, source="utility-expansion",
+    references=("shasum -a 256", "~/.msp/baselines"),
+)
+
+# G-6  Secure Keyboard Entry toggle
+_CONTROL_G6 = Control(
+    "TSEC-KEY", "Secure Keyboard Entry toggle", "check", "system",
+    severity="medium", remediation_id="terminal.enable_secure_keyboard",
+    requires_sudo=False, source="utility-expansion",
+    references=("Terminal.app AppleScript secure keyboard entry"),
+)
+
+# G-7  Keylogger / input-monitor detection via ioreg + TCC
+_CONTROL_G7 = Control(
+    "TCC-INPUT", "Keylogger / input-monitor detection", "check", "tcc",
+    severity="high", remediation_id="tcc.review_input_monitoring_grants",
+    requires_sudo=False, source="utility-expansion",
+    references=("ioreg -w 0 -a CGEventTapList", "TCC input monitoring grants"),
+)
+
+# G-23 LLM local-vs-cloud policy gate (reinforce existing local_only)
+_CONTROL_G23 = Control(
+    "AI-LOCAL", "LLM local-vs-cloud policy gate", "check", "ai",
+    severity="high", remediation_id="ai.local_only_policy",
+    requires_sudo=False, source="utility-expansion",
+    references=("AIAnalyzer.local_only", "ai.py PROMPT discipline"),
+)
+
+# Append new checks to the existing check controls
+_CHECK_CONTROLS = _CHECK_CONTROLS + (
+    _CONTROL_G2,
+    _CONTROL_G3,
+    _CONTROL_G4,
+    _CONTROL_G5,
+    _CONTROL_G6,
+    _CONTROL_G7,
+    _CONTROL_G23,
+)
+
 # ── preset setting labels -> rule/control ids (privacy_settings domain) ──
 _PRESET_SETTING_CONTROLS = (
     Control("setting.Application Firewall", "Application Firewall", "preset-setting", "firewall",
