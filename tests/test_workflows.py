@@ -38,7 +38,7 @@ class WorkflowsTest(unittest.TestCase):
     def test_run_workflow_returns_non_destructive_plan(self):
         result = workflows.run_workflow("harden", reasoner=FakeReasoner())
 
-        self.assertEqual(result["schema_version"], "1.0")
+        self.assertEqual(result["schema_version"], "2.0")
         self.assertTrue(result["dry_run"])
         self.assertFalse(result["destructive_actions_allowed"])
         self.assertEqual(result["reasoning"]["provider"], "fake")
@@ -62,7 +62,7 @@ class WorkflowsTest(unittest.TestCase):
         payload = json.loads(stream.getvalue())
         self.assertEqual(code, 0)
         self.assertIn("workflows", payload)
-        self.assertEqual(payload["schema_version"], "1.0")
+        self.assertEqual(payload["schema_version"], "2.0")
 
     def test_cli_show_text(self):
         stream = io.StringIO()
