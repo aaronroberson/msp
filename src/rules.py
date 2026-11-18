@@ -777,6 +777,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output format.",
     )
     parser.add_argument(
+        "--json",
+        action="store_const",
+        const="json",
+        dest="format",
+        help="Same as --format json (the global msp --json flag maps here).",
+    )
+    parser.add_argument(
         "--category",
         action="append",
         dest="categories",
