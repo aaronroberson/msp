@@ -145,8 +145,7 @@ class PersistentDirectoryMonitor:
             "old_hash": old_hash,
         }
         with ledger_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, sort_keys=True) + chr(10)"
-")
+            f.write(json.dumps(record, sort_keys=True) + "\n")
 
     def __enter__(self) -> "PersistentDirectoryMonitor":
         self.start()
@@ -264,7 +263,7 @@ class FileWatcher:
 
     def recent(self, seconds: int = 60, json_output: bool = False, sort_by: str = "timestamp") -> List[Dict[str, str]]:
         """Show recent file system events using fs_usage."""
-        print(f"Monitoring file system for {seconds} seconds...")
+        print(f"Monitoring file system for {seconds} seconds...", file=sys.stderr)
 
         cmd = f"sudo fs_usage -f filesys -t {seconds} 2>/dev/null"
 
@@ -306,7 +305,7 @@ class FileWatcher:
 
     def watch_system(self, timeout: Optional[int] = None) -> None:
         """Watch system directories for changes."""
-        print("Watching system directories...")
+        print("Watching system directories...", file=sys.stderr)
         print("Press Ctrl+C to stop...\n")
 
         cmd = "sudo fs_usage -f filesys 2>/dev/null"
@@ -425,7 +424,7 @@ class FileWatcher:
 
     def audit(self, json_output: bool = False, sort_by: str = "path") -> List[Dict[str, Any]]:
         """Audit system directories for suspicious changes."""
-        print("Auditing system directories for suspicious changes...")
+        print("Auditing system directories for suspicious changes...", file=sys.stderr)
 
         suspicious = []
         directories = [
@@ -588,6 +587,9 @@ def main():
             sys.exit(1)
         watcher.watch(args.path)
     elif args.action == "recent":
+        # `msp fswatch recent 60` (documented form) passes seconds positionally.
+        if args.path and args.path.isdigit():
+            args.seconds = int(args.path)
         watcher.recent(seconds=args.seconds, json_output=args.json, sort_by=args.sort or "timestamp")
     elif args.action == "system":
         watcher.watch_system()
