@@ -174,10 +174,11 @@ VIEWS: list[ViewSpec] = [
     ViewSpec("firewall", "Firewall", ("setting", "value", "details"), "firewall status"),
     ViewSpec("snapshots", "Snapshots", ("name", "timestamp", "firewall", "gatekeeper", "filevault"), "snapshot list --json"),
     ViewSpec("workflows", "Workflows", ("run_id", "status", "completed_steps"), "workflow run daily --dry-run"),
+    ViewSpec("ai", "AI", ("provider", "model", "local_only"), "ai ask --json"),
 ]
 
 NAV_VIEWS: tuple[str, ...] = (
-    "dashboard", "findings", "listening", "startup", "tcc", "privacy", "snapshots", "workflows"
+    "dashboard", "findings", "listening", "startup", "tcc", "privacy", "snapshots", "workflows", "ai"
 )
 DASHBOARD_COMMANDS: tuple[str, ...] = (
     "status --json", "net list --json", "net established --json", "startup managed --json", "scan quick --json"

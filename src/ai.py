@@ -602,12 +602,14 @@ Example format:
         llm_model: Optional[str] = None,
         llm_base_url: Optional[str] = None,
         openvino_device: Optional[str] = None,
+        local_only: bool = False,
     ):
         self.verbose = verbose
         self.cli_provider = provider
         self.cli_model = llm_model
         self.cli_base_url = llm_base_url
         self.openvino_device = openvino_device or os.environ.get("OPENVINO_DEVICE", "AUTO")
+        self.local_only = local_only
 
     def _format_for_llm(self, data: Any) -> str:
         if isinstance(data, str):
