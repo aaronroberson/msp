@@ -37,12 +37,48 @@ def test_privacy_firewall_details_use_bullets():
     rows = _payload_rows("privacy", {"firewall": {
         "enabled": True, "stealth_mode": True, "block_all": False,
     }})
-    assert rows[0]["details"] == "• Stealth Mode: On\n• Block All: Off"
+    assert rows[0]["details"] == "• Stealth mode: On\n• Block all incoming: Off"
+
+
+def test_privacy_firewall_exceptions_are_summarised_not_dumped():
+    rows = _payload_rows("privacy", {"firewall": {
+        "enabled": True, "allows_signed": False,
+        "exceptions": [{"name": "Zoom", "status": "BLOCK"}, {"name": "DeviceHub", "status": "ALLOW"}],
+    }})
+    assert rows[0]["details"] == "• Allow Apple-signed software: Off\n• App rules: 1 allowed · 1 blocked"
+    assert "{" not in rows[0]["details"]
+    assert rows[0]["rules"] == [{"name": "DeviceHub", "status": "ALLOW"}, {"name": "Zoom", "status": "BLOCK"}]
+
+
+def test_privacy_tab_renders_firewall_rules_table():
+    from textual.widgets import DataTable
+
+    async def exercise():
+        app = MspTUI()
+        async with app.run_test(size=(140, 40)) as pilot:
+            await pilot.pause(0.1)
+            app.switch_view_id("privacy")
+            await pilot.pause()
+            pane = app.query_one("#pane-privacy")
+            pane.data_ready(_payload_rows("privacy", {
+                "firewall": {"enabled": True, "exceptions": [{"name": "Zoom", "status": "BLOCK"}]},
+                "gatekeeper": {"enabled": True},
+                "filevault": {"enabled": True, "encrypted": True},
+            }))
+            await pilot.pause()
+            table = app.query_one("#privacy-firewall-rules", DataTable)
+            assert table.row_count == 1
+            assert list(table.get_row_at(0)) == ["Zoom", "Blocked"]
+            await pilot.click("#privacy-manage-firewall")
+            await pilot.pause()
+            assert app._current_id == "firewall"
+
+    asyncio.run(exercise())
 
 
 def test_privacy_gatekeeper_details_fallback():
     rows = _payload_rows("privacy", {"gatekeeper": {"enabled": True}})
-    assert rows[0]["details"] == "• Assessments: active — unsigned apps blocked"
+    assert rows[0]["details"] == "• Unsigned apps blocked"
 
 
 def test_firewall_mutations_use_fixed_argument_vectors(monkeypatch, tmp_path):

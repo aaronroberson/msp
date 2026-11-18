@@ -185,6 +185,48 @@ DASHBOARD_COMMANDS: tuple[str, ...] = (
 )
 
 
+SECURITY_SETTING_LABELS: dict[str, str] = {
+    "stealth_mode": "Stealth mode",
+    "block_all": "Block all incoming",
+    "allows_signed": "Allow Apple-signed software",
+    "allows_signed_app": "Allow downloaded signed apps",
+    "encrypted": "Disk encrypted",
+}
+
+
+def _firewall_rules(item: dict[str, Any]) -> list[dict[str, str]]:
+    """Normalise firewall app exceptions to sorted {name, status} rows (allowed first)."""
+    raw = item.get("exceptions") or item.get("apps") or []
+    rules = [
+        {"name": str(rule.get("name") or rule.get("path") or "?"), "status": str(rule.get("status", "")).upper()}
+        for rule in raw if isinstance(rule, dict)
+    ] if isinstance(raw, list) else []
+    return sorted(rules, key=lambda rule: (rule["status"] != "ALLOW", rule["name"].lower()))
+
+
+def _security_detail_lines(name: str, item: Any) -> list[str]:
+    """Human-readable detail lines for a firewall / gatekeeper / filevault status dict."""
+    if not isinstance(item, dict):
+        return []
+    lines = []
+    for field, detail in item.items():
+        if field in {"enabled", "exceptions", "apps"} or detail in (None, "", [], {}):
+            continue
+        if isinstance(detail, (dict, list)):
+            continue
+        label = SECURITY_SETTING_LABELS.get(field, field.replace("_", " ").title())
+        value = ("On" if detail else "Off") if isinstance(detail, bool) else detail
+        lines.append(f"{label}: {value}")
+    if name == "firewall":
+        rules = _firewall_rules(item)
+        if rules:
+            allowed = sum(rule["status"] == "ALLOW" for rule in rules)
+            lines.append(f"App rules: {allowed} allowed · {len(rules) - allowed} blocked")
+    if not lines and name == "gatekeeper" and item.get("enabled") is True:
+        lines.append("Unsigned apps blocked")
+    return lines
+
+
 def view_by_id(view_id: str) -> Optional[ViewSpec]:
     return next((view for view in VIEWS if view.id == view_id), None)
 
@@ -246,21 +288,11 @@ def _payload_rows(view_id: str, payload: Any) -> list[dict[str, Any]]:
             value = payload.get(key)
             if isinstance(value, dict):
                 enabled = value.get("enabled")
-
-                def _fmt(detail: Any) -> Any:
-                    return ("On" if detail else "Off") if isinstance(detail, bool) else detail
-
-                details = "\n".join(
-                    f"• {name.replace('_', ' ').title()}: {_fmt(detail)}"
-                    for name, detail in value.items()
-                    if name != "enabled" and detail not in (None, "", [], {})
-                )
-                if not details and key == "gatekeeper" and enabled is True:
-                    details = "• Assessments: active — unsigned apps blocked"
                 rows.append({
                     "setting": key.title(),
                     "status": "Enabled" if enabled is True else "Disabled" if enabled is False else "Unavailable",
-                    "details": details,
+                    "details": "\n".join(f"• {line}" for line in _security_detail_lines(key, value)),
+                    "rules": _firewall_rules(value) if key == "firewall" else [],
                 })
         return rows
     if view_id == "firewall" and isinstance(payload, dict):
@@ -421,16 +453,7 @@ class DashboardPane(Vertical):
             state_label.set_class(enabled is True, "state-enabled")
             state_label.set_class(enabled is False, "state-disabled")
             state_label.set_class(enabled is None, "state-unavailable")
-            details = []
-            if isinstance(item, dict):
-                for field, detail in item.items():
-                    if field == "enabled" or detail in (None, "", [], {}):
-                        continue
-                    if isinstance(detail, bool):
-                        detail = "On" if detail else "Off"
-                    details.append(f"{field.replace('_', ' ').title()}: {detail}")
-            if not details and name == "gatekeeper" and enabled is True:
-                details.append("Assessments: active — unsigned apps blocked")
+            details = _security_detail_lines(name, item)
             self.query_one(f"#card-{name}-details", Label).update("\n".join(details[:3]))
         for table_id, command, view_id, columns, limit in (
             ("#overview-listening", "net list --json", "listening", ("protocol", "local", "process", "pid"), 5),
@@ -549,16 +572,23 @@ class TablePane(Vertical):
                 yield Button("Allow app", id="firewall-app-unblock")
             yield DataTable(id="table-firewall", cursor_type="row")
         elif self.spec.id == "privacy":
-            with Horizontal(id="privacy-cards", classes="dashboard-row"):
-                for name in ("firewall", "gatekeeper", "filevault"):
-                    with Vertical(classes="security-card privacy-card"):
-                        yield Label(name.upper(), classes="eyebrow")
+            # Gatekeeper and FileVault expose a single on/off state, so they get a
+            # compact status strip; the firewall (settings + app rules) gets the body.
+            with Horizontal(id="privacy-cards"):
+                for name, label in (("gatekeeper", "GATEKEEPER"), ("filevault", "FILEVAULT")):
+                    with Horizontal(classes="privacy-strip"):
+                        yield Label(label, classes="eyebrow")
                         yield Label("—", id=f"privacy-{name}-state", classes="state-pill")
                         yield Static("", id=f"privacy-{name}-details", markup=False)
-                        if name == "firewall":
-                            with Horizontal(id="firewall-actions"):
-                                yield Button("Enable", id="firewall-enable", variant="primary")
-                                yield Button("Disable", id="firewall-disable", variant="error")
+            with Vertical(id="privacy-firewall", classes="dashboard-panel"):
+                with Horizontal(id="privacy-firewall-heading"):
+                    yield Label("FIREWALL", classes="eyebrow")
+                    yield Label("—", id="privacy-firewall-state", classes="state-pill")
+                    yield Button("Enable", id="firewall-enable", variant="primary")
+                    yield Button("Disable", id="firewall-disable", variant="error")
+                    yield Button("Manage rules ›", id="privacy-manage-firewall")
+                yield Static("", id="privacy-firewall-details", markup=False)
+                yield DataTable(id="privacy-firewall-rules", cursor_type="row")
         else:
             if self.spec.id == "startup":
                 with Vertical(id="startup-intro", classes="dashboard-panel"):
@@ -585,7 +615,11 @@ class TablePane(Vertical):
             table = self.query_one("#table-findings", DataTable)
             for column, title in zip(self.spec.columns, ("SEV", "CATEGORY", "ITEM", "DESCRIPTION")):
                 table.add_column(title, key=column)
-        elif self.spec.id != "privacy":
+        elif self.spec.id == "privacy":
+            rules = self.query_one("#privacy-firewall-rules", DataTable)
+            rules.add_column("Application", key="name")
+            rules.add_column("Rule", key="status")
+        else:
             table = self.query_one(DataTable)
             for column in self.spec.columns:
                 table.add_column(column.replace("_", " ").title(), key=column)
@@ -621,7 +655,19 @@ class TablePane(Vertical):
                 state_label.set_class(state == "Enabled", "state-enabled")
                 state_label.set_class(state == "Disabled", "state-disabled")
                 state_label.set_class(state == "Unavailable", "state-unavailable")
-                self.query_one(f"#privacy-{name}-details", Static).update(str(row.get("details", "")))
+                details = str(row.get("details", ""))
+                if name != "firewall":
+                    # Single-line strip: join the (usually one) detail line.
+                    details = " · ".join(line.lstrip("• ") for line in details.splitlines())
+                self.query_one(f"#privacy-{name}-details", Static).update(details)
+            rules_table = self.query_one("#privacy-firewall-rules", DataTable)
+            rules_table.clear()
+            firewall_rules = by_name.get("firewall", {}).get("rules", [])
+            for index, rule in enumerate(firewall_rules):
+                status = rule.get("status", "")
+                rule_text = "Allowed" if status == "ALLOW" else "Blocked" if status == "BLOCK" else status.title() or "—"
+                rules_table.add_row(_trunc(rule.get("name", ""), 60), rule_text, key=str(index))
+            rules_table.display = bool(firewall_rules)
         elif self.spec.id == "firewall":
             self._all_rows = rows
         self._redraw()
@@ -1020,9 +1066,18 @@ class MspTUI(App[None]):
     #security-cards { height: 6; min-height: 6; }
     .security-card { width: 1fr; height: 1fr; border: solid #30363D; background: #161B22; padding: 0 1; margin-right: 1; }
     .security-card:hover, .dashboard-panel:hover { border: solid #58A6FF; }
-    #privacy-cards { height: auto; }
-    .privacy-card { height: auto; }
-    #privacy-cards Static { color: #8B949E; }
+    #privacy-cards { height: 3; margin-bottom: 1; }
+    .privacy-strip { width: 1fr; height: 3; border: solid #30363D; background: #161B22; padding: 0 1; margin-right: 1; }
+    .privacy-strip .eyebrow { width: auto; margin-right: 2; }
+    .privacy-strip .state-pill { width: auto; margin-right: 2; }
+    .privacy-strip Static { width: 1fr; color: #8B949E; }
+    #privacy-firewall { height: 1fr; }
+    #privacy-firewall-heading { height: 3; align: left middle; }
+    #privacy-firewall-heading .eyebrow { width: auto; margin-right: 2; }
+    #privacy-firewall-heading .state-pill { width: 1fr; }
+    #privacy-firewall-heading Button { margin-left: 1; }
+    #privacy-firewall-details { height: auto; color: #8B949E; margin-bottom: 1; }
+    #privacy-firewall-rules { height: 1fr; border: none; }
     .card-heading, .panel-heading { height: 2; }
     .card-heading .eyebrow, .panel-heading .eyebrow { width: 1fr; }
     .eyebrow { color: #8B949E; text-style: bold; }
@@ -1290,6 +1345,8 @@ class MspTUI(App[None]):
         button_id = event.button.id or ""
         if button_id == "back-privacy":
             self.switch_view_id("privacy")
+        elif button_id == "privacy-manage-firewall":
+            self.switch_view_id("firewall")
         elif button_id.startswith("nav-"):
             self.switch_view_id(button_id[4:])
         elif button_id == "open-palette":
