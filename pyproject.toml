@@ -7,11 +7,16 @@ name = "macos-privacy-cli"
 version = "0.2.0"
 description = "Local-first macOS security and privacy CLI"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "argcomplete>=3.0.0",
   "rich>=13.0.0",
   "textual>=0.80.0",
+  "pydantic>=2.7",
+  "jmespath>=1.0",
+  "textual-fspicker>=0.6",
+  "jc>=1.25",
+  "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
