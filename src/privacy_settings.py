@@ -67,6 +67,7 @@ import argparse
 import subprocess
 import json
 import os
+import re
 import sys
 import shlex
 from datetime import datetime
@@ -272,14 +273,15 @@ class PrivacySettingsManager:
         self.verbose = verbose
         self.presets_dir = os.path.join(os.path.dirname(__file__), "presets")
 
-    def run_command(self, cmd: str, shell: bool = True, capture: bool = True) -> tuple[bool, str]:
-        """Run a shell command and return success status and output."""
+    def run_command(self, cmd: str, shell: bool = False, capture: bool = True) -> tuple[bool, str]:
+        """Run a fixed command as argv (never through a shell) and return success status and output."""
+        argv = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
         try:
             if self.verbose:
-                print(f"Running: {cmd}")
+                print(f"Running: {argv}")
             result = subprocess.run(
-                cmd if shell else cmd.split(),
-                shell=shell,
+                argv,
+                shell=False,
                 capture_output=capture,
                 text=True
             )
@@ -289,7 +291,7 @@ class PrivacySettingsManager:
 
     def get_firewall_status(self) -> Dict[str, Any]:
         """Get detailed firewall status."""
-        status = {"enabled": False, "stealth_mode": False, "allows_signed": False, "allows_signed_app": False, "exceptions": [], "incoming_allowed": 0, "outgoing_allowed": 0}
+        status = {"enabled": False, "stealth_mode": False, "allows_signed": False, "exceptions": []}
 
         success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate")
         if success and "enabled" in output.lower():
@@ -300,31 +302,31 @@ class PrivacySettingsManager:
             status["stealth_mode"] = True
 
         success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getallowsigned")
-        if success and "on" in output.lower():
+        if success and "enabled" in output.lower():
             status["allows_signed"] = True
-
-        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getallowsignedapp")
-        if success and "on" in output.lower():
-            status["allows_signed_app"] = True
 
         success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --listapps")
         if success:
+            # socketfilterfw prints "N : <path>" with the "(Allow|Block incoming
+            # connections)" verdict on the following line — parse them in pairs.
+            pending_name = None
             for line in output.split('\n'):
-                if 'ALLOWED' in line.upper() or 'ENABLED' in line.upper():
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        status["exceptions"].append({
-                            "name": ' '.join(parts[:-1]),
-                            "status": parts[-1] if parts[-1] in ('ON', 'OFF') else 'ON'
-                        })
-
-        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getincoming")
-        if success:
-            status["incoming_allowed"] = "deny" not in output.lower() and "allow" in output.lower()
-
-        success, output = self.run_command("/usr/libexec/ApplicationFirewall/socketfilterfw --getoutgoing")
-        if success:
-            status["outgoing_allowed"] = "deny" not in output.lower()
+                if "incoming connections" not in line:
+                    numbered = re.match(r"^\s*\d+\s*:\s*(.+?)\s*$", line)
+                    if numbered:
+                        pending_name = numbered.group(1).strip()
+                    continue
+                verdict = re.match(
+                    r"^\s*\((Allow|Block) incoming connections\)",
+                    line,
+                    re.IGNORECASE,
+                )
+                if verdict and pending_name:
+                    status["exceptions"].append({
+                        "name": os.path.basename(pending_name),
+                        "status": verdict.group(1).upper(),
+                    })
+                    pending_name = None
 
         return status
 
@@ -334,9 +336,9 @@ class PrivacySettingsManager:
         success, output = self.run_command("fdesetup status")
         if success:
             status["enabled"] = "FileVault is On" in output
-            status["encrypted"] = "Convert" in output or "On" in output
-            if "Encrypted" in output:
-                status["encrypted"] = True
+            # Honest verdict: a volume mid-conversion reports "Encryption in
+            # progress" — FileVault is enabled but not yet fully encrypted.
+            status["encrypted"] = status["enabled"] and "in progress" not in output.lower()
         return status
 
     def get_gatekeeper_status(self) -> Dict[str, Any]:
@@ -410,7 +412,7 @@ class PrivacySettingsManager:
         services = []
         seen = set()
 
-        success, output = self.run_command("lsof -iTCP -sTCP:LISTEN -nP 2>/dev/null")
+        success, output = self.run_command("lsof -iTCP -sTCP:LISTEN -nP")
         if success and output.strip():
             for line in output.strip().split('\n')[1:]:
                 parts = line.split()
@@ -435,7 +437,7 @@ class PrivacySettingsManager:
                     except (ValueError, IndexError):
                         pass
 
-        success, output = self.run_command("lsof -iTCP -sTCP:ESTABLISHED -nP 2>/dev/null")
+        success, output = self.run_command("lsof -iTCP -sTCP:ESTABLISHED -nP")
         if success and output.strip():
             for line in output.strip().split('\n')[1:]:
                 parts = line.split()
@@ -483,10 +485,10 @@ class PrivacySettingsManager:
     def get_launchd_services(self) -> List[Dict[str, str]]:
         """Get list of launchd services and their status."""
         services = []
-        success, output = self.run_command("launchctl list | grep -v com.apple")
+        success, output = self.run_command("launchctl list")
         if success:
             for line in output.strip().split('\n'):
-                if line:
+                if line and "com.apple" not in line:
                     parts = line.split()
                     if len(parts) >= 3:
                         services.append({
@@ -671,9 +673,6 @@ class PrivacySettingsManager:
         console.print(f"  Firewall: {'[green]Enabled[/green]' if fw.get('enabled') else '[red]Disabled[/red]'}")
         console.print(f"  Stealth Mode: {'[green]Enabled[/green]' if fw.get('stealth_mode') else '[red]Disabled[/red]'}")
         console.print(f"  Auto-allow signed: {'Yes' if fw.get('allows_signed') else 'No'}")
-        console.print(f"  Auto-allow downloaded: {'Yes' if fw.get('allows_signed_app') else 'No'}")
-        console.print(f"  Incoming: {'[red]Allowed[/red]' if fw.get('incoming_allowed') else '[green]Blocked[/green]'}")
-        console.print(f"  Outgoing: {'[red]Allowed[/red]' if fw.get('outgoing_allowed') else '[green]Blocked[/green]'}")
         exceptions = fw.get('exceptions', [])
         console.print(f"  Exceptions: {len(exceptions)} app(s)" if exceptions else f"  Exceptions: [green]None[/green]")
 
@@ -790,8 +789,9 @@ class PrivacySettingsManager:
     def get_sharing_status(self) -> Dict[str, Any]:
         """Get sharing status."""
         status = {"sharing_enabled": False, "share_points": []}
-        success, output = self.run_command("launchctl list | grep -i sharing")
-        if success and output.strip():
+        success, output = self.run_command("launchctl list")
+        matching = [line for line in output.split('\n') if "sharing" in line.lower()]
+        if success and matching:
             status["sharing_enabled"] = True
 
         success, output = self.run_command("sharing -l")
@@ -816,11 +816,11 @@ class PrivacySettingsManager:
         """Get security settings (screen lock, etc)."""
         settings = {"idle_time": 0, "password_required": False}
 
-        success, output = self.run_command("defaults -currentHost read com.apple.screensaver idleTime 2>/dev/null")
+        success, output = self.run_command("defaults -currentHost read com.apple.screensaver idleTime")
         if success:
             settings["idle_time"] = output.strip()
 
-        success, output = self.run_command("defaults -currentHost read com.apple.screensaver askForPassword 2>/dev/null")
+        success, output = self.run_command("defaults -currentHost read com.apple.screensaver askForPassword")
         if success:
             settings["password_required"] = output.strip() == "1"
 
