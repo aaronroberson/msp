@@ -69,11 +69,17 @@ import json
 import os
 import sys
 import shlex
+from datetime import datetime
 from dataclasses import dataclass, asdict
 from typing import Optional, List, Dict, Any, Callable
 from enum import Enum
 
 from .command import HAS_ARGCOMPLETE as ARGCOMPLETE_AVAILABLE, interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
+from .state import (
+    reports_dir,
+    snapshot_watch_config_file,
+    snapshot_watch_pid_file,
+)
 from src.command import pause_for_enter
 
 try:
@@ -359,7 +365,7 @@ class PrivacySettingsManager:
 
     def get_last_scan_info(self) -> Dict[str, Any]:
         """Get info about last security scan."""
-        report_dir = os.path.expanduser("~/.msp/reports")
+        report_dir = str(reports_dir())
         status = {"last_scan": None, "report_path": None, "scan_count": 0}
 
         if os.path.exists(report_dir):
@@ -375,7 +381,7 @@ class PrivacySettingsManager:
 
     def get_snapshot_watch_status(self) -> Dict[str, Any]:
         """Check if snapshot watch is active."""
-        watch_pid_file = os.path.expanduser("~/.msp/snapshot_watch.pid")
+        watch_pid_file = str(snapshot_watch_pid_file())
         status = {"enabled": False, "snapshot_name": None, "auto_restore": False}
 
         if os.path.exists(watch_pid_file):
@@ -388,7 +394,7 @@ class PrivacySettingsManager:
                 pass
 
             try:
-                config_path = os.path.expanduser("~/.msp/snapshot_watch_config.json")
+                config_path = str(snapshot_watch_config_file())
                 if os.path.exists(config_path):
                     with open(config_path, 'r') as f:
                         config = json.load(f)

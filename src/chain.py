@@ -12,6 +12,7 @@ from dataclasses import dataclass, asdict
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 from src.command import pause_for_enter
+from src.state import baselines_dir, chains_file, reports_dir
 
 try:
     from rich.console import Console
@@ -76,15 +77,15 @@ class ChainManager:
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
-        self.config_dir = os.path.expanduser("~/.msp")
-        self.chains_file = os.path.join(self.config_dir, "chains.json")
+        self.config_dir = str(chains_file().parent)
+        self.chains_file = str(chains_file())
         self.chains = self._load_chains()
         self._init_config_dir()
 
     def _init_config_dir(self) -> None:
         os.makedirs(self.config_dir, exist_ok=True)
-        os.makedirs(os.path.join(self.config_dir, "baselines"), exist_ok=True)
-        os.makedirs(os.path.join(self.config_dir, "reports"), exist_ok=True)
+        os.makedirs(str(baselines_dir()), exist_ok=True)
+        os.makedirs(str(reports_dir()), exist_ok=True)
 
     def _load_chains(self) -> Dict[str, Chain]:
         chains = dict(self.DEFAULT_CHAINS)

@@ -19,6 +19,12 @@ from src.command import (
     interactive_select,
 )
 from src.command import pause_for_enter
+from src.state import (
+    settings_file,
+    snapshots_dir,
+    snapshot_watch_config_file,
+    snapshot_watch_pid_file,
+)
 
 try:
     from rich.console import Console
@@ -54,12 +60,13 @@ class Snapshot:
 class SnapshotManager:
     """Manage security setting snapshots."""
 
-    SNAPSHOT_DIR = os.path.expanduser("~/.msp/snapshots")
+    SNAPSHOT_DIR: str = ""  # resolved per-instance from src.state in __init__
     DEFAULT_SNAPSHOT = "default"
     SCHEMA_VERSION = "2.0"
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
+        self.SNAPSHOT_DIR = str(snapshots_dir())
         os.makedirs(self.SNAPSHOT_DIR, exist_ok=True)
 
     def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
@@ -444,7 +451,7 @@ class SnapshotManager:
 
     def _load_custom_settings(self) -> Dict[str, Any]:
         """Load custom settings from config."""
-        config_path = os.path.join(os.path.expanduser("~/.msp"), "settings.json")
+        config_path = str(settings_file())
         if os.path.exists(config_path):
             try:
                 with open(config_path) as f:
@@ -766,8 +773,8 @@ class SnapshotManager:
         if not snapshot:
             return
 
-        watch_pid_file = os.path.expanduser("~/.msp/snapshot_watch.pid")
-        watch_config_file = os.path.expanduser("~/.msp/snapshot_watch_config.json")
+        watch_pid_file = str(snapshot_watch_pid_file())
+        watch_config_file = str(snapshot_watch_config_file())
 
         with open(watch_pid_file, 'w') as f:
             f.write(str(os.getpid()))

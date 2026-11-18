@@ -25,6 +25,8 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from src.state import ai_config_file, msp_home
+
 # OpenVINO imports (optional)
 try:
     from openvino.runtime import Core
@@ -50,9 +52,10 @@ except ImportError:
 
 console = Console() if RICH_AVAILABLE else None
 
-# Configuration paths
-CONFIG_DIR = Path.home() / ".msp"
-AI_CONFIG_FILE = CONFIG_DIR / "ai_config.json"
+# Configuration paths (resolved through src/state.py; module attrs stay
+# patchable for tests)
+CONFIG_DIR = msp_home()
+AI_CONFIG_FILE = ai_config_file()
 KEYCHAIN_SERVICE_PREFIX = "msp-"
 
 # Default provider definitions

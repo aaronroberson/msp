@@ -9,10 +9,11 @@ import os
 from pathlib import Path
 from typing import Optional, List
 
+from src.state import config_file, msp_home
 
-# Configuration directory
-CONFIG_DIR = Path.home() / ".msp"
-CONFIG_FILE = CONFIG_DIR / "config.toml"
+# Configuration directory (resolved through src/state.py)
+CONFIG_DIR = msp_home()
+CONFIG_FILE = config_file()
 
 
 # Tool definitions with install hints

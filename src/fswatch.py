@@ -18,6 +18,7 @@ from src.command import (
     interactive_select,
 )
 from src.command import pause_for_enter
+from src.state import baselines_dir
 
 try:
     from rich.console import Console
@@ -259,7 +260,7 @@ class FileWatcher:
             print(f"File not found: {file_path}")
             return False
 
-        baseline_dir = os.path.expanduser("~/.msp/baselines")
+        baseline_dir = str(baselines_dir())
         os.makedirs(baseline_dir, exist_ok=True)
 
         baseline_file = os.path.join(

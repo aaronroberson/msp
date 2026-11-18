@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from src.command import run_command, list_command, CommandResult
+from src.state import shell_audit_backup_dir
 from src.facts import collect_facts, redact_facts
 from src.rules import (
     Finding,
@@ -334,7 +335,7 @@ _PATH_ENTRY_REPAIR_IDS = {
 }
 
 # Backups live under ~/.msp/backups/shell_audit/<timestamp>/.
-_BACKUP_ROOT = Path.home() / ".msp" / "backups" / "shell_audit"
+_BACKUP_ROOT = shell_audit_backup_dir()
 
 # Actual compinit invocations (never `autoload -Uz compinit`).
 _COMPINIT_LINE_RE = re.compile(r"^[ \t]*compinit\b|&&[ \t]*compinit\b", re.IGNORECASE)

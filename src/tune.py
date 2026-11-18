@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from src.command import setup_completion
+from src.state import backups_dir
 
 try:
     from rich.console import Console
@@ -39,7 +40,7 @@ ZSH_HISTORY = HOME / ".zsh_history"
 ZSHRC = HOME / ".zshrc"
 ZSH_DIR = HOME / ".zsh"
 NVM_SH = HOME / ".nvm" / "nvm.sh"
-BACKUP_DIR = HOME / ".msp" / "backups"
+BACKUP_DIR = backups_dir()
 
 
 @dataclass
