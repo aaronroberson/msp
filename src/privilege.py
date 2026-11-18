@@ -14,6 +14,7 @@ Layout (version 1):
     ~/.msp/state/privilege_ledger.jsonl
 """
 from __future__ import annotations
+from dataclasses import dataclass
 
 import json
 import os
