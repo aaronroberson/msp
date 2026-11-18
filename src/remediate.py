@@ -758,11 +758,12 @@ def _human_results(results: Sequence[RemediationResult]) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Plan and apply conservative remediations.")
+    parser.add_argument("--json", action="store_true", help="Emit JSON (also accepted after the subcommand)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     plan_parser = subparsers.add_parser("plan", help="Create a remediation plan from findings JSON.")
     plan_parser.add_argument("findings_json", help="Path to findings JSON.")
-    plan_parser.add_argument("--json", action="store_true", help="Emit JSON instead of text.")
+    plan_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Emit JSON instead of text.")
     plan_parser.add_argument("--output", help="Write output to a file.")
     plan_parser.add_argument(
         "--max-safety",
@@ -774,7 +775,7 @@ def build_parser() -> argparse.ArgumentParser:
     apply_parser = subparsers.add_parser("apply", help="Dry-run or apply a remediation plan.")
     apply_parser.add_argument("plan_json", help="Path to remediation plan JSON.")
     apply_parser.add_argument("--apply", action="store_true", help="Actually execute commands.")
-    apply_parser.add_argument("--json", action="store_true", help="Emit JSON instead of text.")
+    apply_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Emit JSON instead of text.")
     apply_parser.add_argument("--output", help="Write output to a file.")
     apply_parser.add_argument(
         "--max-safety",

@@ -355,19 +355,20 @@ def render_json(value: Mapping[str, Any]) -> str:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run built-in macOS privacy workflows.")
+    parser.add_argument("--json", action="store_true", help="Emit JSON (also accepted after the subcommand)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     list_parser = subparsers.add_parser("list", help="List built-in workflows")
-    list_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    list_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Emit JSON")
 
     show_parser = subparsers.add_parser("show", help="Show workflow details")
     show_parser.add_argument("workflow", choices=sorted(BUILTIN_WORKFLOWS), help="Workflow id")
-    show_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    show_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Emit JSON")
 
     run_parser = subparsers.add_parser("run", help="Plan a workflow run")
     run_parser.add_argument("workflow", choices=sorted(BUILTIN_WORKFLOWS), help="Workflow id")
     run_parser.add_argument("--dry-run", action="store_true", default=True, help="Return planned steps only")
-    run_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    run_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Emit JSON")
     run_parser.add_argument("--no-reason", action="store_true", help="Skip reasoning summary")
 
     return parser

@@ -567,34 +567,35 @@ How to Use:
         epilog=epilog_text,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--json", action="store_true", help="Emit JSON (also accepted after the subcommand)")
     subparsers = parser.add_subparsers(dest="subcommand", help="Forensics subcommands")
 
     # scan
     scan_p = subparsers.add_parser("scan", help="Scan a volume or directory for AppleDoubles and metadata")
     scan_p.add_argument("path", help="Target path or mount point (e.g. /Volumes/NO NAME)")
-    scan_p.add_argument("--json", action="store_true", help="Output JSON format")
+    scan_p.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output JSON format")
 
     # inspect-file
     insp_p = subparsers.add_parser("inspect", help="Deeply inspect an AppleDouble file")
     insp_p.add_argument("file", help="Path to ._* AppleDouble file")
-    insp_p.add_argument("--json", action="store_true", help="Output JSON format")
+    insp_p.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output JSON format")
 
     # correlate
     corr_p = subparsers.add_parser("correlate", help="Correlate volume evidence with local Mac host")
     corr_p.add_argument("volume", help="Volume mount point (e.g. /Volumes/NO NAME)")
-    corr_p.add_argument("--json", action="store_true", help="Output JSON format")
+    corr_p.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output JSON format")
 
     # spotlight
     spot_p = subparsers.add_parser("spotlight", help="Inspect Spotlight configuration on external volume")
     spot_p.add_argument("volume", help="Volume mount point (e.g. /Volumes/NO NAME)")
-    spot_p.add_argument("--json", action="store_true", help="Output JSON format")
+    spot_p.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output JSON format")
 
     # clean
     clean_p = subparsers.add_parser("clean", help="Clean stray metadata artifacts (orphaned ._*, .DS_Store, etc.)")
     clean_p.add_argument("path", help="Target path to clean")
     clean_p.add_argument("--dry-run", action="store_true", default=True, help="Preview files to be deleted without removing")
     clean_p.add_argument("--force", action="store_false", dest="dry_run", help="Actually delete files")
-    clean_p.add_argument("--json", action="store_true", help="Output JSON format")
+    clean_p.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output JSON format")
 
     # If no arguments are passed, launch interactive menu
     if len(sys.argv) == 1:
