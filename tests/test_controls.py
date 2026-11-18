@@ -91,7 +91,10 @@ def test_get_control_and_require_control() -> None:
 
 def test_registry_kinds_and_inventory() -> None:
     assert len(controls_by_kind("rule")) == 16
-    assert len(controls_by_kind("check")) == 13
+    checks = controls_by_kind("check")
+    assert len(checks) == 20
+    # Phase 4 utility-expansion checks (G-2..G-7, G-23; commit b811756)
+    assert {"AI-LOCAL", "FSEC-HASH", "NW-EXFIL", "NW-P2P", "SYSTEM-FORK", "TCC-INPUT", "TSEC-KEY"} <= {c.id for c in checks}
     assert len(controls_by_kind("preset-setting")) == 7
-    assert len(CONTROLS) == 36
+    assert len(CONTROLS) == 43
     assert len(remediation_inventory()) == 16
