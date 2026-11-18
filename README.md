@@ -232,6 +232,7 @@ Apply security configurations from security guides:
 | `paranoid` | Maximum privacy |
 | `drduh` | Based on drduh/macOS-Security-and-Privacy-Guide |
 | `term7` | Based on term7/MacOS-Privacy-and-Security-Enhancements |
+| `nist` | Based on usnistgov/macos_security (FileVault is guided, not automated) |
 
 ```bash
 msp presets apply basic

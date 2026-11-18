@@ -82,6 +82,7 @@ from .state import (
     snapshot_watch_pid_file,
 )
 from src.command import pause_for_enter
+from src.presets import PRESETS as SOURCE_PRESETS
 
 try:
     from rich.console import Console
@@ -271,7 +272,6 @@ class PrivacySettingsManager:
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
-        self.presets_dir = os.path.join(os.path.dirname(__file__), "presets")
 
     def run_command(self, cmd: str, shell: bool = False, capture: bool = True) -> tuple[bool, str]:
         """Run a fixed command as argv (never through a shell) and return success status and output."""
@@ -830,51 +830,7 @@ class PrivacySettingsManager:
 class PresetManager:
     """Manager for security preset configurations."""
 
-    PRESETS = {
-        "basic": {
-            "name": "Basic Security",
-            "description": "Essential security settings for everyday use",
-            "settings": {
-                "Application Firewall": True,
-                "Firewall Stealth Mode": True,
-                "Gatekeeper": True,
-            }
-        },
-        "paranoid": {
-            "name": "Paranoid Security",
-            "description": "Maximum privacy with reduced functionality",
-            "settings": {
-                "Application Firewall": True,
-                "Firewall Stealth Mode": True,
-                "Gatekeeper": True,
-                "Captive Portal Probe": False,
-                "Signed App Auto-Allow": False,
-                "Signed App Downloaded Auto-Allow": False,
-            }
-        },
-        "drduh": {
-            "name": "drduh Guide Recommendations",
-            "description": "Settings based on github.com/drduh/macOS-Security-and-Privacy-Guide",
-            "settings": {
-                "Application Firewall": True,
-                "Firewall Stealth Mode": True,
-                "Gatekeeper": True,
-                "Captive Portal Probe": False,
-            }
-        },
-        "term7": {
-            "name": "term7 Guide Recommendations",
-            "description": "Settings based on github.com/term7/MacOS-Privacy-and-Security-Enhancements",
-            "settings": {
-                "Application Firewall": True,
-                "Firewall Stealth Mode": True,
-                "Gatekeeper": True,
-                "Captive Portal Probe": False,
-                "Signed App Auto-Allow": False,
-                "Signed App Downloaded Auto-Allow": False,
-            }
-        }
-    }
+    PRESETS = SOURCE_PRESETS
 
     def __init__(self, settings_manager: PrivacySettingsManager):
         self.manager = settings_manager
@@ -927,6 +883,14 @@ class PresetManager:
                 print(f"  [DRY-RUN] Would {target_state} {setting_name}")
                 continue
 
+            if enable and setting.name == "FileVault Encryption":
+                print(
+                    "  [SKIP] FileVault cannot be enabled from the CLI: it requires interactive "
+                    "authentication and a personal recovery key. Enable it in System Settings > "
+                    "Privacy & Security > FileVault, or run manually: sudo fdesetup enable -user <admin>"
+                )
+                continue
+
             if enable:
                 success = self.manager.enable_setting(setting)
             else:
@@ -951,7 +915,7 @@ class PresetManager:
 
     def delete_preset(self, preset_id: str) -> bool:
         """Delete a custom preset."""
-        if preset_id in ["basic", "paranoid", "drduh", "term7"]:
+        if preset_id in ["basic", "paranoid", "drduh", "term7", "nist"]:
             print(f"Cannot delete built-in preset: {preset_id}")
             return False
 
