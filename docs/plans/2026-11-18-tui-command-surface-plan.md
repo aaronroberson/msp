@@ -83,6 +83,10 @@ This mirrors a headless CMS with four separate layers. **Commands emit data enti
 | `argv` | list[str] | template, e.g. `["tcc","revoke","{service}","{client}"]` |
 | `args` | list[ArgSpec] | per-action arguments (fills the gap in §1.2) |
 | `emits` | EntityRef | `Envelope[Record]` (§3.2), e.g. `Collection[Socket]`, `Item[FirewallState]`, `Findings[StartupItem]`, `Stream[FsEvent]`, `Result` |
+| `encoding` / `data_key` | enum / str | how the envelope arrives on the wire: `list` · `keyed` (name → record) · `wrapped` (`{data_key: [...], facets}`) · `scalar-list`. Adapters normalize before validation (P0.2) |
+| `channel` | enum | `stdout` or `artifact:<arg>` for commands whose output is the file they write (`interrogate --output`, `remediate plan --output`, `report --output`) |
+| `success_codes` | list[int] | default `[0]`; e.g. `audit` `[0, 1]` (1 = findings present), `deps check` `[0, 1]` (1 = not installed) |
+| `severity_map` | dict | Findings only: maps the command's own severity vocabulary/field (`risk: HIGH/REVIEW/LOW`, `severity: ERROR/WARNING/NOTICE`) onto the canonical scale; converges with master-plan T-02 |
 | `risk` | enum | `read` · `confirm` · `dangerous` (feeds `ConfirmScreen`, and later T-10 approval tokens) |
 | `needs_root` | bool | routes through askpass (§6) |
 | `timeout_s` / `long_running` | int / bool | slow actions show progress; long-running ones get Start/Stop |
@@ -117,6 +121,8 @@ Each command's output is an entity typed as **`Envelope<Record>`**:
 - **Composites:** `status` and `interrogate` are `Item<Composite>` whose fields are other domains' records (`firewall: FirewallState`, `sharing: SharingState`, …). A slot's `select` reaches into a field and gets that record with its own type.
 - **Wrappers:** `tune top` is `Item<CommandOutput>` (raw text) until it gets structured fields.
 - **Facets** belong to every envelope: `errors` / `access_errors` (permissions) and `meta` (timestamp, scope, source). They bind separately, usually to the notice region.
+
+**Validated against real output (P0.2, `docs/audits/2026-11-18-envelope-taxonomy-validation.md`):** all captured outputs fit the 9 envelopes. Refinements: encoding is separate from envelope (four wire encodings, normalized by adapters); Findings carry a canonical `severity` (critical/high/medium/low/info) mapped from four observed vocabularies; Items routinely embed collections, reached by projection; success codes are per command.
 
 **Record inheritance where it is real:** records share base fields through ordinary subclassing, e.g. `Socket` and `Connection` extend `NetEndpoint` (process, pid, user, local); `LaunchAgent`/`LaunchDaemon`/`LoginItem` narrow `StartupItem` by `type`. This is the part of the vehicle → car intuition that holds.
 
