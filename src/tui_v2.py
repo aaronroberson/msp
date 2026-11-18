@@ -173,10 +173,11 @@ VIEWS: list[ViewSpec] = [
     ViewSpec("privacy", "Privacy", ("setting", "status", "details"), "status --json"),
     ViewSpec("firewall", "Firewall", ("setting", "value", "details"), "firewall status"),
     ViewSpec("snapshots", "Snapshots", ("name", "timestamp", "firewall", "gatekeeper", "filevault"), "snapshot list --json"),
+    ViewSpec("workflows", "Workflows", ("run_id", "status", "completed_steps"), "workflow run daily --dry-run"),
 ]
 
 NAV_VIEWS: tuple[str, ...] = (
-    "dashboard", "findings", "listening", "startup", "tcc", "privacy", "snapshots"
+    "dashboard", "findings", "listening", "startup", "tcc", "privacy", "snapshots", "workflows"
 )
 DASHBOARD_COMMANDS: tuple[str, ...] = (
     "status --json", "net list --json", "net established --json", "startup managed --json", "scan quick --json"
@@ -845,6 +846,37 @@ class DetailScreen(ModalScreen):
         self.dismiss(None)
 
 
+class WorkflowsScreen(ModalScreen):
+    """Show workflow execution state and gate status."""
+
+    BINDINGS = [("q", "dismiss_screen", "Close"), ("escape", "dismiss_screen", "Close")]
+
+    def __init__(self, run_result: Optional[dict] = None) -> None:
+        super().__init__()
+        self._run_result = run_result or {"run_id": "", "status": "idle", "completed_steps": []}
+
+    def compose(self) -> ComposeResult:
+        yield VerticalScroll(
+            Static("Workflow Execution State", id="screen-title", markup=False),
+            Static(f"Run ID: {self._run_result.get('run_id', '')}", id="run-id"),
+            Static(f"Status: {self._run_result.get('status', 'idle')}", id="workflow-status"),
+            Static(
+                f"Completed steps: {', '.join(self._run_result.get('completed_steps', [])) or 'none'}",
+                id="completed-steps",
+            ),
+            Static(
+                "Use 'msp workflow run <name> --dry-run' to plan, or run for execution.\nGate enforces approval for dangerous/risk-increasing steps.",
+                id="gate-note",
+                markup=False,
+            ),
+            Button("Close", id="close-workflows"),
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "close-workflows":
+            self.dismiss(None)
+
+
 class ConfirmScreen(ModalScreen):
     """y / Enter confirm; n / esc cancel."""
 
@@ -1125,7 +1157,7 @@ class MspTUI(App[None]):
             yield Label("VIEW: OVERVIEW", id="brand-right")
             yield Button("Settings", id="open-config")
         with Horizontal(id="nav"):
-            nav_labels = {"dashboard": "Dashboard", "findings": "Findings", "listening": "Network", "startup": "Startup", "tcc": "TCC", "privacy": "Privacy", "snapshots": "Snapshots"}
+            nav_labels = {"dashboard": "Dashboard", "findings": "Findings", "listening": "Network", "startup": "Startup", "tcc": "TCC", "privacy": "Privacy", "snapshots": "Snapshots", "workflows": "Workflows"}
             for view_id in NAV_VIEWS:
                 view = view_by_id(view_id)
                 if view:
