@@ -308,8 +308,42 @@ class DependencyManager:
             print("  Health: no checks recorded in the scan bundle.\n")
         return health_ok
 
-    def doctor(self, verbose: bool = False) -> bool:
+    def doctor_report(self) -> Dict[str, Any]:
+        """Structured doctor result: dependency state plus the latest persisted scan."""
+        from src.scanner import read_latest_scan, scan_bundle_path
+        results = self.check_all()
+        dependencies = [
+            {
+                "name": name,
+                "status": status.value,
+                "required": bool(self.deps[name].get("required")),
+                "description": self.deps[name].get("description", ""),
+                "install_cmd": self.deps[name].get("install_cmd", ""),
+            }
+            for name, status in sorted(results.items())
+        ]
+        missing = [dep for dep in dependencies if dep["status"] != DepStatus.INSTALLED.value]
+        bundle = read_latest_scan()
+        checks = (bundle or {}).get("checks", [])
+        health_ok = not any(check.get("status") not in {"ok", "n/a"} for check in checks)  # same rule as _render_health
+        return {
+            "ok": not any(dep["required"] for dep in missing) and health_ok,
+            "dependencies": dependencies,
+            "missing_required": [dep["name"] for dep in missing if dep["required"]],
+            "missing_optional": [dep["name"] for dep in missing if not dep["required"]],
+            "scan": None if bundle is None else {
+                "timestamp": bundle.get("timestamp"),
+                "path": str(scan_bundle_path()),
+                "checks": checks,
+            },
+        }
+
+    def doctor(self, verbose: bool = False, json_output: bool = False) -> bool:
         """Run dependency check and show health from persisted scan results."""
+        if json_output:
+            report = self.doctor_report()
+            print(json.dumps(report, indent=2, default=str))
+            return bool(report["ok"])
         print("Running msp doctor...\n")
         results = self.check_all()
         total = len(results)
@@ -451,7 +485,7 @@ def main():
         return
 
     if args.action == "doctor":
-        manager.doctor()
+        manager.doctor(json_output=args.json)
         return
 
     if args.check or args.action == "check":

@@ -678,7 +678,7 @@ Examples:
                     ok = ok and all(s for _, s, _ in perm_results)
                 return
             dm = DependencyManager()
-            dm.doctor(verbose=args.verbose)
+            dm.doctor(verbose=args.verbose, json_output=args.json)
             return
 
         # For modules with interactive mode, pass empty action when no args provided
