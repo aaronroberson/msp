@@ -1,0 +1,15 @@
+{
+  "id": "config.list",
+  "argv": [
+    "msp",
+    "--json",
+    "config",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.05,
+  "json": {},
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

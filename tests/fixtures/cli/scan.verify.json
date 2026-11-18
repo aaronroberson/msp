@@ -1,0 +1,16 @@
+{
+  "id": "scan.verify",
+  "argv": [
+    "msp",
+    "--json",
+    "scan",
+    "verify",
+    "/System/Applications/Calculator.app"
+  ],
+  "returncode": 0,
+  "duration_s": 0.53,
+  "json": null,
+  "text": "Verifying: /System/Applications/Calculator.app\n\u2713 App is verified and allowed to run\n",
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,0 +1,165 @@
+{
+  "id": "privacy.status",
+  "argv": [
+    "msp",
+    "--json",
+    "status"
+  ],
+  "returncode": 0,
+  "duration_s": 0.37,
+  "json": {
+    "firewall": {
+      "enabled": true,
+      "stealth_mode": true,
+      "allows_signed": false,
+      "exceptions": [
+        {
+          "name": "DeviceHub",
+          "status": "ALLOW"
+        },
+        {
+          "name": "Messages",
+          "status": "BLOCK"
+        },
+        {
+          "name": "Studio by Spotify Labs.app",
+          "status": "BLOCK"
+        },
+        {
+          "name": "AddressBookSourceSync",
+          "status": "BLOCK"
+        },
+        {
+          "name": "Claude",
+          "status": "BLOCK"
+        },
+        {
+          "name": "InstaVision",
+          "status": "BLOCK"
+        },
+        {
+          "name": "Google Chrome.app",
+          "status": "BLOCK"
+        },
+        {
+          "name": "node",
+          "status": "BLOCK"
+        }
+      ]
+    },
+    "filevault": {
+      "enabled": true,
+      "encrypted": true
+    },
+    "gatekeeper": {
+      "enabled": true
+    },
+    "bluetooth": {
+      "enabled": false
+    },
+    "captive_portal": {
+      "enabled": false
+    },
+    "last_scan": {
+      "last_scan": null,
+      "report_path": null,
+      "scan_count": 0
+    },
+    "snapshot_watch": {
+      "enabled": false,
+      "snapshot_name": null,
+      "auto_restore": false
+    },
+    "listening_services": [
+      {
+        "process": "rapportd",
+        "pid": 664,
+        "port": "55516",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "Google",
+        "pid": 718,
+        "port": "9222",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "ControlCe",
+        "pid": 738,
+        "port": "7000",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "atomic-ch",
+        "pid": 1037,
+        "port": "49156",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "mlx-serve",
+        "pid": 1732,
+        "port": "3192",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "screenpip",
+        "pid": 2279,
+        "port": "3030",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "Ollama",
+        "pid": 2311,
+        "port": "49227",
+        "type": "listening",
+        "risk": "REVIEW"
+      },
+      {
+        "process": "figma_age",
+        "pid": 2326,
+        "port": "44950",
+        "type": "listening",
+        "risk": "REVIEW"
+      }
+    ],
+    "sharing": {
+      "sharing_enabled": false,
+      "share_points": [
+        {
+          "name": "Example User\u2019s Public Folder",
+          "path": "/Users/user/Public",
+          "protocols": {
+            "smb": {
+              "name": "Example User\u2019s Public Folder",
+              "shared": "1",
+              "guest access": "1",
+              "read-only": "0",
+              "sealed": "0"
+            }
+          },
+          "shared": "1",
+          "guest_access": "1",
+          "read-only": "0"
+        }
+      ],
+      "services": {
+        "smbd": false,
+        "afpd": false,
+        "ftpd": false
+      }
+    },
+    "security": {
+      "idle_time": "300",
+      "password_required": true
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

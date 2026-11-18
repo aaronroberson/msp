@@ -1,0 +1,15 @@
+{
+  "id": "startup.cron",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "cron"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": [],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

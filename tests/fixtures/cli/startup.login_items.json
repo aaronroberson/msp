@@ -1,0 +1,67 @@
+{
+  "id": "startup.login_items",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "login-items"
+  ],
+  "returncode": 0,
+  "duration_s": 0.36,
+  "json": {
+    "items": [
+      {
+        "name": "Copilot",
+        "label": "Copilot",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "Fluent 2 \u2022 The AI Multitool",
+        "label": "Fluent 2 \u2022 The AI Multitool",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "FilesMagicAI",
+        "label": "FilesMagicAI",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "Littlebird",
+        "label": "Littlebird",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "Playad",
+        "label": "Playad",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "Recento",
+        "label": "Recento",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "Claude",
+        "label": "Claude",
+        "type": "login_item",
+        "status": "enabled"
+      },
+      {
+        "name": "Clippy",
+        "label": "Clippy",
+        "type": "login_item",
+        "status": "enabled"
+      }
+    ],
+    "scope": "current user"
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,0 +1,77 @@
+{
+  "id": "remediate.plan",
+  "argv": [
+    "msp",
+    "--json",
+    "remediate",
+    "plan",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/findings.json",
+    "--output",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/plan.json"
+  ],
+  "returncode": 0,
+  "duration_s": 0.06,
+  "json": null,
+  "text": "",
+  "stdout_has_preamble": false,
+  "stderr": "",
+  "artifact": {
+    "path": "plan.json",
+    "json": {
+      "actions": [
+        {
+          "command": null,
+          "description": "Startup item removal is guidance-only to avoid destructive deletion.",
+          "finding_id": "ST-002",
+          "guidance": "Inspect each startup item, verify ownership and signature, then unload or remove only entries confirmed to be unauthorized.",
+          "id": "st_002_startup_guidance",
+          "metadata": {},
+          "requires_sudo": false,
+          "rollback_command": null,
+          "rollback_guidance": "Keep a copy of any removed plist or executable before changing it.",
+          "safety": "high",
+          "title": "Investigate startup persistence"
+        },
+        {
+          "command": null,
+          "description": "Sharing changes can disrupt expected access, so this is guidance-only.",
+          "finding_id": "SH-002",
+          "guidance": "Review enabled sharing services and share points in System Settings > General > Sharing, then disable anything not explicitly required.",
+          "id": "sh_002_sharing_guidance",
+          "metadata": {},
+          "requires_sudo": false,
+          "rollback_command": null,
+          "rollback_guidance": "Re-enable required sharing services from System Settings.",
+          "safety": "medium",
+          "title": "Review sharing configuration"
+        },
+        {
+          "command": null,
+          "description": "Sharing changes can disrupt expected access, so this is guidance-only.",
+          "finding_id": "SH-001",
+          "guidance": "Review enabled sharing services and share points in System Settings > General > Sharing, then disable anything not explicitly required.",
+          "id": "sh_001_sharing_guidance",
+          "metadata": {},
+          "requires_sudo": false,
+          "rollback_command": null,
+          "rollback_guidance": "Re-enable required sharing services from System Settings.",
+          "safety": "medium",
+          "title": "Review sharing configuration"
+        }
+      ],
+      "created_at": "2026-11-18T23:50:26.119024+00:00",
+      "metadata": {
+        "max_safety": "destructive"
+      },
+      "schema_version": "1.0",
+      "skipped_findings": [
+        {
+          "reason": "No conservative remediation is available.",
+          "rule_id": "NW-001"
+        }
+      ],
+      "source": "findings"
+    },
+    "text": null
+  }
+}

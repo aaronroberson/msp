@@ -1,0 +1,76 @@
+{
+  "id": "privacy.preset_list",
+  "argv": [
+    "msp",
+    "--json",
+    "preset",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": {
+    "basic": {
+      "name": "Basic Security",
+      "description": "Essential security settings for everyday use",
+      "source": "Common recommendations",
+      "settings": {
+        "Application Firewall": true,
+        "Firewall Stealth Mode": true,
+        "Gatekeeper": true
+      }
+    },
+    "paranoid": {
+      "name": "Paranoid Security",
+      "description": "Maximum privacy with reduced functionality",
+      "source": "Privacy-focused configuration",
+      "settings": {
+        "Application Firewall": true,
+        "Firewall Stealth Mode": true,
+        "Gatekeeper": true,
+        "Captive Portal Probe": false,
+        "Signed App Auto-Allow": false,
+        "Signed App Downloaded Auto-Allow": false
+      }
+    },
+    "drduh": {
+      "name": "drduh Guide",
+      "description": "Based on github.com/drduh/macOS-Security-and-Privacy-Guide",
+      "source": "https://github.com/drduh/macOS-Security-and-Privacy-Guide",
+      "settings": {
+        "Application Firewall": true,
+        "Firewall Stealth Mode": true,
+        "Gatekeeper": true,
+        "Captive Portal Probe": false,
+        "Signed App Auto-Allow": false,
+        "Signed App Downloaded Auto-Allow": false
+      }
+    },
+    "term7": {
+      "name": "term7 Guide",
+      "description": "Based on github.com/term7/MacOS-Privacy-and-Security-Enhancements",
+      "source": "https://github.com/term7/MacOS-Privacy-and-Security-Enhancements",
+      "settings": {
+        "Application Firewall": true,
+        "Firewall Stealth Mode": true,
+        "Gatekeeper": true,
+        "Captive Portal Probe": false,
+        "Signed App Auto-Allow": false,
+        "Signed App Downloaded Auto-Allow": false
+      }
+    },
+    "nist": {
+      "name": "NIST Guidelines",
+      "description": "Based on NIST macOS Security guidelines",
+      "source": "https://github.com/usnistgov/macos_security",
+      "settings": {
+        "Application Firewall": true,
+        "Firewall Stealth Mode": true,
+        "Gatekeeper": true,
+        "FileVault Encryption": true
+      }
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

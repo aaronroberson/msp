@@ -1,0 +1,79 @@
+{
+  "id": "workflow.show",
+  "argv": [
+    "msp",
+    "--json",
+    "workflow",
+    "show",
+    "daily"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": {
+    "description": "Fast recurring posture review for drift and newly exposed surfaces.",
+    "id": "daily",
+    "schema_version": "2.0",
+    "steps": [
+      {
+        "command_hint": "msp interrogate --format json --output facts.json",
+        "concept": "interrogate",
+        "description": "Gather normalized host, network, sharing, TCC, startup, and settings facts.",
+        "destructive": false,
+        "id": "collect",
+        "inputs": [],
+        "outputs": [
+          "facts.json"
+        ],
+        "title": "Collect current facts"
+      },
+      {
+        "command_hint": "msp audit --profile personal --format json < facts.json > findings.json",
+        "concept": "audit",
+        "description": "Run the personal profile against collected facts.",
+        "destructive": false,
+        "id": "audit",
+        "inputs": [
+          "facts.json"
+        ],
+        "outputs": [
+          "findings.json"
+        ],
+        "title": "Evaluate baseline rules"
+      },
+      {
+        "command_hint": "msp reason --facts facts.json --findings findings.json --format json",
+        "concept": "reason",
+        "description": "Use optional LLM reasoning or local heuristics to explain the highest-priority issues.",
+        "destructive": false,
+        "id": "reason",
+        "inputs": [
+          "facts.json",
+          "findings.json"
+        ],
+        "outputs": [
+          "reasoning.json"
+        ],
+        "title": "Summarize risk"
+      },
+      {
+        "command_hint": "msp report --facts facts.json --findings findings.json --format md --output daily.md",
+        "concept": "report",
+        "description": "Generate a redacted report for daily history.",
+        "destructive": false,
+        "id": "report",
+        "inputs": [
+          "facts.json",
+          "findings.json"
+        ],
+        "outputs": [
+          "daily.md"
+        ],
+        "title": "Write evidence report"
+      }
+    ],
+    "title": "Daily Privacy Check"
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

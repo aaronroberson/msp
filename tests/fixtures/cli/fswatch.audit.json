@@ -1,0 +1,15 @@
+{
+  "id": "fswatch.audit",
+  "argv": [
+    "msp",
+    "--json",
+    "fswatch",
+    "audit"
+  ],
+  "returncode": 0,
+  "duration_s": 0.16,
+  "json": [],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": "Auditing system directories for suspicious changes...\n"
+}

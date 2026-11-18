@@ -1,0 +1,64 @@
+{
+  "id": "remediate.apply_preview",
+  "argv": [
+    "msp",
+    "--json",
+    "remediate",
+    "apply",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/plan.json"
+  ],
+  "returncode": 0,
+  "duration_s": 0.05,
+  "json": {
+    "results": [
+      {
+        "action_id": "st_002_startup_guidance",
+        "command_result": null,
+        "dry_run": true,
+        "finding_id": "ST-002",
+        "message": "High-risk actions require --allow-high-risk.",
+        "rollback": {
+          "command": null,
+          "guidance": "Keep a copy of any removed plist or executable before changing it."
+        },
+        "status": "skipped"
+      },
+      {
+        "action_id": "sh_002_sharing_guidance",
+        "command_result": null,
+        "dry_run": true,
+        "finding_id": "SH-002",
+        "message": "Review enabled sharing services and share points in System Settings > General > Sharing, then disable anything not explicitly required.",
+        "rollback": {
+          "command": null,
+          "guidance": "Re-enable required sharing services from System Settings."
+        },
+        "status": "guidance"
+      },
+      {
+        "action_id": "sh_001_sharing_guidance",
+        "command_result": null,
+        "dry_run": true,
+        "finding_id": "SH-001",
+        "message": "Review enabled sharing services and share points in System Settings > General > Sharing, then disable anything not explicitly required.",
+        "rollback": {
+          "command": null,
+          "guidance": "Re-enable required sharing services from System Settings."
+        },
+        "status": "guidance"
+      }
+    ],
+    "summary": {
+      "applied": 0,
+      "dry_run": 0,
+      "failed": 0,
+      "guidance": 2,
+      "requires_approval": 0,
+      "skipped": 1,
+      "total": 3
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,0 +1,15 @@
+{
+  "id": "ai.devices",
+  "argv": [
+    "msp",
+    "--json",
+    "ai",
+    "devices"
+  ],
+  "returncode": 0,
+  "duration_s": 0.08,
+  "json": null,
+  "text": "\nAvailable OpenVINO devices: none detected\n",
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

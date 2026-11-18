@@ -1,0 +1,66 @@
+{
+  "id": "deps.status",
+  "argv": [
+    "msp",
+    "--json",
+    "deps",
+    "status"
+  ],
+  "returncode": 0,
+  "duration_s": 0.39,
+  "json": {
+    "apfel": {
+      "status": "installed",
+      "description": "Apple Intelligence from the command line (fallback)",
+      "required": false
+    },
+    "exiftool": {
+      "status": "installed",
+      "description": "Read and write meta information in files (image/video forensics)",
+      "required": false
+    },
+    "fswatch": {
+      "status": "installed",
+      "description": "File system watcher for real-time monitoring",
+      "required": true
+    },
+    "knockknock": {
+      "status": "missing",
+      "description": "Enumerate persistently installed software",
+      "required": false
+    },
+    "nmap": {
+      "status": "installed",
+      "description": "Network scanner for discovering devices and open ports",
+      "required": false
+    },
+    "ollama": {
+      "status": "installed",
+      "description": "Local LLM inference server (privacy-first AI)",
+      "required": true
+    },
+    "openvino": {
+      "status": "missing",
+      "description": "Intel OpenVINO toolkit for AI acceleration (supports USB NPU devices)",
+      "required": false
+    },
+    "processmonitor": {
+      "status": "missing",
+      "description": "Monitor process creations via Endpoint Security",
+      "required": false
+    },
+    "somo": {
+      "status": "missing",
+      "description": "Human-friendly network monitor",
+      "required": false
+    },
+    "wireshark": {
+      "status": "missing",
+      "description": "Network protocol analyzer (tshark CLI)",
+      "required": false
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

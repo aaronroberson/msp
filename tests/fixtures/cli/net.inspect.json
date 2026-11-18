@@ -1,0 +1,30 @@
+{
+  "id": "net.inspect",
+  "argv": [
+    "msp",
+    "--json",
+    "net",
+    "inspect",
+    "--pid",
+    "1037"
+  ],
+  "returncode": 0,
+  "duration_s": 0.11,
+  "json": {
+    "pid": 1037,
+    "process": "1037   729 user Ss   2001:db8::1 /Applications/Atomic Chat.app/Contents/Resources/resources/bin/atomic-chat-app-core daemon --data-folder /Users/user/Library/Application Support/Atomic Chat/data --control-port 0 --resources-dir /Applications/Atomic Chat.app/Contents/Resources/resources/bin --cloudflared-bin /Applications/Atomic Chat.app/Contents/MacOS/cloudflared --telemetry on",
+    "open_files": [
+      "COMMAND    PID      USER   FD     TYPE             DEVICE  SIZE/OFF                NODE NAME",
+      "atomic-ch 1037 user  cwd      DIR               1,13       736                   2 /",
+      "atomic-ch 1037 user  txt      REG               1,13 202725632           339102282 /Applications/Atomic Chat.app/Contents/Resources/resources/bin/atomic-chat-app-core",
+      "atomic-ch 1037 user  txt      REG               1,13   4129088 1152921500312613838 /usr/lib/dyld",
+      "atomic-ch 1037 user    0r     CHR                3,2       0t0                 339 /dev/null",
+      "atomic-ch 1037 user    1w     CHR                3,2     0t167                 339 /dev/null",
+      "atomic-ch 1037 user    2w     REG               1,13       988           339102706 /Users/user/Library/Application Support/Atomic Chat/data/atomic-core/core-start.log",
+      "atomic-ch 1037 user    3u  KQUEUE                                                  count=0, state=0x12"
+    ]
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

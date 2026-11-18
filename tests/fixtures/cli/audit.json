@@ -1,0 +1,301 @@
+{
+  "id": "audit",
+  "argv": [
+    "msp",
+    "--json",
+    "audit",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/facts.json",
+    "--format",
+    "json"
+  ],
+  "returncode": 1,
+  "duration_s": 0.09,
+  "json": {
+    "findings": [
+      {
+        "category": "startup",
+        "cis": null,
+        "description": "Suspicious persistence entries were found.",
+        "evidence": {
+          "startup.suspicious_items": [
+            {
+              "item": "application.com.apple.configurator.ui.340713986.340713992",
+              "path": "",
+              "pid": 5343,
+              "reasons": [
+                "Contains 'rat'"
+              ],
+              "risk": "HIGH",
+              "status": "0"
+            },
+            {
+              "item": "ai.hermes.gateway",
+              "path": "/Users/<redacted>/Library/LaunchAgents/ai.hermes.gateway.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive",
+                "Launch plist command includes network/script execution tooling"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            },
+            {
+              "item": "ai.memory-index.service",
+              "path": "/Users/<redacted>/Library/LaunchAgents/ai.memory-index.service.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            },
+            {
+              "item": "ai.perplexity.xpc",
+              "path": "/Users/<redacted>/Library/LaunchAgents/ai.perplexity.xpc.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            },
+            {
+              "item": "ai.sleev.gateway",
+              "path": "/Users/<redacted>/Library/LaunchAgents/ai.sleev.gateway.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            },
+            {
+              "item": "co.baseten.switch.door",
+              "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.door.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            },
+            {
+              "item": "co.baseten.switch.router",
+              "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.router.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            },
+            {
+              "item": "com.backplanes.daemon",
+              "path": "/Users/<redacted>/Library/LaunchAgents/com.backplanes.daemon.plist",
+              "reasons": [
+                "Runs at load and is configured to stay alive"
+              ],
+              "risk": "REVIEW",
+              "section": "launch_plists"
+            }
+          ]
+        },
+        "evidence_paths": [
+          "startup.suspicious_items"
+        ],
+        "nist": "SI-4, SI-7",
+        "profile": "personal",
+        "references": [],
+        "remediation": "Quarantine the host if needed, then investigate and remove suspicious persistence.",
+        "remediation_id": "startup.review_suspicious",
+        "rule_id": "ST-002",
+        "severity": "critical",
+        "stig": null,
+        "tags": [],
+        "title": "Suspicious startup items are present"
+      },
+      {
+        "category": "sharing",
+        "cis": "CIS Apple macOS Sharing",
+        "description": "Guest sharing allows access without a named local account.",
+        "evidence": {
+          "sharing.guest_enabled_services": [
+            "Example User\u2019s Public Folder"
+          ],
+          "sharing.share_points": [
+            {
+              "guest_access": "1",
+              "name": "Example User\u2019s Public Folder",
+              "path": "/Users/<redacted>/Public",
+              "protocols": {
+                "smb": {
+                  "guest access": "1",
+                  "name": "Example User\u2019s Public Folder",
+                  "read-only": "0",
+                  "sealed": "0",
+                  "shared": "1"
+                }
+              },
+              "read-only": "0",
+              "shared": "1"
+            }
+          ]
+        },
+        "evidence_paths": [
+          "sharing.guest_enabled_services",
+          "sharing.share_points"
+        ],
+        "nist": "AC-2, AC-3",
+        "profile": "personal",
+        "references": [],
+        "remediation": "Disable guest access for all share points.",
+        "remediation_id": "sharing.disable_guest",
+        "rule_id": "SH-002",
+        "severity": "high",
+        "stig": null,
+        "tags": [],
+        "title": "Guest sharing access is enabled"
+      },
+      {
+        "category": "network",
+        "cis": "CIS Apple macOS Network Services",
+        "description": "A process is listening on a non-loopback interface.",
+        "evidence": {
+          "network.exposed_services": [
+            {
+              "host": "*",
+              "local": "*:5000",
+              "pid": 738,
+              "port": 5000,
+              "process": "ControlCe",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:5000",
+              "pid": 738,
+              "port": 5000,
+              "process": "ControlCe",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:5432",
+              "pid": 2356,
+              "port": 5432,
+              "process": "OrbStack",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:5432",
+              "pid": 2356,
+              "port": 5432,
+              "process": "OrbStack",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:7000",
+              "pid": 738,
+              "port": 7000,
+              "process": "ControlCe",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:7000",
+              "pid": 738,
+              "port": 7000,
+              "process": "ControlCe",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:11434",
+              "pid": 2336,
+              "port": 11434,
+              "process": "ollama",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            },
+            {
+              "host": "*",
+              "local": "*:54321",
+              "pid": 2356,
+              "port": 54321,
+              "process": "OrbStack",
+              "protocol": "TCP",
+              "state": "LISTEN",
+              "user": "<redacted>"
+            }
+          ]
+        },
+        "evidence_paths": [
+          "network.exposed_services"
+        ],
+        "nist": "CM-7, SC-7",
+        "profile": "personal",
+        "references": [],
+        "remediation": "Confirm each listener is expected and restrict it to localhost where possible.",
+        "remediation_id": "network.review_exposed_services",
+        "rule_id": "NW-001",
+        "severity": "medium",
+        "stig": null,
+        "tags": [],
+        "title": "Public listening services are present"
+      },
+      {
+        "category": "sharing",
+        "cis": "CIS Apple macOS Sharing",
+        "description": "Sharing services increase local-network exposure.",
+        "evidence": {
+          "sharing.enabled": false,
+          "sharing.share_points": [
+            {
+              "guest_access": "1",
+              "name": "Example User\u2019s Public Folder",
+              "path": "/Users/<redacted>/Public",
+              "protocols": {
+                "smb": {
+                  "guest access": "1",
+                  "name": "Example User\u2019s Public Folder",
+                  "read-only": "0",
+                  "sealed": "0",
+                  "shared": "1"
+                }
+              },
+              "read-only": "0",
+              "shared": "1"
+            }
+          ]
+        },
+        "evidence_paths": [
+          "sharing.enabled",
+          "sharing.share_points"
+        ],
+        "nist": "CM-7, SC-7",
+        "profile": "personal",
+        "references": [],
+        "remediation": "Disable unneeded sharing services and remove unused share points.",
+        "remediation_id": "sharing.disable_all",
+        "rule_id": "SH-001",
+        "severity": "medium",
+        "stig": null,
+        "tags": [],
+        "title": "File sharing is enabled"
+      }
+    ],
+    "generated_at": "2026-11-18T23:50:26.034899+00:00"
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

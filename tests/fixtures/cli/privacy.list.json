@@ -1,0 +1,71 @@
+{
+  "id": "privacy.list",
+  "argv": [
+    "msp",
+    "--json",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.26,
+  "json": [
+    {
+      "name": "Application Firewall",
+      "category": "Firewall",
+      "description": "Built-in macOS firewall - blocks incoming connections",
+      "state": "enabled",
+      "requires_root": true
+    },
+    {
+      "name": "Bluetooth",
+      "category": "Services",
+      "description": "Bluetooth wireless connection",
+      "state": "disabled",
+      "requires_root": true
+    },
+    {
+      "name": "Captive Portal Probe",
+      "category": "DNS",
+      "description": "Automatic network probe on new connections (security risk)",
+      "state": "disabled",
+      "requires_root": true
+    },
+    {
+      "name": "Diagnostics & Usage Data",
+      "category": "Privacy",
+      "description": "Send diagnostic data to Apple",
+      "state": "unknown",
+      "requires_root": true
+    },
+    {
+      "name": "FileVault Encryption",
+      "category": "Security",
+      "description": "Full disk encryption - protects data at rest",
+      "state": "enabled",
+      "requires_root": true
+    },
+    {
+      "name": "Firewall Stealth Mode",
+      "category": "Firewall",
+      "description": "Prevents computer from responding to ICMP ping and closed port probes",
+      "state": "enabled",
+      "requires_root": true
+    },
+    {
+      "name": "Gatekeeper",
+      "category": "Security",
+      "description": "App signature verification before execution",
+      "state": "enabled",
+      "requires_root": true
+    },
+    {
+      "name": "Location Services",
+      "category": "Privacy",
+      "description": "Location-based services for apps",
+      "state": "unknown",
+      "requires_root": true
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

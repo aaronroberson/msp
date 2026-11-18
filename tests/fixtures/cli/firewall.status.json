@@ -1,0 +1,65 @@
+{
+  "id": "firewall.status",
+  "argv": [
+    "msp",
+    "--json",
+    "firewall",
+    "status"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": {
+    "available": true,
+    "apps": [
+      {
+        "path": "/Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+        "name": "DeviceHub",
+        "status": "ALLOW"
+      },
+      {
+        "path": "/System/Applications/Messages.app/Contents/MacOS/Messages",
+        "name": "Messages",
+        "status": "BLOCK"
+      },
+      {
+        "path": "/Applications/Studio by Spotify Labs.app",
+        "name": "Studio by Spotify Labs.app",
+        "status": "BLOCK"
+      },
+      {
+        "path": "/System/Library/Frameworks/AddressBook.framework/Versions/A/Helpers/AddressBookSourceSync.app/Contents/MacOS/AddressBookSourceSync",
+        "name": "AddressBookSourceSync",
+        "status": "BLOCK"
+      },
+      {
+        "path": "/Applications/Claude.app/Contents/MacOS/Claude",
+        "name": "Claude",
+        "status": "BLOCK"
+      },
+      {
+        "path": "/Applications/InstaVision.app/Wrapper/InstaVision.app/InstaVision",
+        "name": "InstaVision",
+        "status": "BLOCK"
+      },
+      {
+        "path": "/Applications/Google Chrome.app",
+        "name": "Google Chrome.app",
+        "status": "BLOCK"
+      },
+      {
+        "path": "/Users/user/.nvm/versions/node/v24.14.1/bin/node",
+        "name": "node",
+        "status": "BLOCK"
+      }
+    ],
+    "enabled": true,
+    "stealth_mode": true,
+    "block_all": false,
+    "allows_signed": false,
+    "allows_signed_app": false,
+    "apps_output": "Total number of apps = 27 \n1 : /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub \n             (Allow incoming connections)\n2 : /System/Applications/Messages.app/Contents/MacOS/Messages \n             (Block incoming connections)\n3 : /Applications/Studio by Spotify Labs.app \n             (Block incoming connections)\n4 : /System/Library/Frameworks/AddressBook.framework/Versions/A/Helpers/AddressBookSourceSync.app/Contents/MacOS/AddressBookSourceSync \n             (Block incoming connections)\n5 : /Applications/Claude.app/Contents/MacOS/Claude \n             (Block incoming connections)\n6 : /Applications/InstaVision.app/Wrapper/InstaVision.app/InstaVision \n             (Block incoming connections)\n7 : /Applications/Google Chrome.app \n             (Block incoming connections)\n8 : /Users/user/.nvm/versions/node/v24.14.1/bin/node \n             (Block incoming connections)\n9 : /Applications/Evoto.app \n             (Block incoming connections)\n10 : /usr/libexec/avconferenced \n             (Block incoming connections)\n11 : /System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app \n             (Block incoming connections)\n12 : /usr/libexec/audioclocksyncd \n             (Block incoming connections)\n13 : /Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas \n             (Block incoming connections)\n14 : /Applications/Tailscale.app/Contents/PlugIns/IPNExtension.appex \n             (Block incoming connections)\n15 : /usr/libexec/AirPlayXPCHelper \n             (Block incoming connections)\n16 : /System/Library/PrivateFrameworks/ReplicatorCore.framework/Support/replicatord \n             (Block incoming connections)\n17 : /System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter \n             (Block incoming connections)\n18 : /usr/libexec/rapportd \n             (Block incoming connections)\n19 : /Applications/Spotify.app \n             (Block incoming connections)\n20 : /usr/local/libexec/remotepairingdeviced \n             (Block incoming connections)\n21 : /usr/libexec/remoted \n             (Block incoming connections)\n22 : /usr/bin/python3 \n             (Block incoming connections)\n23 : /usr/bin/ruby \n             (Block incoming connections)\n24 : /usr/sbin/cupsd \n             (Block incoming connections)\n25 : /usr/libexec/sharingd \n             (Block incoming connections)\n26 : /usr/libexec/sshd-keygen-wrapper \n             (Block incoming connections)\n27 : /usr/sbin/smbd \n             (Block incoming connections)"
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

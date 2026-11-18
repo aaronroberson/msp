@@ -1,0 +1,72 @@
+{
+  "id": "startup.disabled",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "disabled"
+  ],
+  "returncode": 0,
+  "duration_s": 0.16,
+  "json": [
+    {
+      "name": "ai.hermes.gateway",
+      "label": "ai.hermes.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist",
+      "type": "agent",
+      "status": "disabled"
+    },
+    {
+      "name": "ai.memory-index.service",
+      "label": "ai.memory-index.service",
+      "path": "/Users/user/Library/LaunchAgents/ai.memory-index.service.plist",
+      "type": "agent",
+      "status": "disabled"
+    },
+    {
+      "name": "ai.perplexity.xpc",
+      "label": "ai.perplexity.xpc",
+      "path": "/Users/user/Library/LaunchAgents/ai.perplexity.xpc.plist",
+      "type": "agent",
+      "status": "disabled"
+    },
+    {
+      "name": "ai.sleev.gateway",
+      "label": "ai.sleev.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.sleev.gateway.plist",
+      "type": "agent",
+      "status": "disabled"
+    },
+    {
+      "name": "bootps",
+      "label": "com.apple.bootpd",
+      "path": "/System/Library/LaunchDaemons/bootps.plist",
+      "type": "daemon",
+      "status": "disabled"
+    },
+    {
+      "name": "co.baseten.switch.door",
+      "label": "co.baseten.switch.door",
+      "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.door.plist",
+      "type": "agent",
+      "status": "disabled"
+    },
+    {
+      "name": "co.baseten.switch.router",
+      "label": "co.baseten.switch.router",
+      "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.router.plist",
+      "type": "agent",
+      "status": "disabled"
+    },
+    {
+      "name": "com.adobe.acc.installer.v2",
+      "label": "com.adobe.acc.installer.v2",
+      "path": "/Library/LaunchDaemons/com.adobe.acc.installer.v2.plist",
+      "type": "daemon",
+      "status": "disabled"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

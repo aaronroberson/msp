@@ -1,0 +1,56 @@
+{
+  "id": "startup.daemons",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "daemons"
+  ],
+  "returncode": 0,
+  "duration_s": 5.71,
+  "json": [
+    {
+      "name": "bootps",
+      "label": "com.apple.bootpd",
+      "path": "/System/Library/LaunchDaemons/bootps.plist"
+    },
+    {
+      "name": "com.adobe.acc.installer.v2",
+      "label": "com.adobe.acc.installer.v2",
+      "path": "/Library/LaunchDaemons/com.adobe.acc.installer.v2.plist"
+    },
+    {
+      "name": "com.apple.accessoryaccessd",
+      "label": "com.apple.accessoryaccessd",
+      "path": "/System/Library/LaunchDaemons/com.apple.accessoryaccessd.plist"
+    },
+    {
+      "name": "com.apple.accessoryd",
+      "label": "com.apple.accessoryd",
+      "path": "/System/Library/LaunchDaemons/com.apple.accessoryd.plist"
+    },
+    {
+      "name": "com.apple.accessoryupdaterd",
+      "label": "com.apple.accessoryupdaterd",
+      "path": "/System/Library/LaunchDaemons/com.apple.accessoryupdaterd.plist"
+    },
+    {
+      "name": "com.apple.adid",
+      "label": "com.apple.adid",
+      "path": "/System/Library/LaunchDaemons/com.apple.adid.plist"
+    },
+    {
+      "name": "com.apple.AirPlayXPCHelper",
+      "label": "com.apple.AirPlayXPCHelper",
+      "path": "/System/Library/LaunchDaemons/com.apple.AirPlayXPCHelper.plist"
+    },
+    {
+      "name": "com.apple.airportd",
+      "label": "com.apple.airportd",
+      "path": "/System/Library/LaunchDaemons/com.apple.airportd.plist"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

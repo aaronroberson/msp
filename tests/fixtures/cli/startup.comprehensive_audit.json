@@ -1,0 +1,89 @@
+{
+  "id": "startup.comprehensive_audit",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "comprehensive-audit"
+  ],
+  "returncode": 0,
+  "duration_s": 21.66,
+  "json": [
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "ai.hermes.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive",
+        "Launch plist command includes network/script execution tooling"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "ai.memory-index.service",
+      "path": "/Users/user/Library/LaunchAgents/ai.memory-index.service.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "ai.perplexity.xpc",
+      "path": "/Users/user/Library/LaunchAgents/ai.perplexity.xpc.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "ai.sleev.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.sleev.gateway.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "co.baseten.switch.door",
+      "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.door.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "co.baseten.switch.router",
+      "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.router.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "com.backplanes.daemon",
+      "path": "/Users/user/Library/LaunchAgents/com.backplanes.daemon.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    },
+    {
+      "risk": "REVIEW",
+      "section": "launch_plists",
+      "item": "com.github.actions-runner.inventionscout",
+      "path": "/Users/user/Library/LaunchAgents/com.github.actions-runner.inventionscout.plist",
+      "reasons": [
+        "Runs at load and is configured to stay alive"
+      ]
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

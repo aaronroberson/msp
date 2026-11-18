@@ -1,0 +1,554 @@
+{
+  "id": "startup.inventory",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "inventory"
+  ],
+  "returncode": 0,
+  "duration_s": 25.54,
+  "json": {
+    "launch_plists": [
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 2993,
+        "modified": 1786282574,
+        "executable": false,
+        "label": "ai.hermes.gateway",
+        "program": null,
+        "program_arguments": [
+          "/Users/user/.hermes/hermes-agent/venv/bin/python",
+          "-m",
+          "hermes_cli.main",
+          "gateway",
+          "run",
+          "--replace"
+        ],
+        "run_at_load": true,
+        "keep_alive": true,
+        "disabled": null,
+        "working_directory": "/Users/user/.hermes",
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": "/Users/user/.hermes/logs/gateway.log",
+        "standard_error_path": "/Users/user/.hermes/logs/gateway.error.log",
+        "name": "ai.hermes.gateway",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/ai.memory-index.service.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 1027,
+        "modified": 1785560131,
+        "executable": false,
+        "label": "ai.memory-index.service",
+        "program": null,
+        "program_arguments": [
+          "/bin/zsh",
+          "-c",
+          "/Users/user/.agents/daemon/memory-index-daemon.sh run"
+        ],
+        "run_at_load": true,
+        "keep_alive": true,
+        "disabled": null,
+        "working_directory": "/Users/user",
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": "/Users/user/.agents/daemon/logs/launchd.out.log",
+        "standard_error_path": "/Users/user/.agents/daemon/logs/launchd.err.log",
+        "name": "ai.memory-index.service",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/ai.perplexity.xpc.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 760,
+        "modified": 1775355275,
+        "executable": false,
+        "label": "ai.perplexity.xpc",
+        "program": "/Users/user/Library/Application Support/Perplexity/PerplexityXPC.xpc/Contents/MacOS/PerplexityXPC",
+        "program_arguments": [],
+        "run_at_load": true,
+        "keep_alive": {
+          "Crashed": true,
+          "SuccessfulExit": false
+        },
+        "disabled": null,
+        "working_directory": null,
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [
+          "ai.perplexity.xpc"
+        ],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": null,
+        "standard_error_path": null,
+        "name": "ai.perplexity.xpc",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/ai.sleev.gateway.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 2187,
+        "modified": 1794534182,
+        "executable": false,
+        "label": "ai.sleev.gateway",
+        "program": null,
+        "program_arguments": [
+          "/Users/user/.local/share/sleev/gateway/1.8.1/sleeve-gateway",
+          "--config",
+          "/Users/user/.config/sleev/gateway.json",
+          "--db-path",
+          "/Users/user/.local/share/sleev/sleeve.sqlite",
+          "--log",
+          "--debug-log-dir",
+          "/Users/user/.local/state/sleev/debug-logs"
+        ],
+        "run_at_load": true,
+        "keep_alive": {
+          "SuccessfulExit": false
+        },
+        "disabled": null,
+        "working_directory": null,
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": "/Users/user/.local/state/sleev/debug-logs/server/gateway.out.log",
+        "standard_error_path": "/Users/user/.local/state/sleev/debug-logs/server/gateway.err.log",
+        "name": "ai.sleev.gateway",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.door.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 2148,
+        "modified": 1791995855,
+        "executable": false,
+        "label": "co.baseten.switch.door",
+        "program": null,
+        "program_arguments": [
+          "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+          "door"
+        ],
+        "run_at_load": true,
+        "keep_alive": true,
+        "disabled": null,
+        "working_directory": null,
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": "/Users/user/.config/baseten-switch/logs/door.log",
+        "standard_error_path": "/Users/user/.config/baseten-switch/logs/door.log",
+        "name": "co.baseten.switch.door",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.router.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 2214,
+        "modified": 1791995855,
+        "executable": false,
+        "label": "co.baseten.switch.router",
+        "program": null,
+        "program_arguments": [
+          "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+          "gateway",
+          "start",
+          "--foreground"
+        ],
+        "run_at_load": true,
+        "keep_alive": true,
+        "disabled": null,
+        "working_directory": null,
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": "/Users/user/.config/baseten-switch/logs/router.log",
+        "standard_error_path": "/Users/user/.config/baseten-switch/logs/router.log",
+        "name": "co.baseten.switch.router",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/com.adobe.ccxprocess.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 639,
+        "modified": 1793151365,
+        "executable": false,
+        "label": "com.adobe.ccxprocess",
+        "program": null,
+        "program_arguments": [
+          "/Applications/Utilities/Adobe Creative Cloud Experience/CCXProcess/CCXProcess.app/Contents/MacOS/CCXProcess",
+          "--openAtBoot"
+        ],
+        "run_at_load": null,
+        "keep_alive": null,
+        "disabled": null,
+        "working_directory": null,
+        "start_interval": null,
+        "start_calendar_interval": {
+          "Hour": 17,
+          "Minute": 6
+        },
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": null,
+        "standard_error_path": null,
+        "name": "com.adobe.ccxprocess",
+        "location": "/Users/user/Library/LaunchAgents"
+      },
+      {
+        "type": "launch_agent",
+        "path": "/Users/user/Library/LaunchAgents/com.backplanes.daemon.plist",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 735,
+        "modified": 1781834886,
+        "executable": false,
+        "label": "com.backplanes.daemon",
+        "program": null,
+        "program_arguments": [
+          "/Users/user/.backplanes/bin/backplanes",
+          "daemon",
+          "run"
+        ],
+        "run_at_load": true,
+        "keep_alive": true,
+        "disabled": null,
+        "working_directory": null,
+        "start_interval": null,
+        "start_calendar_interval": null,
+        "mach_services": [],
+        "sockets": [],
+        "watch_paths": [],
+        "queue_directories": [],
+        "standard_out_path": "/Users/user/.local/share/backplanes/daemon/daemon.log",
+        "standard_error_path": "/Users/user/.local/share/backplanes/daemon/daemon.log",
+        "name": "com.backplanes.daemon",
+        "location": "/Users/user/Library/LaunchAgents"
+      }
+    ],
+    "login_items": [],
+    "cron": [],
+    "periodic": [],
+    "shell_profiles": [
+      {
+        "type": "shell_profile",
+        "path": "/Users/user/.zprofile",
+        "exists": true,
+        "mode": "0o600",
+        "uid": 501,
+        "gid": 20,
+        "size": 779,
+        "modified": 1793403085,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/Users/user/.zshrc",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 11579,
+        "modified": 1794942965,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/Users/user/.zshenv",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 21,
+        "modified": 1782118228,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/Users/user/.bash_profile",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 405,
+        "modified": 1793403085,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/Users/user/.bashrc",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 2260,
+        "modified": 1794943140,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/Users/user/.profile",
+        "exists": true,
+        "mode": "0o644",
+        "uid": 501,
+        "gid": 20,
+        "size": 698,
+        "modified": 1793403085,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/etc/profile",
+        "exists": true,
+        "mode": "0o444",
+        "uid": 0,
+        "gid": 0,
+        "size": 189,
+        "modified": 1793942531,
+        "executable": false,
+        "notable_entries": []
+      },
+      {
+        "type": "shell_profile",
+        "path": "/etc/bashrc",
+        "exists": true,
+        "mode": "0o444",
+        "uid": 0,
+        "gid": 0,
+        "size": 265,
+        "modified": 1793942531,
+        "executable": false,
+        "notable_entries": []
+      }
+    ],
+    "privileged_helpers": [
+      {
+        "type": "privileged_helper",
+        "path": "/Library/PrivilegedHelperTools/com.adobe.acc.installer.v2",
+        "exists": true,
+        "mode": "0o544",
+        "uid": 0,
+        "gid": 0,
+        "size": 502288,
+        "modified": 1793145449,
+        "executable": true,
+        "name": "com.adobe.acc.installer.v2",
+        "location": "/Library/PrivilegedHelperTools"
+      },
+      {
+        "type": "privileged_helper",
+        "path": "/Library/PrivilegedHelperTools/com.docker.socket",
+        "exists": true,
+        "mode": "0o711",
+        "uid": 0,
+        "gid": 0,
+        "size": 1640592,
+        "modified": 1794628537,
+        "executable": true,
+        "name": "com.docker.socket",
+        "location": "/Library/PrivilegedHelperTools"
+      },
+      {
+        "type": "privileged_helper",
+        "path": "/Library/PrivilegedHelperTools/com.docker.vmnetd",
+        "exists": true,
+        "mode": "0o544",
+        "uid": 0,
+        "gid": 0,
+        "size": 6994352,
+        "modified": 1785566633,
+        "executable": true,
+        "name": "com.docker.vmnetd",
+        "location": "/Library/PrivilegedHelperTools"
+      },
+      {
+        "type": "privileged_helper",
+        "path": "/Library/PrivilegedHelperTools/com.proxyman.tcpviewer.helpertool",
+        "exists": true,
+        "mode": "0o544",
+        "uid": 0,
+        "gid": 0,
+        "size": 97264,
+        "modified": 1793753365,
+        "executable": true,
+        "name": "com.proxyman.tcpviewer.helpertool",
+        "location": "/Library/PrivilegedHelperTools"
+      },
+      {
+        "type": "privileged_helper",
+        "path": "/Library/PrivilegedHelperTools/dev.orbstack.OrbStack.privhelper",
+        "exists": true,
+        "mode": "0o544",
+        "uid": 0,
+        "gid": 0,
+        "size": 1366032,
+        "modified": 1792374734,
+        "executable": true,
+        "name": "dev.orbstack.OrbStack.privhelper",
+        "location": "/Library/PrivilegedHelperTools"
+      }
+    ],
+    "system_extensions": [
+      {
+        "type": "system_extension",
+        "team": null,
+        "raw": "0 extension(s)"
+      }
+    ],
+    "kernel_extensions": [
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.bsd",
+        "source": "kmutil showloaded",
+        "raw": "3  210 0                  0          0          com.apple.kpi.bsd (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.dsep",
+        "source": "kmutil showloaded",
+        "raw": "4   12 0                  0          0          com.apple.kpi.dsep (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.iokit",
+        "source": "kmutil showloaded",
+        "raw": "5  239 0                  0          0          com.apple.kpi.iokit (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.libkern",
+        "source": "kmutil showloaded",
+        "raw": "6  240 0                  0          0          com.apple.kpi.libkern (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.mach",
+        "source": "kmutil showloaded",
+        "raw": "7  224 0                  0          0          com.apple.kpi.mach (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.private",
+        "source": "kmutil showloaded",
+        "raw": "8  170 0                  0          0          com.apple.kpi.private (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kpi.unsupported",
+        "source": "kmutil showloaded",
+        "raw": "9  151 0                  0          0          com.apple.kpi.unsupported (27.2.0) 00000000-0000-0000-0000-000000000000 <>"
+      },
+      {
+        "type": "kernel_extension",
+        "bundle_id": "com.apple.kec.Libm",
+        "source": "kmutil showloaded",
+        "raw": "10    6 0xfffffe0007130000 0xab0c     0xab0c     com.apple.kec.Libm (1) 00000000-0000-0000-0000-000000000000 <6>"
+      }
+    ],
+    "background_items": [
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "========================"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "Records for UID -2 : 00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "========================"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "ServiceManagement migrated: true"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "LaunchServices registered: false"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "Items:"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "#1:"
+      },
+      {
+        "type": "background_item",
+        "source": "sfltool dumpbtm",
+        "raw": "UUID: 00000000-0000-0000-0000-000000000000"
+      }
+    ]
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

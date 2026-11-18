@@ -1,0 +1,257 @@
+{
+  "id": "startup.managed",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "managed"
+  ],
+  "returncode": 0,
+  "duration_s": 0.42,
+  "json": {
+    "items": [
+      {
+        "name": "ai.hermes.gateway",
+        "label": "ai.hermes.gateway",
+        "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "ai.hermes.gateway",
+          "program": null,
+          "program_arguments": [
+            "/Users/user/.hermes/hermes-agent/venv/bin/python",
+            "-m",
+            "hermes_cli.main",
+            "gateway",
+            "run",
+            "--replace"
+          ],
+          "run_at_load": true,
+          "keep_alive": true,
+          "disabled": null,
+          "working_directory": "/Users/user/.hermes",
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": "/Users/user/.hermes/logs/gateway.log",
+          "standard_error_path": "/Users/user/.hermes/logs/gateway.error.log"
+        }
+      },
+      {
+        "name": "ai.memory-index.service",
+        "label": "ai.memory-index.service",
+        "path": "/Users/user/Library/LaunchAgents/ai.memory-index.service.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "ai.memory-index.service",
+          "program": null,
+          "program_arguments": [
+            "/bin/zsh",
+            "-c",
+            "/Users/user/.agents/daemon/memory-index-daemon.sh run"
+          ],
+          "run_at_load": true,
+          "keep_alive": true,
+          "disabled": null,
+          "working_directory": "/Users/user",
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": "/Users/user/.agents/daemon/logs/launchd.out.log",
+          "standard_error_path": "/Users/user/.agents/daemon/logs/launchd.err.log"
+        }
+      },
+      {
+        "name": "ai.perplexity.xpc",
+        "label": "ai.perplexity.xpc",
+        "path": "/Users/user/Library/LaunchAgents/ai.perplexity.xpc.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "ai.perplexity.xpc",
+          "program": "/Users/user/Library/Application Support/Perplexity/PerplexityXPC.xpc/Contents/MacOS/PerplexityXPC",
+          "program_arguments": [],
+          "run_at_load": true,
+          "keep_alive": {
+            "Crashed": true,
+            "SuccessfulExit": false
+          },
+          "disabled": null,
+          "working_directory": null,
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [
+            "ai.perplexity.xpc"
+          ],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": null,
+          "standard_error_path": null
+        }
+      },
+      {
+        "name": "ai.sleev.gateway",
+        "label": "ai.sleev.gateway",
+        "path": "/Users/user/Library/LaunchAgents/ai.sleev.gateway.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "ai.sleev.gateway",
+          "program": null,
+          "program_arguments": [
+            "/Users/user/.local/share/sleev/gateway/1.8.1/sleeve-gateway",
+            "--config",
+            "/Users/user/.config/sleev/gateway.json",
+            "--db-path",
+            "/Users/user/.local/share/sleev/sleeve.sqlite",
+            "--log",
+            "--debug-log-dir",
+            "/Users/user/.local/state/sleev/debug-logs"
+          ],
+          "run_at_load": true,
+          "keep_alive": {
+            "SuccessfulExit": false
+          },
+          "disabled": null,
+          "working_directory": null,
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": "/Users/user/.local/state/sleev/debug-logs/server/gateway.out.log",
+          "standard_error_path": "/Users/user/.local/state/sleev/debug-logs/server/gateway.err.log"
+        }
+      },
+      {
+        "name": "co.baseten.switch.door",
+        "label": "co.baseten.switch.door",
+        "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.door.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "co.baseten.switch.door",
+          "program": null,
+          "program_arguments": [
+            "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+            "door"
+          ],
+          "run_at_load": true,
+          "keep_alive": true,
+          "disabled": null,
+          "working_directory": null,
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": "/Users/user/.config/baseten-switch/logs/door.log",
+          "standard_error_path": "/Users/user/.config/baseten-switch/logs/door.log"
+        }
+      },
+      {
+        "name": "co.baseten.switch.router",
+        "label": "co.baseten.switch.router",
+        "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.router.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "co.baseten.switch.router",
+          "program": null,
+          "program_arguments": [
+            "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+            "gateway",
+            "start",
+            "--foreground"
+          ],
+          "run_at_load": true,
+          "keep_alive": true,
+          "disabled": null,
+          "working_directory": null,
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": "/Users/user/.config/baseten-switch/logs/router.log",
+          "standard_error_path": "/Users/user/.config/baseten-switch/logs/router.log"
+        }
+      },
+      {
+        "name": "com.adobe.ccxprocess",
+        "label": "com.adobe.ccxprocess",
+        "path": "/Users/user/Library/LaunchAgents/com.adobe.ccxprocess.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "com.adobe.ccxprocess",
+          "program": null,
+          "program_arguments": [
+            "/Applications/Utilities/Adobe Creative Cloud Experience/CCXProcess/CCXProcess.app/Contents/MacOS/CCXProcess",
+            "--openAtBoot"
+          ],
+          "run_at_load": null,
+          "keep_alive": null,
+          "disabled": null,
+          "working_directory": null,
+          "start_interval": null,
+          "start_calendar_interval": {
+            "Hour": 17,
+            "Minute": 6
+          },
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": null,
+          "standard_error_path": null
+        }
+      },
+      {
+        "name": "com.backplanes.daemon",
+        "label": "com.backplanes.daemon",
+        "path": "/Users/user/Library/LaunchAgents/com.backplanes.daemon.plist",
+        "type": "agent",
+        "status": "not loaded",
+        "metadata": {
+          "label": "com.backplanes.daemon",
+          "program": null,
+          "program_arguments": [
+            "/Users/user/.backplanes/bin/backplanes",
+            "daemon",
+            "run"
+          ],
+          "run_at_load": true,
+          "keep_alive": true,
+          "disabled": null,
+          "working_directory": null,
+          "start_interval": null,
+          "start_calendar_interval": null,
+          "mach_services": [],
+          "sockets": [],
+          "watch_paths": [],
+          "queue_directories": [],
+          "standard_out_path": "/Users/user/.local/share/backplanes/daemon/daemon.log",
+          "standard_error_path": "/Users/user/.local/share/backplanes/daemon/daemon.log"
+        }
+      }
+    ],
+    "scope": "current user",
+    "access_errors": []
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

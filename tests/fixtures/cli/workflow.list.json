@@ -1,0 +1,43 @@
+{
+  "id": "workflow.list",
+  "argv": [
+    "msp",
+    "--json",
+    "workflow",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.13,
+  "json": {
+    "schema_version": "2.0",
+    "workflows": [
+      {
+        "description": "Fast recurring posture review for drift and newly exposed surfaces.",
+        "id": "daily",
+        "steps": "4",
+        "title": "Daily Privacy Check"
+      },
+      {
+        "description": "Evidence-first interrogation for suspected compromise or suspicious behavior.",
+        "id": "incident",
+        "steps": "5",
+        "title": "Incident Triage"
+      },
+      {
+        "description": "Plan privacy and security hardening without applying destructive changes.",
+        "id": "harden",
+        "steps": "5",
+        "title": "Hardening Plan"
+      },
+      {
+        "description": "Collect and package current posture evidence for audit or support.",
+        "id": "evidence",
+        "steps": "3",
+        "title": "Evidence Bundle"
+      }
+    ]
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,0 +1,80 @@
+{
+  "id": "startup.running",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "running"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": [
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 20846
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 20919
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 20889
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 21349
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 20845
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 20843
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.mdworker.shared.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 20890
+    },
+    {
+      "name": "00000000-0000-0000-0000-000000000000",
+      "label": "com.apple.neagent.00000000-0000-0000-0000-000000000000",
+      "path": "",
+      "type": "launchd",
+      "status": "running",
+      "pid": 643
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

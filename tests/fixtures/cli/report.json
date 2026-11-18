@@ -1,0 +1,24 @@
+{
+  "id": "report",
+  "argv": [
+    "msp",
+    "--json",
+    "report",
+    "--facts",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/facts.json",
+    "--findings",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/findings.json",
+    "--format"
+  ],
+  "returncode": 0,
+  "duration_s": 0.22,
+  "json": null,
+  "text": "",
+  "stdout_has_preamble": false,
+  "stderr": "",
+  "artifact": {
+    "path": "report.md",
+    "json": null,
+    "text": "# macOS Privacy Evidence Report\n\n- Generated at: `2026-11-18T23:50:26.146398+00:00`\n- Bundle schema: `1.0`\n- Host: `example-host`\n- Platform: `Darwin 27.2.0`\n- Total findings: `4`\n\n## Findings By Severity\n\n| Name | Count |\n| --- | ---: |\n| critical | 1 |\n| high | 1 |\n| medium | 2 |\n| low | 0 |\n| info | 0 |\n| unknown | 0 |\n\n## Findings By Category\n\n| Name | Count |\n| --- | ---: |\n| network | 1 |\n| sharing | 2 |\n| startup | 1 |\n\n## Top Findings\n\n| Severity | Rule | Category | Finding | Remediation |\n| --- | --- | --- | --- | --- |\n| CRITICAL | ST-002 | startup | Suspicious startup items are present | Quarantine the host if needed, then investigate and remove suspicious persistence. |\n| HIGH | SH-002 | sharing | Guest sharing access is enabled | Disable guest access for all share points. |\n| MEDIUM | NW-001 | network | Public listening services are present | Confirm each listener is expected and restrict it to localhost where possible. |\n| MEDIUM | SH-001 | sharing | File sharing is enabled | Disable unneeded sharing services and remove unused share points. |\n\n## Evidence Bundle\n\n```json\n{\n  \"facts\": {\n    \"errors\": [\n      {\n        \"collector\": \"TCCManager\",\n        \"message\": \"{'source': 'user', 'db_path': '/Users/<redacted>/Library/Application Support/com.apple.TCC/TCC.db', 'type': 'not_found', 'message': 'TCC database not found'}\",\n        \"section\": \"tcc\"\n      },\n      {\n        \"collector\": \"TCCManager\",\n        \"message\": \"{'source': 'system', 'db_path': '/Library/Application Support/com.apple.TCC/TCC.db', 'type': 'permission_denied', 'message': 'unable to open database file', 'suggestion': 'Try running with sudo for the system TCC database.'}\",\n        \"section\": \"tcc\"\n      }\n    ],\n    \"filevault\": {\n      \"enabled\": true,\n      \"encrypted\": true\n    },\n    \"firewall\": {\n      \"allows_signed\": false,\n      \"block_all\": false,\n      \"enabled\": true,\n      \"exceptions\": [\n        {\n          \"name\": \"DeviceHub\",\n          \"status\": \"ALLOW\"\n        },\n        {\n          \"name\": \"Messages\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"Studio by Spotify Labs.app\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"AddressBookSourceSync\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"Claude\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"InstaVision\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"Google Chrome.app\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"node\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"Evoto.app\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"avconferenced\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"identityservicesd.app\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"audioclocksyncd\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"ChatGPT Atlas\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"IPNExtension.appex\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"AirPlayXPCHelper\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"replicatord\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"ControlCenter\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"rapportd\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"Spotify.app\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"remotepairingdeviced\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"remoted\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"python3\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"ruby\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"cupsd\",\n          \"status\": \"BLOCK\"\n        },\n        {\n          \"name\": \"sharingd\",\n          \"status\": \"BLOCK\"\n        },\n"
+  }
+}
