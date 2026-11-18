@@ -48,3 +48,12 @@ Every passive read command (and the local analysis pipeline) was run as `msp --j
 - `main.py` split options from their values (`interrogate --output f` → `f --output`) and its global `--provider` choices rejected module options of the same name. Fixed with verbatim forwarding (`259a63a`).
 - `deps check <pkg>` / `install <pkg>` rejected the package positional (`f299853`).
 - `audit` rejected the global `--json` (`d086170`).
+
+## Status 2026-11-18: P0.3 schemas
+
+- `src/schemas` implements the envelopes, 45 records, encoding adapters and the `resolve`/`validate_output` registry. All 57 raw and sanitized fixtures validate against the envelopes declared in `src/tui_manifest/commands.toml`.
+- **Contracts reject mismatches:** validating a fixture against a wrong envelope fails on the missing or mistyped field (e.g. `net list` as `Collection[Connection]` → `data.0.remote`; `shell audit` as `RuleFinding` → unknown severity `ERROR`).
+- **Empty data proves nothing.** `tcc audit` (no findings without Full Disk Access) validated against an unrelated record type because its list is empty. The P0.6 contract test must refuse to count an empty fixture as verified; affected commands get hand-authored sample records derived from source.
+- **Canonical severity confirmed:** ERROR/WARNING/NOTICE → high/medium/low; HIGH/REVIEW/LOW → high/medium/low; critical..low unchanged.
+- **Scan findings have no stable identity:** `check_id` is empty and `control_id` is null for all 116 findings from `scan quick`/`scan suspicious`, so the canonical `id` falls back to the title. Logged against master-plan T-02 (canonical finding schema).
+- Fixed while validating: `services list` parsed launchctl's header as a service (`be2423e`). `net hosts` turned out to run `nmap -sn` on the local subnet; it was removed from the passive capture list (it ran twice on 2026-11-18, during the initial probe and the first capture).
