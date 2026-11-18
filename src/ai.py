@@ -479,7 +479,7 @@ def configure_provider_flow() -> Optional[str]:
         ("groq", "2. Groq                (Ultra-fast cloud inference - Llama 3.3 70B)", ""),
         ("deepseek", "3. DeepSeek            (DeepSeek-V3 / DeepSeek-R1 reasoning)", ""),
         ("openrouter", "4. OpenRouter          (Multi-model router - Claude 3.5, Gemini, Llama)", ""),
-        {"name": "5. Together AI         (Open-source cloud models - Llama 3.3, Mixtral)", "value": "together"},
+        ("together", "5. Together AI         (Open-source cloud models - Llama 3.3, Mixtral)", ""),
         ("ollama", "6. Ollama              (Local on-device inference - private & offline)", ""),
         ("apfel", "7. Apple Intelligence  (apfel CLI local on-device)", ""),
         ("custom", "8. Custom Endpoint     (Self-hosted / vLLM / LocalAI / OpenAI-compatible)", ""),
@@ -489,8 +489,8 @@ def configure_provider_flow() -> Optional[str]:
     if cmd_interactive_menu:
         selected_provider = cmd_interactive_menu(menu_items, title="Select AI Provider:")
     else:
-        for item in menu_items:
-            print(f"  {item['name']}")
+        for _value, label, _hint in menu_items:
+            print(f"  {label}")
         choice = input("\nEnter choice [1-8]: ").strip()
         mapping = {"1": "openai", "2": "groq", "3": "deepseek", "4": "openrouter", "5": "together", "6": "ollama", "7": "apfel", "8": "custom"}
         selected_provider = mapping.get(choice)
