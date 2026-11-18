@@ -1158,11 +1158,11 @@ class MspTUI(App[None]):
             yield Label("VIEW: OVERVIEW", id="brand-right")
             yield Button("Settings", id="open-config")
         with Horizontal(id="nav"):
-            nav_labels = {"dashboard": "Dashboard", "findings": "Findings", "listening": "Network", "startup": "Startup", "tcc": "TCC", "privacy": "Privacy", "snapshots": "Snapshots", "workflows": "Workflows"}
+            nav_labels = {"dashboard": "Dashboard", "findings": "Findings", "listening": "Network", "startup": "Startup", "tcc": "TCC", "privacy": "Privacy", "snapshots": "Snapshots", "workflows": "Workflows", "ai": "AI"}
             for view_id in NAV_VIEWS:
                 view = view_by_id(view_id)
                 if view:
-                    yield Button(nav_labels[view.id], id=f"nav-{view.id}")
+                    yield Button(nav_labels.get(view.id, view.title), id=f"nav-{view.id}")
             yield Button("⌘ Palette", id="open-palette", tooltip="Command palette (Ctrl+P)")
             yield Button("?", id="open-help", tooltip="Help")
         with Horizontal(id="main-row"):
