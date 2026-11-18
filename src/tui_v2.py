@@ -266,9 +266,17 @@ def _payload_rows(view_id: str, payload: Any) -> list[dict[str, Any]]:
             {"setting": name.replace("_", " ").title(), "value": "On" if value is True else "Off" if value is False else "Unavailable", "details": ""}
             for name, value in payload.items() if name in {"enabled", "stealth_mode", "block_all", "allows_signed", "allows_signed_app"}
         ]
-        app_lines = payload.get("apps_output", "")
-        if isinstance(app_lines, str):
-            rows.extend({"setting": "Application", "value": "Rule", "details": line.strip()} for line in app_lines.splitlines() if line.strip() and not line.lower().startswith("total number"))
+        apps = payload.get("apps")
+        if isinstance(apps, list) and apps:
+            rows.extend({
+                "setting": "Application",
+                "value": str(app.get("status", "Rule")),
+                "details": str(app.get("path", app.get("name", ""))),
+            } for app in apps if isinstance(app, dict))
+        else:
+            app_lines = payload.get("apps_output", "")
+            if isinstance(app_lines, str):
+                rows.extend({"setting": "Application", "value": "Rule", "details": line.strip()} for line in app_lines.splitlines() if line.strip() and not line.lower().startswith("total number"))
         return rows
     if view_id == "snapshots":
         values = payload if isinstance(payload, list) else payload.get("snapshots", []) if isinstance(payload, dict) else []

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -11,6 +12,48 @@ from pathlib import Path
 from typing import Any
 
 SOCKETFILTERFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+
+_APP_ENTRY = re.compile(r"^\d+\s*:\s*(.+?)\s*$")
+
+
+def _parse_app_list(text: str) -> list[dict[str, str]]:
+    """Parse ``socketfilterfw --listapps`` into structured rules.
+
+    Real output pairs each entry path with its verdict on the next line::
+
+        Total number of apps = 2
+         1 : /Applications/App.app
+            (Allow incoming connections)
+         2 : /Applications/Other.app
+            (Block incoming connections)
+    """
+    apps: list[dict[str, str]] = []
+    pending_path: str | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.lower().startswith("total number"):
+            continue
+        lower = stripped.lower()
+        if lower.startswith("(") and "incoming connections" in lower:
+            if pending_path is None:
+                continue
+            if lower.startswith("(allow"):
+                verdict = "ALLOW"
+            elif lower.startswith("(block"):
+                verdict = "BLOCK"
+            else:
+                continue
+            apps.append({
+                "path": pending_path,
+                "name": os.path.basename(pending_path.rstrip("/")) or pending_path,
+                "status": verdict,
+            })
+            pending_path = None
+        else:
+            match = _APP_ENTRY.match(stripped)
+            if match:
+                pending_path = match.group(1).strip()
+    return apps
 
 
 def _run(argv: list[str], privileged: bool = False) -> subprocess.CompletedProcess[str]:
@@ -49,7 +92,9 @@ def status() -> dict[str, Any]:
         if proc.returncode:
             result[f"{key}_error"] = text
     apps = _run([SOCKETFILTERFW, "--listapps"])
-    result["apps_output"] = (apps.stdout + apps.stderr).strip()
+    apps_text = (apps.stdout + apps.stderr).strip()
+    result["apps_output"] = apps_text
+    result["apps"] = _parse_app_list(apps_text)
     return result
 
 
