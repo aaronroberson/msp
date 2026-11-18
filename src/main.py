@@ -131,6 +131,82 @@ def run_command(
         sys.exit(1)
 
 
+def doctor_fix_gate(raw_args, *, stream=None):
+    """Gate `doctor fix` mutations behind the approval engine.
+
+    Returns True when execution may proceed. Dry-runs are never gated. Real
+    runs are classed ``confirm``: they need a valid approval token (``--yes
+    TOKEN``) or an interactive y/N answer on a TTY. Bare ``--yes`` is treated
+    as an explicit bypass attempt and does not authorize confirm-class work.
+    """
+    import json
+
+    from src.gate import Gate
+
+    if "--dry-run" in raw_args:
+        return True
+    tokens = []
+    bare_yes = False
+    idx = 0
+    while idx < len(raw_args):
+        arg = raw_args[idx]
+        if arg == "--yes":
+            nxt = raw_args[idx + 1] if idx + 1 < len(raw_args) else None
+            if nxt and not nxt.startswith("-"):
+                tokens.append(nxt)
+                idx += 1
+            else:
+                bare_yes = True
+        idx += 1
+
+    gate = Gate()
+    decision = None
+    for token in tokens:
+        decision = gate.validate(token, "doctor.fix", "doctor fix")
+        if decision.allowed:
+            break
+    if tokens and (decision is None or not decision.allowed):
+        # A supplied token that fails validation is a refusal, never a fallback to prompting.
+        if stream is None:
+            stream = sys.stdout
+        print(
+            json.dumps(
+                {
+                    "status": "requires_approval",
+                    "control_id": "doctor.fix",
+                    "reason": decision.message if decision else "Approval token rejected.",
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            file=stream,
+        )
+        return False
+    if decision is None or not decision.allowed:
+        decision = gate.decide(
+            risk_class="confirm", control_id="doctor.fix", target="doctor fix"
+        )
+        if decision.status == "requires_interactive" and sys.stdin.isatty():
+            answer = input("Apply shell/system performance fixes? [y/N]: ").strip().lower() == "y"
+            decision = gate.decide(
+                risk_class="confirm",
+                control_id="doctor.fix",
+                target="doctor fix",
+                interactive=answer,
+            )
+    if decision.allowed:
+        return True
+    payload = {
+        "status": "requires_approval",
+        "control_id": "doctor.fix",
+        "reason": decision.message,
+    }
+    if stream is None:
+        stream = sys.stdout
+    print(json.dumps(payload, indent=2, sort_keys=True), file=stream)
+    return False
+
+
 def main():
     if len(sys.argv) >= 3 and sys.argv[1].lower() in COMMAND_MODULES and any(
         arg in ("-h", "--help") for arg in sys.argv[2:]
@@ -287,6 +363,11 @@ Examples:
     parser.add_argument("--model", help="LLM model name (default: gpt-4o-mini)")
     parser.add_argument("--openvino-device", help="OpenVINO device (AUTO, CPU, GPU, NPU, USB)")
     parser.add_argument("--install-completion", action="store_true", help="Install shell completion for bash/zsh")
+    parser.add_argument(
+        "--redact-ips",
+        action="store_true",
+        help="Redact IP addresses in command output (default: off).",
+    )
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("args", nargs="*", help="Command arguments")
 
@@ -625,6 +706,8 @@ Examples:
         if command == "doctor":
             from src.deps import DependencyManager
             if args.args and args.args[0].lower() == "fix":
+                if not doctor_fix_gate(args.args[1:]):
+                    raise SystemExit(2)
                 from src.tune import Tuner
                 from src.scanner import fix_permission_issues
                 dry_run = "--dry-run" in args.args[1:]
