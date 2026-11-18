@@ -54,16 +54,16 @@ class CommandTest(unittest.TestCase):
 
         self.assertEqual(result.command, ["sudo", "launchctl", "list"])
 
-    def test_sensitive_values_and_ips_are_redacted_from_result(self):
-        result = list_command(
-            [
-                sys.executable,
-                "-c",
-                "print('token=secret-value ip=192.168.1.10')",
-            ],
-            sensitive_values=["secret-value"],
-        )
+    def test_sensitive_values_are_redacted_and_ips_only_on_opt_in(self):
+        argv = [sys.executable, "-c", "print('token=secret-value ip=192.168.1.10')"]
 
+        # IP redaction is opt-in (--redact-ips); secrets are always redacted.
+        result = list_command(argv, sensitive_values=["secret-value"])
+        self.assertNotIn("secret-value", result.stdout)
+        self.assertIn("192.168.1.10", result.stdout)
+        self.assertEqual(result.stdout.count("[REDACTED]"), 1)
+
+        result = list_command(argv, sensitive_values=["secret-value"], redact_ips=True)
         self.assertNotIn("secret-value", result.stdout)
         self.assertNotIn("192.168.1.10", result.stdout)
         self.assertEqual(result.stdout.count("[REDACTED]"), 2)
