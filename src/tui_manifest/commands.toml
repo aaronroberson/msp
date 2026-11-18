@@ -1,0 +1,443 @@
+# Curated command manifest (plan §3.1). One [[command]] per CLI action.
+#
+#   id          group.action (spaces → dots); unique
+#   argv        tokens after `msp`
+#   emits       Envelope[Record] from src/schemas (D10, D12)
+#   encoding    list | keyed | wrapped | scalar-list | object | text (P0.2)
+#   data_key    wrapped: key holding the data;  key_field: keyed: field for the key
+#   channel     "stdout" (default) or "artifact:<option>" when the output is a file
+#   success     accepted exit codes (default [0])
+#   fixture     tests/fixtures/cli/<fixture>.json, when one was captured
+#
+# Seeded inventory: commands.seed.json (generated; do not edit).
+
+# ------------------------------------------------------------------ privacy
+[[command]]
+id = "privacy.status"
+argv = ["status"]
+emits = "Item[PrivacyStatus]"
+encoding = "object"
+fixture = "privacy.status"
+
+[[command]]
+id = "privacy.list"
+argv = ["list"]
+emits = "Collection[PrivacySetting]"
+encoding = "list"
+fixture = "privacy.list"
+
+[[command]]
+id = "privacy.services.list"
+argv = ["services", "list"]
+emits = "Collection[LaunchService]"
+encoding = "list"
+fixture = "privacy.services_list"
+
+[[command]]
+id = "privacy.preset.list"
+argv = ["preset", "list"]
+emits = "Definitions[Preset]"
+encoding = "keyed"
+key_field = "key"
+fixture = "privacy.preset_list"
+
+# ---------------------------------------------------------------------- net
+[[command]]
+id = "net.list"
+argv = ["net", "list"]
+emits = "Collection[Socket]"
+encoding = "list"
+fixture = "net.list"
+
+[[command]]
+id = "net.established"
+argv = ["net", "established"]
+emits = "Collection[Connection]"
+encoding = "list"
+fixture = "net.established"
+
+[[command]]
+id = "net.arp"
+argv = ["net", "arp"]
+emits = "Collection[ArpEntry]"
+encoding = "list"
+fixture = "net.arp"
+
+[[command]]
+id = "net.hosts"
+argv = ["net", "hosts"]
+emits = "Collection[Host]"
+encoding = "list"
+fixture = "net.hosts"
+
+[[command]]
+id = "net.inspect"
+argv = ["net", "inspect"]
+emits = "Item[ProcessInfo]"
+encoding = "object"
+fixture = "net.inspect"
+
+# ------------------------------------------------------------------ startup
+[[command]]
+id = "startup.list"
+argv = ["startup", "list"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+fixture = "startup.list"
+
+[[command]]
+id = "startup.managed"
+argv = ["startup", "managed"]
+emits = "Collection[StartupItem]"
+encoding = "wrapped"
+data_key = "items"
+fixture = "startup.managed"
+
+[[command]]
+id = "startup.login-items"
+argv = ["startup", "login-items"]
+emits = "Collection[StartupItem]"
+encoding = "wrapped"
+data_key = "items"
+fixture = "startup.login_items"
+
+[[command]]
+id = "startup.agents"
+argv = ["startup", "agents"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+fixture = "startup.agents"
+
+[[command]]
+id = "startup.daemons"
+argv = ["startup", "daemons"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+fixture = "startup.daemons"
+
+[[command]]
+id = "startup.cron"
+argv = ["startup", "cron"]
+emits = "Collection[CronEntry]"
+encoding = "list"
+fixture = "startup.cron"
+
+[[command]]
+id = "startup.running"
+argv = ["startup", "running"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+fixture = "startup.running"
+
+[[command]]
+id = "startup.disabled"
+argv = ["startup", "disabled"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+fixture = "startup.disabled"
+
+[[command]]
+id = "startup.audit"
+argv = ["startup", "audit"]
+emits = "Findings[StartupRisk]"
+encoding = "list"
+fixture = "startup.audit"
+
+[[command]]
+id = "startup.summary"
+argv = ["startup", "summary"]
+emits = "Findings[StartupRisk]"
+encoding = "list"
+fixture = "startup.summary"
+
+[[command]]
+id = "startup.comprehensive-audit"
+argv = ["startup", "comprehensive-audit"]
+emits = "Findings[StartupRisk]"
+encoding = "list"
+fixture = "startup.comprehensive_audit"
+
+[[command]]
+id = "startup.inventory"
+argv = ["startup", "inventory"]
+emits = "Item[StartupInventory]"
+encoding = "object"
+fixture = "startup.inventory"
+
+# --------------------------------------------------- firewall/sharing/security
+[[command]]
+id = "firewall.status"
+argv = ["firewall", "status"]
+emits = "Item[FirewallState]"
+encoding = "object"
+fixture = "firewall.status"
+
+[[command]]
+id = "sharing.list"
+argv = ["sharing", "list"]
+emits = "Item[SharingState]"
+encoding = "object"
+fixture = "sharing.list"
+
+[[command]]
+id = "sharing.status"
+argv = ["sharing", "status"]
+emits = "Item[SharingState]"
+encoding = "object"
+fixture = "sharing.status"
+
+[[command]]
+id = "security.status"
+argv = ["security", "status"]
+emits = "Item[SecurityState]"
+encoding = "object"
+fixture = "security.status"
+
+# ------------------------------------------------------------------ fswatch
+[[command]]
+id = "fswatch.recent"
+argv = ["fswatch", "recent"]
+emits = "Collection[FileEvent]"
+encoding = "list"
+fixture = "fswatch.recent"
+
+[[command]]
+id = "fswatch.new"
+argv = ["fswatch", "new"]
+emits = "Collection[FilePath]"
+encoding = "scalar-list"
+scalar_field = "path"
+fixture = "fswatch.new"
+
+[[command]]
+id = "fswatch.audit"
+argv = ["fswatch", "audit"]
+emits = "Findings[FileChange]"
+encoding = "list"
+fixture = "fswatch.audit"
+
+# ------------------------------------------------------------------ traffic
+[[command]]
+id = "traffic.summary"
+argv = ["traffic", "summary"]
+emits = "Collection[TrafficRow]"
+encoding = "list"
+fixture = "traffic.summary"
+
+# --------------------------------------------------------------------- scan
+[[command]]
+id = "scan.quick"
+argv = ["scan", "quick"]
+emits = "Findings[HealthCheck]"
+encoding = "list"
+fixture = "scan.quick"
+
+[[command]]
+id = "scan.suspicious"
+argv = ["scan", "suspicious"]
+emits = "Findings[HealthCheck]"
+encoding = "list"
+fixture = "scan.suspicious"
+
+[[command]]
+id = "scan.signature"
+argv = ["scan", "signature"]
+emits = "Item[Signature]"
+encoding = "object"
+fixture = "scan.signature"
+
+[[command]]
+id = "scan.verify"
+argv = ["scan", "verify"]
+emits = "Document"
+encoding = "text"
+fixture = "scan.verify"
+
+[[command]]
+id = "scan.report"
+argv = ["scan", "report"]
+emits = "Document"
+encoding = "text"
+fixture = "scan.report"
+
+# ---------------------------------------------------------------------- tcc
+[[command]]
+id = "tcc.list"
+argv = ["tcc", "list"]
+emits = "Collection[Permission]"
+encoding = "wrapped"
+data_key = "permissions"
+fixture = "tcc.list"
+
+[[command]]
+id = "tcc.show"
+argv = ["tcc", "show"]
+emits = "Collection[Permission]"
+encoding = "wrapped"
+data_key = "permissions"
+fixture = "tcc.show"
+
+[[command]]
+id = "tcc.audit"
+argv = ["tcc", "audit"]
+emits = "Findings[TccFinding]"
+encoding = "wrapped"
+data_key = "findings"
+fixture = "tcc.audit"
+
+# ----------------------------------------------------- analysis pipeline
+[[command]]
+id = "interrogate"
+argv = ["interrogate"]
+emits = "Item[Facts]"
+encoding = "object"
+channel = "artifact:--output"
+fixture = "interrogate"
+
+[[command]]
+id = "audit"
+argv = ["audit"]
+emits = "Findings[RuleFinding]"
+encoding = "wrapped"
+data_key = "findings"
+success = [0, 1]
+fixture = "audit"
+
+[[command]]
+id = "remediate.plan"
+argv = ["remediate", "plan"]
+emits = "Item[RemediationPlan]"
+encoding = "object"
+channel = "artifact:--output"
+fixture = "remediate.plan"
+
+[[command]]
+id = "remediate.apply"
+argv = ["remediate", "apply"]
+emits = "Run[ActionOutcome]"
+encoding = "wrapped"
+data_key = "results"
+fixture = "remediate.apply_preview"
+
+[[command]]
+id = "report"
+argv = ["report"]
+emits = "Document"
+encoding = "text"
+text_format = "markdown"
+channel = "artifact:--output"
+fixture = "report"
+
+# ------------------------------------------------- workflows/chains/snapshots
+[[command]]
+id = "workflow.list"
+argv = ["workflow", "list"]
+emits = "Definitions[WorkflowDef]"
+encoding = "wrapped"
+data_key = "workflows"
+fixture = "workflow.list"
+
+[[command]]
+id = "workflow.show"
+argv = ["workflow", "show"]
+emits = "Run[PlannedStep]"
+encoding = "wrapped"
+data_key = "steps"
+fixture = "workflow.show"
+
+[[command]]
+id = "workflow.run"
+argv = ["workflow", "run"]
+emits = "Run[PlannedStep]"
+encoding = "wrapped"
+data_key = "steps"
+fixture = "workflow.run_dry"
+
+[[command]]
+id = "chain.list"
+argv = ["chain", "list"]
+emits = "Definitions[ChainDef]"
+encoding = "keyed"
+key_field = "name"
+fixture = "chain.list"
+
+[[command]]
+id = "snapshot.list"
+argv = ["snapshot", "list"]
+emits = "Collection[Snapshot]"
+encoding = "list"
+fixture = "snapshot.list"
+
+[[command]]
+id = "snapshot.diff"
+argv = ["snapshot", "diff"]
+emits = "Diff[SettingChange]"
+encoding = "list"
+fixture = "snapshot.diff"
+
+# ----------------------------------------------------------- ai / maintenance
+[[command]]
+id = "ai.providers"
+argv = ["ai", "providers"]
+emits = "Definitions[Provider]"
+encoding = "wrapped"
+data_key = "providers"
+fixture = "ai.providers"
+
+[[command]]
+id = "ai.devices"
+argv = ["ai", "devices"]
+emits = "Document"
+encoding = "text"
+fixture = "ai.devices"
+
+[[command]]
+id = "deps.status"
+argv = ["deps", "status"]
+emits = "Collection[Dependency]"
+encoding = "keyed"
+key_field = "name"
+fixture = "deps.status"
+
+[[command]]
+id = "deps.check"
+argv = ["deps", "check"]
+emits = "Item[PackageStatus]"
+encoding = "object"
+success = [0, 1]
+fixture = "deps.check"
+
+[[command]]
+id = "doctor"
+argv = ["doctor"]
+emits = "Item[DoctorReport]"
+encoding = "object"
+fixture = "doctor"
+
+[[command]]
+id = "tune.check"
+argv = ["tune", "check"]
+emits = "Findings[TuneCheck]"
+encoding = "list"
+fixture = "tune.check"
+
+[[command]]
+id = "tune.top"
+argv = ["tune", "top"]
+emits = "Item[CommandOutput]"
+encoding = "object"
+fixture = "tune.top"
+
+[[command]]
+id = "config.list"
+argv = ["config", "list"]
+emits = "Item[ConfigSections]"
+encoding = "object"
+fixture = "config.list"
+
+[[command]]
+id = "shell.audit"
+argv = ["shell", "audit"]
+emits = "Findings[ShellFinding]"
+encoding = "list"
+fixture = "shell.audit"
