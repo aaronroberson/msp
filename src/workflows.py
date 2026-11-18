@@ -14,9 +14,9 @@ from src.command import pause_for_enter
 from src.executor import run_workflow as exec_run_workflow, new_run_id, save_run, StepState, WorkflowRun, execute_step, ensure_workflow_state_dir, workflow_state_dir, workflow_state_file
 
 try:
-    from .llm import LLMReasoner
+    from .llm import LLMReasoner, LocalHeuristicProvider
 except ImportError:  # pragma: no cover - direct script execution fallback
-    from llm import LLMReasoner  # type: ignore
+    from llm import LLMReasoner, LocalHeuristicProvider  # type: ignore
 
 
 WORKFLOW_SCHEMA_VERSION = "2.0"
@@ -317,11 +317,19 @@ def run_workflow(
                 "rule_id": f"WF-{workflow.id.upper()}",
             }
         ]
-        result["reasoning"] = active_reasoner.analyze(
-            facts={"workflow": workflow_to_dict(workflow)},
-            findings=findings,
-            plan={"steps": steps},
-        )
+        reasoning_input = {
+            "facts": {"workflow": workflow_to_dict(workflow)},
+            "findings": findings,
+            "plan": {"steps": steps},
+        }
+        try:
+            result["reasoning"] = active_reasoner.analyze(**reasoning_input)
+        except RuntimeError as exc:
+            # Reasoning is advisory; a slow or unreachable model must not
+            # discard the deterministic plan. Degrade to the offline summary.
+            fallback = LLMReasoner(provider=LocalHeuristicProvider()).analyze(**reasoning_input)
+            fallback["fallback_reason"] = f"{active_reasoner.provider.name} failed: {exc}"
+            result["reasoning"] = fallback
     return result
 
 
@@ -443,6 +451,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(render_json(result), end="")
         else:
             print(render_text_workflow(get_workflow(args.workflow)), end="")
+            reasoning = result.get("reasoning")
+            if isinstance(reasoning, dict):
+                print(f"Reasoning ({reasoning.get('provider', 'unknown')}): {reasoning.get('summary', '')}")
+                if reasoning.get("fallback_reason"):
+                    print(f"  Note: {reasoning['fallback_reason']}; used offline summary instead.")
             print("Dry run: no commands were executed.")
         return 0
 

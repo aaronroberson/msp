@@ -88,3 +88,18 @@ class WorkflowsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WorkflowReasoningFallbackTest(unittest.TestCase):
+    def test_failed_reasoner_falls_back_to_offline_summary(self):
+        class BrokenProvider:
+            name = "ollama"
+
+            def complete_json(self, prompt, payload):
+                raise RuntimeError("Ollama response error: timed out")
+
+        from src.llm import LLMReasoner
+        result = workflows.run_workflow("daily", reasoner=LLMReasoner(provider=BrokenProvider()))
+        self.assertEqual(result["reasoning"]["provider"], "local_heuristic")
+        self.assertIn("timed out", result["reasoning"]["fallback_reason"])
+        self.assertTrue(result["steps"])
