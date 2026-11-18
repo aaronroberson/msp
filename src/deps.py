@@ -467,6 +467,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="msp Dependency Manager & Doctor")
     parser.add_argument("action", nargs="?", choices=["status", "doctor", "check", "install", "fix", "install-all", ""], help="Action to perform (omit for interactive mode)")
+    parser.add_argument("package", nargs="?", help="Package name for check/install")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--fix", action="store_true", help="Auto-fix issues")
     parser.add_argument("--install", metavar="PKG", help="Install specific package")
@@ -489,14 +490,17 @@ def main():
         return
 
     if args.check or args.action == "check":
-        pkg = args.check or (sys.argv[2] if len(sys.argv) > 2 else "")
+        pkg = args.check or args.package or ""
         if pkg:
             status = manager.check_dep(pkg)
-            print(f"{pkg}: {status.value}")
+            if args.json:
+                print(json.dumps({"package": pkg, "status": status.value}))
+            else:
+                print(f"{pkg}: {status.value}")
             sys.exit(0 if status == DepStatus.INSTALLED else 1)
 
     if args.install or args.action == "install":
-        pkg = args.install or (sys.argv[2] if len(sys.argv) > 2 else "")
+        pkg = args.install or args.package or ""
         if pkg:
             success, msg = manager.install_dep(pkg)
             print(msg)
