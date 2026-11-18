@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from src.command import setup_completion, suggest_command
 from src.command import pause_for_enter
+from src.executor import run_workflow as exec_run_workflow, new_run_id, save_run, StepState, WorkflowRun, execute_step, ensure_workflow_state_dir, workflow_state_dir, workflow_state_file
 
 try:
     from .llm import LLMReasoner
@@ -18,7 +19,7 @@ except ImportError:  # pragma: no cover - direct script execution fallback
     from llm import LLMReasoner  # type: ignore
 
 
-WORKFLOW_SCHEMA_VERSION = "1.0"
+WORKFLOW_SCHEMA_VERSION = "2.0"
 
 
 @dataclass(frozen=True)
@@ -278,6 +279,7 @@ def run_workflow(
     dry_run: bool = True,
     include_reasoning: bool = True,
     reasoner: Optional[LLMReasoner] = None,
+    gate: Optional[Gate] = None,
 ) -> Dict[str, Any]:
     """Return an execution plan. Destructive actions are never executed here."""
 
@@ -402,7 +404,7 @@ def interactive_menu() -> None:
             sel = input(f"\nSelect workflow [1-{len(wf_ids)}]: ").strip()
             if sel.isdigit() and 1 <= int(sel) <= len(wf_ids):
                 wid = wf_ids[int(sel) - 1]
-                result = run_workflow(wid, dry_run=True, include_reasoning=True)
+                result = run_workflow(wid, dry_run=True, include_reasoning=True, gate=gate)
                 print(render_text_workflow(get_workflow(wid)))
                 print("Dry run: no commands were executed.")
             pause_for_enter()
@@ -435,7 +437,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
 
     if args.command == "run":
-        result = run_workflow(args.workflow, dry_run=args.dry_run, include_reasoning=not args.no_reason)
+        gate = None  # Gate is optional; gate enforcement can be added later
+        result = run_workflow(args.workflow, dry_run=args.dry_run, include_reasoning=not args.no_reason, gate=gate)
         if args.json:
             print(render_json(result), end="")
         else:
