@@ -25,6 +25,47 @@ except ImportError:
 console = Console() if RICH_AVAILABLE else None
 
 
+def parse_share_points(output: str) -> List[Dict[str, Any]]:
+    """Parse ``sharing -l``.
+
+    Each share has top-level ``name``/``path`` plus nested per-protocol blocks
+    (``smb: { … }``, ``afp: { … }``). Protocol blocks are kept as sub-dicts, and
+    the first protocol's ``shared``/``guest access``/``read-only`` flags are
+    lifted to the top level for the existing table/sort code.
+    """
+    shares: List[Dict[str, Any]] = []
+    current: Dict[str, Any] = {}
+    block: Optional[Dict[str, Any]] = None
+    for raw in output.splitlines():
+        line = raw.strip()
+        if not line:
+            if current:
+                shares.append(current)
+                current, block = {}, None
+            continue
+        if line == "}":
+            block = None
+            continue
+        if ":" not in line:
+            continue  # e.g. the "List of Share Points" banner
+        key, value = (part.strip() for part in line.split(":", 1))
+        key = key.lower()
+        if value == "{":
+            block = current.setdefault("protocols", {}).setdefault(key, {})
+            continue
+        target = block if block is not None else current
+        target[key.replace(" ", "_") if block is None else key] = value
+    if current:
+        shares.append(current)
+    for share in shares:
+        protocols = share.get("protocols", {})
+        first = next(iter(protocols.values()), {})
+        for flag in ("shared", "guest access", "read-only"):
+            if flag in first:
+                share.setdefault(flag.replace(" ", "_") if flag == "guest access" else flag, first[flag])
+    return shares
+
+
 class SharingManager:
     """Manage macOS sharing services."""
 
@@ -51,29 +92,8 @@ class SharingManager:
 
     def list_share_points(self) -> List[Dict[str, Any]]:
         """List all configured share points."""
-        shares = []
         success, output = self._run_cmd("sharing -l")
-
-        if success and output:
-            current_share = {}
-            for line in output.split('\n'):
-                line = line.strip()
-                if not line:
-                    if current_share:
-                        shares.append(current_share)
-                        current_share = {}
-                    continue
-
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    key = key.strip().lower().replace(' ', '_')
-                    value = value.strip()
-                    current_share[key] = value
-
-            if current_share:
-                shares.append(current_share)
-
-        return shares
+        return parse_share_points(output) if success and output else []
 
     def get_sharing_status(self) -> Dict[str, Any]:
         """Get overall sharing status."""
@@ -181,7 +201,7 @@ class SharingManager:
         status = self.get_sharing_status()
 
         if json_output:
-            print(status)
+            print(json.dumps(status, indent=2, default=str))
             return
 
         shares = self._sort_shares(status.get('share_points', []), sort_by)
