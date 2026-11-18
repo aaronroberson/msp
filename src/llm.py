@@ -278,6 +278,10 @@ class OllamaProvider:
             "messages": messages,
             "stream": False,
             "format": "json",
+            # Thinking models (qwen3, deepseek-r1, …) otherwise reason for
+            # minutes before emitting JSON and blow past model_timeout.
+            # Ignored by models without thinking support.
+            "think": False,
             "options": {
                 "temperature": 0.1,
                 "num_ctx": 2048,
