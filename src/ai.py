@@ -467,6 +467,27 @@ def _openvino_chat(
 # Interactive Provider Configuration (BYOK Experience)
 # ---------------------------------------------------------------------------
 
+def provider_inventory() -> Dict[str, Any]:
+    """Non-interactive provider listing. Reports where a key comes from, never the key."""
+    cfg = load_ai_config()
+    configured = cfg.get("providers", {})
+    providers = []
+    for provider_id, defn in DEFAULT_PROVIDERS.items():
+        entry = configured.get(provider_id, {})
+        env_key = defn.get("env_key")
+        key_source = "config" if entry.get("api_key") else "env" if env_key and os.environ.get(env_key) else None
+        providers.append({
+            "id": provider_id,
+            "name": defn.get("name", provider_id),
+            "type": defn.get("type", ""),
+            "model": entry.get("model") or defn.get("default_model", ""),
+            "configured": provider_id in configured,
+            "key_source": key_source,
+            "default": cfg.get("default_provider") == provider_id,
+        })
+    return {"default_provider": cfg.get("default_provider") or None, "providers": providers}
+
+
 def configure_provider_flow() -> Optional[str]:
     """Interactive guided setup to choose an AI provider and securely store keys."""
     print("\n" + "=" * 60)
@@ -996,7 +1017,13 @@ Examples:
         interactive_menu(analyzer, args.json)
         return
 
+    if args.action == "providers" and (args.json or not sys.stdin.isatty()):
+        print(json.dumps(provider_inventory(), indent=2))
+        return
     if args.action in ("configure", "providers"):
+        if not sys.stdin.isatty():
+            print("Error: 'ai configure' is interactive; run it in a terminal.", file=sys.stderr)
+            sys.exit(2)
         configure_provider_flow()
         return
 
