@@ -142,6 +142,7 @@ class SlotComponent(Vertical):
         self.failure: Optional[str] = None
         self.busy = False
         self.idle_text: Optional[str] = None   # set for runs that only execute when asked
+        self.run_button: Optional[str] = None  # label of a button that runs this slot's run on request
         if slot.props.get("span") == 2:
             self.add_class("span-2")
 
@@ -161,12 +162,15 @@ class SlotComponent(Vertical):
 
     def heading(self, summary: str = "") -> ComposeResult:
         link = self.slot.props.get("link")
-        if not (self.title or link or self.busy):
+        if not (self.title or link or self.busy or self.run_button):
             return
         with Horizontal(classes="slot-heading"):
             yield Label(" ".join(filter(None, [self.title, summary])), classes="eyebrow")
             if self.busy:
                 yield Label(str(self.slot.props.get("busy_label", "⟳ updating…")), classes="busy")
+            if self.run_button and not self.busy:
+                # the page handles run-<id> buttons (confirming outbound runs first)
+                yield Button(self.run_button, id=f"run-{self.slot.run}", classes="slot-run")
             if link:
                 yield Button(f"{self.slot.props.get('link_label', 'View all')} →", id=f"link-{self._dom_key()}",
                              classes="quiet-action link", name=link)
@@ -535,7 +539,8 @@ class ActionForm(SlotComponent):
 
     props: title, fields (arg names to ask for; default: all without a fixed
     value), fixed (arg values set by the page, e.g. ``operation = "add"``),
-    submit (button label), placeholders (per field), unavailable (a reason
+    submit (button label), placeholders (per field), required (fields the
+    page requires beyond the CLI's own), unavailable (a reason
     the action cannot run here; the form shows it instead of a button).
     Choices become selects, flags checkboxes, everything else text inputs.
     """
@@ -596,7 +601,8 @@ class ActionForm(SlotComponent):
             return
         event.stop()
         args = self.values()
-        missing = [a.name for a in self.ctx.command_for(self.run_id).args if a.required and a.name not in args]
+        required = {a.name for a in self.ctx.command_for(self.run_id).args if a.required} | set(self.slot.props.get("required", []))
+        missing = [name for name in required if name not in args]
         error = self.query_one(".form-error", Static)
         if missing:
             error.update("Required: " + ", ".join(self.ctx.field_label(m, self.slot) for m in missing))
@@ -626,7 +632,8 @@ def _report_lines(ctx: PageContext, slot: SlotSpec, value: Any, depth: int = 0) 
 
 class ReportView(SlotComponent):
     """A document (``{format, text}``), a result (``{ok, message}``) or one record
-    as readable key/value lines. props: title, max_height."""
+    as readable key/value lines. props: title, max_height, text_field (render
+    that field of a record as markdown, e.g. an AI ``response``)."""
 
     def compose(self) -> ComposeResult:
         from textual.containers import VerticalScroll as Scroll
@@ -638,9 +645,13 @@ class ReportView(SlotComponent):
             yield placeholder
             return
         data = self.data
+        text_field = self.slot.props.get("text_field")
         with Scroll(classes="report-body") as body:
             body.styles.max_height = int(self.slot.props.get("max_height", 30))
-            if isinstance(data, dict) and "text" in data and "format" in data:
+            if text_field and isinstance(data, dict):
+                # one long text field (an AI answer): render it as markdown, not a key/value row
+                yield Markdown(str(data.get(text_field) or "(no answer)"))
+            elif isinstance(data, dict) and "text" in data and "format" in data:
                 if data.get("format") == "markdown":
                     yield Markdown(str(data.get("text") or ""))
                 else:

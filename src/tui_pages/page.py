@@ -74,6 +74,8 @@ class PageView(VerticalScroll):
         run = self.ctx.runs.get(slot.run or "")
         if run and (run.trigger in ("manual", "on_action") or run.trigger.startswith("on_select:")):
             widget.idle_text = slot.props.get("empty", "Not run yet.")   # runs only when asked
+        if run and run.id in self._slot_runs:
+            widget.run_button = self._run_label(run.id)                  # run it from its own panel
         tab = self.page.slot_tab(slot)
         widget.display = tab is None or tab == self.tab
         self.slots[widget.slot_key] = widget
@@ -85,8 +87,8 @@ class PageView(VerticalScroll):
             yield Label(meta.title, classes="page-title")
             yield Label(self._meta_text(), classes="page-meta" + (" fallback-badge" if meta.fallback else ""), id="page-meta")
             for run_id in self.scheduler.manual_runs():
-                command = self.scheduler.command(run_id)
-                yield Button(self.page_props_label(run_id, command), id=f"run-{run_id}", classes="header-action")
+                if run_id not in self._slot_runs:   # runs with a panel get their button there
+                    yield Button(self._run_label(run_id, header=True), id=f"run-{run_id}", classes="header-action")
             yield Button("Refresh", id="page-refresh", classes="header-action")
         if self.page.tabs:
             with Horizontal(classes="view-tabs"):
@@ -119,9 +121,17 @@ class PageView(VerticalScroll):
         preview.display = False
         yield preview
 
-    def page_props_label(self, run_id: str, command: CommandSpec) -> str:
+    @property
+    def _slot_runs(self) -> set:
+        """Manual runs whose output has a titled panel: the button lives in that panel."""
+        manual = set(self.scheduler.manual_runs())
+        return {s.run for s in self.page.slots if s.run in manual and s.props.get("title")}
+
+    def _run_label(self, run_id: str, header: bool = False) -> str:
         # ⏱ slow · ↗ sends network traffic or data to an AI provider (asks first)
-        return f"Run {' '.join(command.argv)}" + (" ⏱" if command.long_running else "") + (" ↗" if self.scheduler.outbound(run_id) else "")
+        command = self.scheduler.command(run_id)
+        name = f"Run {' '.join(command.argv)}" if header else "Run"
+        return name + (" ⏱" if command.long_running else "") + (" ↗" if self.scheduler.outbound(run_id) else "")
 
     # -- runs ----------------------------------------------------------
 
@@ -184,12 +194,19 @@ class PageView(VerticalScroll):
         self.post_message(RunFinished(self.page.page.id, result))
         # A read run that refreshes others (a scan rewrites the saved results
         # `doctor` reads) re-runs them; mutations' refreshes are the shell's job.
-        targets = [r for r in self.scheduler.refresh_targets(result.run_id) if self.scheduler.command(r).risk == "read"]
+        targets = self.refreshable(result.run_id)
         if targets and self.scheduler.command(result.run_id).risk == "read" and not result.failure:
             self.start(targets, force=True)
         self._show_progress()
         self._show_source()
         self._show_busy()
+
+    def refreshable(self, run_id: str) -> List[str]:
+        """Reads to re-run after ``run_id``: its ``refreshes`` that are already on
+        screen (never-shown tabs load when shown; outbound runs are never resent)."""
+        return [r for r in self.scheduler.refresh_targets(run_id)
+                if self.scheduler.command(r).risk == "read" and r in self.scheduler.results
+                and not self.scheduler.outbound(r)]
 
     def _show_busy(self) -> None:
         """Mark slots whose data is being replaced: their own run is pending, or a
@@ -257,7 +274,8 @@ class PageView(VerticalScroll):
     def on_row_selected(self, message: RowSelected) -> None:
         message.stop()
         for widget in self.slots.values():
-            if isinstance(widget, RecordInspector) and widget.slot.follows == message.slot_key:
+            # follows one slot ("workspace.main#2") or every slot of a region ("workspace.main")
+            if isinstance(widget, RecordInspector) and widget.slot.follows in (message.slot_key, message.slot_key.split("#")[0]):
                 widget.show(message.row)
         runs = self.scheduler.triggered(f"on_select:{message.slot_key}")
         if not runs:
@@ -284,10 +302,17 @@ class PageView(VerticalScroll):
         command = self.ctx.command_for(run_id)
         if command is None:
             return
+        self._reveal(run_id)
         if command.risk == "read" and not self.scheduler.outbound(run_id):
             self.start([run_id], force=True, args={run_id: args})
             return
         self._confirm_or_preview(run_id, command, args)
+
+    def _reveal(self, run_id: str) -> None:
+        """A requested run whose output lives on another tab switches to that tab."""
+        tab = self._run_tab(run_id)
+        if tab and tab != self.tab:
+            self.show_tab(tab)
 
     def _confirm_or_preview(self, run_id: str, command: CommandSpec, args: Dict[str, Any]) -> None:
         if self.action_handler is not None:
@@ -308,9 +333,11 @@ PAGE_CSS = """
 .page-meta { color: #8B949E; margin-right: 2; }
 .header-action { height: 3; margin-left: 1; }
 .fallback-badge { color: #D29922; text-style: bold; }
-.view-tabs { height: 3; margin-bottom: 1; }
-.view-tab { height: 3; min-width: 10; margin-right: 1; }
-.view-tab.-active { border: solid #58A6FF; color: #58A6FF; text-style: bold; }
+.view-tabs { height: 1; margin-bottom: 1; border-bottom: none; }
+.view-tab { height: 1; min-width: 0; width: auto; border: none; background: transparent; color: #8B949E; padding: 0 1; margin-right: 0; }
+.view-tab:hover { background: #161B22; color: #F0F6FC; border: none; }
+.view-tab:focus { border: none; text-style: underline; }
+.view-tab.-active { background: #1F2B3A; color: #58A6FF; text-style: bold; border: none; }
 .report-body { height: auto; }
 .report-text { color: #C9D1D9; }
 #page-notices { height: auto; }
@@ -321,7 +348,7 @@ PAGE_CSS = """
 .strip-region > .slot.status-strip.wraps { width: 1fr; max-width: 100; }
 .strip { height: 3; width: auto; }
 .grid-strip { height: auto; width: 1fr; layout: grid; grid-gutter: 0 1; }
-.pill { border: solid #30363D; background: #161B22; width: auto; height: 3; padding: 0 1; margin-right: 1; }
+.pill { border: solid #30363D; background: #161B22; width: auto; height: 3; padding: 0 1; margin-right: 0; }
 .grid-strip .pill { width: 1fr; margin-right: 0; }
 .pill-label { color: #8B949E; text-style: bold; margin-right: 2; }
 .state-on { color: #3FB950; text-style: bold; }
@@ -350,8 +377,9 @@ PAGE_CSS = """
 .toggle-unknown { padding-top: 1; }
 .slot DataTable { height: auto; max-height: 18; border: none; }
 .inspector-body { color: #C9D1D9; margin: 1 0; }
-.row-actions { height: 3; }
-.row-actions Button { margin-right: 1; min-width: 10; }
+.row-actions { height: auto; layout: grid; grid-size: 2; grid-gutter: 0 1; }
+.slot-run { height: 1; min-width: 8; border: none; background: #1F2B3A; color: #58A6FF; margin-left: 1; }
+.row-actions Button { width: 100%; min-width: 8; }
 .form-submit { margin-top: 1; }
 .slot Input, .slot Select { margin-top: 1; }
 .preview { color: #58A6FF; background: #161B22; height: auto; padding: 0 1; }

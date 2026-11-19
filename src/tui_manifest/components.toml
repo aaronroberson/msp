@@ -21,7 +21,7 @@ accepts = ["findings"]
 accepts = ["item", "collection"]
 
 [component.RecordTable]
-accepts = ["collection", "findings", "definitions", "diff", "item"]
+accepts = ["collection", "findings", "definitions", "diff", "run", "item"]
 
 [component.FindingList]
 accepts = ["findings"]
