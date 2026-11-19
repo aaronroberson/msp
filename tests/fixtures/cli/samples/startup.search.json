@@ -1,0 +1,15 @@
+{
+  "id": "startup.search",
+  "derived_from": "src/startup.py (search --json: same fields as startup running/disabled)",
+  "note": "Hand-authored from a sanitized live run of 'startup search hermes'; captures skip commands that need an argument.",
+  "json": [
+    {
+      "name": "ai.hermes.gateway",
+      "label": "ai.hermes.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist",
+      "type": "agent",
+      "status": "unknown",
+      "pid": null
+    }
+  ]
+}
