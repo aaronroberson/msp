@@ -7,12 +7,12 @@ from textual.widgets import Button
 
 from src.network import NetworkMonitor
 from src.startup import StartupManager
-from src.tui_v2 import CommandBroker, MspTUI, REPO_ROOT, RUNNABLES, VIEWS, _payload_rows, _requires_confirmation
+from src.tui_v2 import CommandBroker, MspTUI, REPO_ROOT, RUNNABLES, VIEWS, _requires_confirmation
 
 
 def test_catalog_and_command_confirmations():
     assert len({view.id for view in VIEWS}) == len(VIEWS)
-    assert all(view.columns and view.command for view in VIEWS if view.id not in {"dashboard", "runner"})
+    assert all(view.columns and view.command for view in VIEWS if view.id != "runner")
     assert RUNNABLES
     assert _requires_confirmation(["net", "terminate", "--pid", "22"])
     assert _requires_confirmation(["firewall", "set", "enabled", "off"])
@@ -21,33 +21,10 @@ def test_catalog_and_command_confirmations():
     assert not _requires_confirmation(["scan", "quick"])
 
 
-def test_firewall_payload_and_command_broker():
-    rows = _payload_rows("firewall", {"enabled": True, "stealth_mode": False, "apps_output": "app record"})
-    assert rows == [
-        {"setting": "Enabled", "value": "On", "details": ""},
-        {"setting": "Stealth Mode", "value": "Off", "details": ""},
-        {"setting": "Application", "value": "Rule", "details": "app record"},
-    ]
+def test_command_broker_argv_and_env():
     broker = CommandBroker("net inspect --pid 10 --json")
     assert broker.argv()[-5:] == ["net", "inspect", "--pid", "10", "--json"]
     assert broker.env()["PYTHONPATH"].split(os.pathsep)[0] == str(REPO_ROOT)
-
-
-def test_privacy_firewall_details_use_bullets():
-    rows = _payload_rows("privacy", {"firewall": {
-        "enabled": True, "stealth_mode": True, "block_all": False,
-    }})
-    assert rows[0]["details"] == "• Stealth mode: On\n• Block all incoming: Off"
-
-
-def test_privacy_firewall_exceptions_are_summarised_not_dumped():
-    rows = _payload_rows("privacy", {"firewall": {
-        "enabled": True, "allows_signed": False,
-        "exceptions": [{"name": "Zoom", "status": "BLOCK"}, {"name": "DeviceHub", "status": "ALLOW"}],
-    }})
-    assert rows[0]["details"] == "• Allow Apple-signed software: Off\n• App rules: 1 allowed · 1 blocked"
-    assert "{" not in rows[0]["details"]
-    assert rows[0]["rules"] == [{"name": "DeviceHub", "status": "ALLOW"}, {"name": "Zoom", "status": "BLOCK"}]
 
 
 def test_privacy_page_renders_firewall_rules_and_links_to_firewall():
@@ -67,17 +44,16 @@ def test_privacy_page_renders_firewall_rules_and_links_to_firewall():
             rules = page.query_one("#table-workspace-main-2", DataTable)
             assert rules.row_count == 8
             assert [str(c) for c in rules.get_row_at(0)] == ["DeviceHub", "Allowed"]
+            # rules are summarised in the heading and listed readably, never dumped as JSON
+            heading = " ".join(str(label.render()) for label in page.query(".eyebrow"))
+            assert "FIREWALL APP RULES 1 allowed · 7 blocked" in heading
+            assert not any("{" in str(rules.get_row_at(i)) for i in range(rules.row_count))
             page.query_one("#link-workspace-main-2", Button).press()
             await pilot.pause(0.2)
             assert app._current_id == "firewall"
             assert app.query_one("#nav-firewall").has_class("-active")
 
     asyncio.run(exercise())
-
-
-def test_privacy_gatekeeper_details_fallback():
-    rows = _payload_rows("privacy", {"gatekeeper": {"enabled": True}})
-    assert rows[0]["details"] == "• Unsigned apps blocked"
 
 
 def test_firewall_mutations_use_fixed_argument_vectors(monkeypatch, tmp_path):
@@ -234,5 +210,27 @@ def test_page_actions_confirm_run_then_refresh(monkeypatch):
             await app.workers.wait_for_complete()
             assert lines == ["firewall app add '/Applications/My App.app'"]
             assert executed == ["fw", "fw"]                # refreshed exactly its read
+
+    asyncio.run(exercise())
+
+
+def test_palette_lists_sidebar_screens_and_opens_the_firewall_add_form():
+    from textual.widgets import Input
+
+    from src.tui_pages.runtime import run_replay
+
+    async def exercise():
+        app = MspTUI(executor=run_replay)
+        async with app.run_test(size=(160, 45)) as pilot:
+            await pilot.pause(0.2)
+            app.open_palette()
+            await pilot.pause(0.1)
+            entries = app.screen.entries
+            assert ("VIEW", "Privacy settings", "Open privacy settings screen", "view:privacy") in entries
+            index = next(i for i, e in enumerate(entries) if e[3] == "form:firewall-app")
+            app.screen.dismiss(index)
+            await pilot.pause(0.3)
+            assert app._current_id == "firewall"
+            assert isinstance(app.focused, Input) and app.focused.id == "form-workspace-aside-2-path"
 
     asyncio.run(exercise())

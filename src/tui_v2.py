@@ -169,61 +169,16 @@ class ViewSpec:
 
 
 VIEWS: list[ViewSpec] = [
-    ViewSpec("dashboard", "Overview"),
     ViewSpec("runner", "Commands"),
     ViewSpec("findings", "Findings", ("severity", "category", "item", "description"), "scan quick --json"),
     ViewSpec("listening", "Listening sockets", ("process", "pid", "user", "protocol", "local", "state"), "net list --json"),
     ViewSpec("established", "Established connections", ("process", "pid", "user", "local", "remote"), "net established --json"),
     ViewSpec("startup", "Startup", ("label", "type", "path", "status"), "startup managed --json"),
     ViewSpec("tcc", "Permissions", ("service", "client", "auth", "source", "last_modified"), "tcc list --json"),
-    ViewSpec("privacy", "Privacy", ("setting", "status", "details"), "status --json"),
-    ViewSpec("firewall", "Firewall", ("setting", "value", "details"), "firewall status"),
     ViewSpec("snapshots", "Snapshots", ("name", "timestamp", "firewall", "gatekeeper", "filevault"), "snapshot list --json"),
     ViewSpec("workflows", "Workflows", ("run_id", "status", "completed_steps"), "workflow run daily --dry-run"),
     ViewSpec("ai", "AI", ("provider", "model", "local_only"), "ai ask --json"),
 ]
-
-SECURITY_SETTING_LABELS: dict[str, str] = {
-    "stealth_mode": "Stealth mode",
-    "block_all": "Block all incoming",
-    "allows_signed": "Allow Apple-signed software",
-    "allows_signed_app": "Allow downloaded signed apps",
-    "encrypted": "Disk encrypted",
-}
-
-
-def _firewall_rules(item: dict[str, Any]) -> list[dict[str, str]]:
-    """Normalise firewall app exceptions to sorted {name, status} rows (allowed first)."""
-    raw = item.get("exceptions") or item.get("apps") or []
-    rules = [
-        {"name": str(rule.get("name") or rule.get("path") or "?"), "status": str(rule.get("status", "")).upper()}
-        for rule in raw if isinstance(rule, dict)
-    ] if isinstance(raw, list) else []
-    return sorted(rules, key=lambda rule: (rule["status"] != "ALLOW", rule["name"].lower()))
-
-
-def _security_detail_lines(name: str, item: Any) -> list[str]:
-    """Human-readable detail lines for a firewall / gatekeeper / filevault status dict."""
-    if not isinstance(item, dict):
-        return []
-    lines = []
-    for field, detail in item.items():
-        if field in {"enabled", "exceptions", "apps"} or detail in (None, "", [], {}):
-            continue
-        if isinstance(detail, (dict, list)):
-            continue
-        label = SECURITY_SETTING_LABELS.get(field, field.replace("_", " ").title())
-        value = ("On" if detail else "Off") if isinstance(detail, bool) else detail
-        lines.append(f"{label}: {value}")
-    if name == "firewall":
-        rules = _firewall_rules(item)
-        if rules:
-            allowed = sum(rule["status"] == "ALLOW" for rule in rules)
-            lines.append(f"App rules: {allowed} allowed · {len(rules) - allowed} blocked")
-    if not lines and name == "gatekeeper" and item.get("enabled") is True:
-        lines.append("Unsigned apps blocked")
-    return lines
-
 
 def view_by_id(view_id: str) -> Optional[ViewSpec]:
     return next((view for view in VIEWS if view.id == view_id), None)
@@ -280,36 +235,6 @@ def _payload_rows(view_id: str, payload: Any) -> list[dict[str, Any]]:
             }
             for row in values if isinstance(row, dict)
         ] if isinstance(values, list) else []
-    if view_id == "privacy" and isinstance(payload, dict):
-        rows = []
-        for key in ("firewall", "gatekeeper", "filevault"):
-            value = payload.get(key)
-            if isinstance(value, dict):
-                enabled = value.get("enabled")
-                rows.append({
-                    "setting": key.title(),
-                    "status": "Enabled" if enabled is True else "Disabled" if enabled is False else "Unavailable",
-                    "details": "\n".join(f"• {line}" for line in _security_detail_lines(key, value)),
-                    "rules": _firewall_rules(value) if key == "firewall" else [],
-                })
-        return rows
-    if view_id == "firewall" and isinstance(payload, dict):
-        rows = [
-            {"setting": name.replace("_", " ").title(), "value": "On" if value is True else "Off" if value is False else "Unavailable", "details": ""}
-            for name, value in payload.items() if name in {"enabled", "stealth_mode", "block_all", "allows_signed", "allows_signed_app"}
-        ]
-        apps = payload.get("apps")
-        if isinstance(apps, list) and apps:
-            rows.extend({
-                "setting": "Application",
-                "value": str(app.get("status", "Rule")),
-                "details": str(app.get("path", app.get("name", ""))),
-            } for app in apps if isinstance(app, dict))
-        else:
-            app_lines = payload.get("apps_output", "")
-            if isinstance(app_lines, str):
-                rows.extend({"setting": "Application", "value": "Rule", "details": line.strip()} for line in app_lines.splitlines() if line.strip() and not line.lower().startswith("total number"))
-        return rows
     if view_id == "snapshots":
         values = payload if isinstance(payload, list) else payload.get("snapshots", []) if isinstance(payload, dict) else []
         rows = []
@@ -408,8 +333,6 @@ class TablePane(Vertical):
         with Horizontal(classes="screen-toolbar"):
             title = "Network" if self.spec.id in {"listening", "established"} else self.spec.title
             yield Label(title, classes="screen-title")
-            if self.spec.id == "firewall":
-                yield Button("‹ Back", id="back-privacy")
             yield Button("Refresh", id="refresh-view")
         if self.spec.id in {"listening", "established"}:
             with Horizontal(id="network-tabs"):
@@ -449,46 +372,6 @@ class TablePane(Vertical):
                         elif self.spec.id == "startup":
                             yield Button("Disable item", id="disable-startup", variant="warning")
                             yield Button("Enable item", id="enable-startup")
-        elif self.spec.id == "firewall":
-            with Vertical(id="firewall-actions"):
-                with Horizontal():
-                    yield Button("Enable firewall", id="firewall-enable", variant="primary")
-                    yield Button("Disable firewall", id="firewall-disable", variant="error")
-                with Horizontal():
-                    yield Button("Stealth on", id="firewall-stealth-on")
-                    yield Button("Stealth off", id="firewall-stealth-off")
-                    yield Button("Block all on", id="firewall-block-on")
-                    yield Button("Block all off", id="firewall-block-off")
-                with Horizontal():
-                    yield Button("Signed software on", id="firewall-signed-on")
-                    yield Button("Signed software off", id="firewall-signed-off")
-                    yield Button("Downloaded apps on", id="firewall-signed-app-on")
-                    yield Button("Downloaded apps off", id="firewall-signed-app-off")
-            yield Input(placeholder="Application path…", id="firewall-app-path")
-            with Horizontal(id="firewall-app-actions"):
-                yield Button("Add app", id="firewall-app-add", variant="primary")
-                yield Button("Remove app", id="firewall-app-remove", variant="error")
-                yield Button("Block app", id="firewall-app-block")
-                yield Button("Allow app", id="firewall-app-unblock")
-            yield DataTable(id="table-firewall", cursor_type="row")
-        elif self.spec.id == "privacy":
-            # Gatekeeper and FileVault expose a single on/off state, so they get a
-            # compact status strip; the firewall (settings + app rules) gets the body.
-            with Horizontal(id="privacy-cards"):
-                for name, label in (("gatekeeper", "GATEKEEPER"), ("filevault", "FILEVAULT")):
-                    with Horizontal(classes="privacy-strip"):
-                        yield Label(label, classes="eyebrow")
-                        yield Label("—", id=f"privacy-{name}-state", classes="state-pill")
-                        yield Static("", id=f"privacy-{name}-details", markup=False)
-            with Vertical(id="privacy-firewall", classes="dashboard-panel"):
-                with Horizontal(id="privacy-firewall-heading"):
-                    yield Label("FIREWALL", classes="eyebrow")
-                    yield Label("—", id="privacy-firewall-state", classes="state-pill")
-                    yield Button("Enable", id="firewall-enable", variant="primary")
-                    yield Button("Disable", id="firewall-disable", variant="error")
-                    yield Button("Manage rules ›", id="privacy-manage-firewall")
-                yield Static("", id="privacy-firewall-details", markup=False)
-                yield DataTable(id="privacy-firewall-rules", cursor_type="row")
         else:
             if self.spec.id == "startup":
                 with Vertical(id="startup-intro", classes="dashboard-panel"):
@@ -510,15 +393,11 @@ class TablePane(Vertical):
 
     def on_mount(self) -> None:
         for box in self.query(Input):
-            box.display = box.id in {"firewall-app-path", "startup-path", "startup-name"}
+            box.display = box.id in {"startup-path", "startup-name"}
         if self.spec.id == "findings":
             table = self.query_one("#table-findings", DataTable)
             for column, title in zip(self.spec.columns, ("SEV", "CATEGORY", "ITEM", "DESCRIPTION")):
                 table.add_column(title, key=column)
-        elif self.spec.id == "privacy":
-            rules = self.query_one("#privacy-firewall-rules", DataTable)
-            rules.add_column("Application", key="name")
-            rules.add_column("Rule", key="status")
         else:
             table = self.query_one(DataTable)
             for column in self.spec.columns:
@@ -545,31 +424,6 @@ class TablePane(Vertical):
             for key, count in counts.items():
                 title = "All" if key == "all" else "Warn" if key == "warn" else key.title()
                 self.query_one(f"#severity-{key}", Button).label = f"{title} ({count})"
-        elif self.spec.id == "privacy":
-            by_name = {row.get("setting", "").lower(): row for row in rows}
-            for name in ("firewall", "gatekeeper", "filevault"):
-                row = by_name.get(name, {})
-                state = str(row.get("status", "Unavailable"))
-                state_label = self.query_one(f"#privacy-{name}-state", Label)
-                state_label.update(state.upper())
-                state_label.set_class(state == "Enabled", "state-enabled")
-                state_label.set_class(state == "Disabled", "state-disabled")
-                state_label.set_class(state == "Unavailable", "state-unavailable")
-                details = str(row.get("details", ""))
-                if name != "firewall":
-                    # Single-line strip: join the (usually one) detail line.
-                    details = " · ".join(line.lstrip("• ") for line in details.splitlines())
-                self.query_one(f"#privacy-{name}-details", Static).update(details)
-            rules_table = self.query_one("#privacy-firewall-rules", DataTable)
-            rules_table.clear()
-            firewall_rules = by_name.get("firewall", {}).get("rules", [])
-            for index, rule in enumerate(firewall_rules):
-                status = rule.get("status", "")
-                rule_text = "Allowed" if status == "ALLOW" else "Blocked" if status == "BLOCK" else status.title() or "—"
-                rules_table.add_row(_trunc(rule.get("name", ""), 60), rule_text, key=str(index))
-            rules_table.display = bool(firewall_rules)
-        elif self.spec.id == "firewall":
-            self._all_rows = rows
         self._redraw()
         self._refresh_status()
 
@@ -592,8 +446,6 @@ class TablePane(Vertical):
         ]
 
     def _redraw(self) -> None:
-        if self.spec.id == "privacy":
-            return
         table = self.query_one(DataTable)
         table.clear()
         for index, row in self._visible_rows():
@@ -602,10 +454,7 @@ class TablePane(Vertical):
 
     def _refresh_status(self) -> None:
         total = len(self._all_rows)
-        if self.spec.id == "privacy":
-            message = "Synced from msp status --json" if total else "No data returned"
-        else:
-            message = "No rows returned" if total == 0 else f"{len(self._visible_rows())} of {total} rows"
+        message = "No rows returned" if total == 0 else f"{len(self._visible_rows())} of {total} rows"
         self.query_one(f"#status-{self.spec.id}", Label).update(message)
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -619,8 +468,6 @@ class TablePane(Vertical):
             self.query_one(DataTable).focus()
 
     def action_toggle_filter(self) -> None:
-        if self.spec.id in {"privacy", "firewall"}:
-            return
         box = self.query_one(Input)
         box.display = True
         box.focus()
@@ -703,11 +550,11 @@ class PaletteScreen(ModalScreen):
         ("up", "focus_options", "Select"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, screens: list[tuple[str, str]]) -> None:
         super().__init__()
         self.entries: list[tuple[str, str, str, str]] = []
-        for view in VIEWS:
-            self.entries.append(("VIEW", view.title, f"Open {view.title.lower()} screen", f"view:{view.id}"))
+        for key, title in screens:
+            self.entries.append(("VIEW", title, f"Open {title.lower()} screen", f"view:{key}"))
         for runnable in RUNNABLES:
             self.entries.append(("CMD", "msp " + runnable["verb"], runnable["desc"], "run:" + runnable["verb"]))
         self.entries.extend([
@@ -960,18 +807,6 @@ class MspTUI(App[None]):
     .screen-title { height: 1; text-style: bold; color: #C9D1D9; }
     .screen-toolbar { height: 3; align: left middle; }
     .screen-toolbar Button { dock: right; }
-    #privacy-cards { height: 3; margin-bottom: 1; }
-    .privacy-strip { width: 1fr; height: 3; border: solid #30363D; background: #161B22; padding: 0 1; margin-right: 1; }
-    .privacy-strip .eyebrow { width: auto; margin-right: 2; }
-    .privacy-strip .state-pill { width: auto; margin-right: 2; }
-    .privacy-strip Static { width: 1fr; color: #8B949E; }
-    #privacy-firewall { height: 1fr; }
-    #privacy-firewall-heading { height: 3; align: left middle; }
-    #privacy-firewall-heading .eyebrow { width: auto; margin-right: 2; }
-    #privacy-firewall-heading .state-pill { width: 1fr; }
-    #privacy-firewall-heading Button { margin-left: 1; }
-    #privacy-firewall-details { height: auto; color: #8B949E; margin-bottom: 1; }
-    #privacy-firewall-rules { height: 1fr; border: none; }
     .eyebrow { color: #8B949E; text-style: bold; }
     .state-pill { color: #3FB950; text-style: bold; }
     .state-disabled { color: #F85149; }
@@ -980,11 +815,6 @@ class MspTUI(App[None]):
     .quiet-action { min-width: 11; height: 2; border: none; background: transparent; color: #58A6FF; }
     .quiet-action:hover { border: none; background: transparent; color: #79B8FF; }
     #network-tabs, #finding-filter-row { height: 3; margin-bottom: 1; }
-    #firewall-actions { height: 9; }
-    #firewall-actions Horizontal { height: 3; }
-    #firewall-actions Button { margin-right: 1; width: 21; }
-    #firewall-app-actions { height: 3; }
-    #firewall-app-actions Button { margin-right: 1; }
     #record-layout { height: 1fr; }
     #record-layout DataTable { width: 2fr; margin-right: 1; }
     #row-inspector { width: 1fr; }
@@ -1242,7 +1072,7 @@ class MspTUI(App[None]):
         self.push_screen(HelpScreen())
 
     def open_palette(self) -> None:
-        palette = PaletteScreen()
+        palette = PaletteScreen([(entry.key, entry.title) for entry in self.nav])
         self.push_screen(palette, lambda selected: self._palette_selected(selected, palette.entries))
 
     def _palette_selected(self, selected: Optional[int], entries: list[tuple[str, str, str, str]]) -> None:
@@ -1260,8 +1090,9 @@ class MspTUI(App[None]):
             form = payload[5:]
             target = "firewall" if form == "firewall-app" else "startup"
             self.switch_view_id(target)
-            field = "#firewall-app-path" if target == "firewall" else "#startup-path"
-            self.query_one(field, Input).focus()
+            pane = self._panes[target]
+            # the Firewall page's add-app form, or the startup path field
+            self.call_after_refresh(lambda: (pane.query(Input).first() if target == "firewall" else pane.query_one("#startup-path", Input)).focus())
 
     def action_open_palette(self) -> None:
         self.open_palette()
@@ -1281,11 +1112,7 @@ class MspTUI(App[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id or ""
-        if button_id == "back-privacy":
-            self.switch_view_id("privacy")
-        elif button_id == "privacy-manage-firewall":
-            self.switch_view_id("firewall")
-        elif event.button.has_class("nav-entry") and event.button.name:
+        if event.button.has_class("nav-entry") and event.button.name:
             self.switch_view_id(event.button.name)
         elif button_id == "open-palette":
             self.open_palette()
@@ -1295,8 +1122,6 @@ class MspTUI(App[None]):
             self.open_config()
         elif button_id in {"inspect-process", "stop-process", "force-stop-process", "disable-startup", "enable-startup", "startup-login-add", "startup-agent-add", "startup-remove"}:
             self._run_context_action(button_id)
-        elif button_id.startswith("firewall-"):
-            self._firewall_action(button_id)
         elif button_id == "refresh-view":
             self.refresh_current()
         elif button_id == "run-command":
@@ -1420,27 +1245,6 @@ class MspTUI(App[None]):
                 return
             operation = "agent-disable" if action == "disable-startup" else "agent-enable"
             command = f"startup {operation} {shlex.quote(label)}"
-            self.push_screen(ConfirmScreen(command), lambda confirmed: self.execute_commands([command], update_view=False) if confirmed else None)
-
-    def _firewall_action(self, button_id: str) -> None:
-        actions = {
-            "firewall-enable": "firewall set enabled on", "firewall-disable": "firewall set enabled off",
-            "firewall-stealth-on": "firewall set stealth_mode on", "firewall-stealth-off": "firewall set stealth_mode off",
-            "firewall-block-on": "firewall set block_all on", "firewall-block-off": "firewall set block_all off",
-            "firewall-signed-on": "firewall set allows_signed on", "firewall-signed-off": "firewall set allows_signed off",
-            "firewall-signed-app-on": "firewall set allows_signed_app on", "firewall-signed-app-off": "firewall set allows_signed_app off",
-        }
-        command = actions.get(button_id)
-        if button_id.startswith("firewall-app-"):
-            operation = button_id.removeprefix("firewall-app-")
-            app_path = self.query_one("#firewall-app-path", Input).value.strip()
-            if not app_path:
-                self.select_runner_tab("logs")
-                self._append_output("Enter an application path first.")
-                return
-            command = f"firewall app {operation} {shlex.quote(app_path)}"
-        if command:
-            self.select_runner_tab("logs")
             self.push_screen(ConfirmScreen(command), lambda confirmed: self.execute_commands([command], update_view=False) if confirmed else None)
 
     def execute_commands(
