@@ -9,15 +9,17 @@ from pathlib import Path
 from src.scanner import SecurityScanner
 
 SRC = Path(__file__).resolve().parents[1] / "src"
-QUOTED_INTERPOLATION = re.compile(r"""_run_cmd\(f["'][^"']*'\{""")
+# Any f-string passed to _run_cmd is a shell command built from values. Use the
+# argv-list form instead (shell=False); shlex.quote is not enough to keep a rule simple.
+SHELL_FSTRING = re.compile(r"""_run_cmd\(\s*f["']""")
 
 
-def test_no_shell_command_interpolates_a_quoted_value():
+def test_no_shell_command_is_built_from_an_f_string():
     offenders = [
         f"{path.relative_to(SRC.parent)}:{number}"
         for path in SRC.rglob("*.py")
         for number, line in enumerate(path.read_text().splitlines(), start=1)
-        if QUOTED_INTERPOLATION.search(line)
+        if SHELL_FSTRING.search(line)
     ]
     assert offenders == [], "use the argv-list form of _run_cmd for paths/names: " + ", ".join(offenders)
 

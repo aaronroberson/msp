@@ -66,14 +66,16 @@ class NetworkMonitor:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def _run_cmd(self, cmd: str | list[str], sudo: bool = False, shell: bool = True) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: str | list[str], sudo: bool = False, shell: bool = True, stderr: bool = True) -> tuple[bool, str]:
         try:
             if sudo and isinstance(cmd, str):
                 cmd = f"sudo {cmd}"
+            if isinstance(cmd, (list, tuple)):
+                shell = False  # argv lists never go through a shell
             result = subprocess.run(
                 cmd, shell=shell, capture_output=True, text=True, timeout=60
             )
-            return result.returncode == 0, result.stdout + result.stderr
+            return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
         except subprocess.TimeoutExpired:
             return False, "Command timed out"
         except Exception as e:
@@ -362,7 +364,7 @@ class NetworkMonitor:
 
     def lookup(self, host: str) -> List[str]:
         """DNS lookup for a host."""
-        success, output = self._run_cmd(f"dig +short {host} 2>/dev/null")
+        success, output = self._run_cmd(["dig", "+short", host], stderr=False)
         if success and output.strip():
             ips = [ip.strip() for ip in output.strip().split('\n') if ip.strip()]
             for ip in ips:
@@ -449,7 +451,7 @@ class NetworkMonitor:
                     iface = "en0"
 
                 # Get IP and derive subnet
-                success, output = self._run_cmd(f"ipconfig getifaddr {iface} 2>/dev/null")
+                success, output = self._run_cmd(["ipconfig", "getifaddr", iface], stderr=False)
                 if success and output.strip():
                     ip_parts = output.strip().split('.')
                     if len(ip_parts) == 4:
@@ -568,7 +570,7 @@ class NetworkMonitor:
         else:
             iface = "en0"
 
-        success, output = self._run_cmd(f"ipconfig getifaddr {iface} 2>/dev/null")
+        success, output = self._run_cmd(["ipconfig", "getifaddr", iface], stderr=False)
         if success and output.strip():
             ip_parts = output.strip().split('.')
             if len(ip_parts) == 4:

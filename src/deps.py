@@ -95,8 +95,7 @@ class DependencyManager:
         if dep.get("type") == "cask":
             app_path = dep.get("path", "")
             if app_path:
-                success, _ = self._run_cmd(f'test -f "{app_path}"')
-                return DepStatus.INSTALLED if success else DepStatus.MISSING
+                return DepStatus.INSTALLED if os.path.exists(app_path) else DepStatus.MISSING
 
         verify_cmd = dep.get("verify_cmd", "")
         if verify_cmd:

@@ -3,6 +3,7 @@
 
 import os
 import json
+import shutil
 import subprocess
 import sys
 from typing import List, Dict, Any, Optional
@@ -253,8 +254,7 @@ class TrafficAnalyzer:
         return requests
 
     def _which(self, cmd: str) -> bool:
-        success, _ = self._run_cmd(f"which {cmd}")
-        return success
+        return shutil.which(cmd) is not None
 
     def capture(self, count: int = 100, output_file: str = "/tmp/msp_capture.pcap", json_output: bool = False) -> str:
         """Capture network packets."""
