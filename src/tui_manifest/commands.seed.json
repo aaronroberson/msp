@@ -1070,6 +1070,14 @@
               ]
             },
             {
+              "name": "collect",
+              "kind": "flag",
+              "positional": false,
+              "option": "--collect",
+              "required": false,
+              "help": "Collect facts from this Mac now (as 'msp interrogate' would) instead of reading them."
+            },
+            {
               "name": "list_profiles",
               "kind": "flag",
               "positional": false,

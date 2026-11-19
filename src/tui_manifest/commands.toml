@@ -892,6 +892,7 @@ args = [
   { name = "json", kind = "flag", option = "--json" },
   { name = "categories", kind = "text", option = "--category", multi = true, repeat = true },
   { name = "minimum_severity", kind = "choice", option = "--minimum-severity", choices = ["critical", "high", "info", "low", "medium"] },
+  { name = "collect", kind = "flag", option = "--collect" },
   { name = "list_profiles", kind = "flag", option = "--list-profiles" },
 ]
 

@@ -21,6 +21,7 @@ title = "System facts"
 id = "audit"
 command = "audit"
 trigger = "on_view:findings"
+args = { collect = true }   # gather facts now rather than reading them from a file
 
 [[runs]]
 id = "facts"
