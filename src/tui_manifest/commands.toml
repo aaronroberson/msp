@@ -507,6 +507,7 @@ argv = ["startup", "inventory"]
 emits = "Item[StartupInventory]"
 encoding = "object"
 risk = "read"
+long_running = true
 fixture = "startup.inventory"
 
 [[command]]
@@ -1544,6 +1545,7 @@ argv = ["tune", "check"]
 emits = "Findings[TuneCheck]"
 encoding = "list"
 risk = "read"
+long_running = true
 fixture = "tune.check"
 
 [[command]]
@@ -1700,8 +1702,8 @@ args = [
 id = "ask"
 group = "ask"
 argv = ["ask"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [
