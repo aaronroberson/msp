@@ -40,7 +40,7 @@ msp-workflow = "src.workflows:main"
 msp-forensics = "src.forensics:main"
 
 [tool.setuptools]
-packages = ["src", "src.schemas", "src.tui_manifest"]
+packages = ["src", "src.schemas", "src.tui_manifest", "src.tui_pages"]
 
 [tool.setuptools.package-data]
 "src.tui_manifest" = ["*.toml", "*.json", "*.md", "pages/*.toml"]
