@@ -1,6 +1,6 @@
 # Plan: TUI as the graphical shell for every `msp` command
 
-**Date:** 2026-11-18 · **Status:** Phase 0 complete (2026-11-18, branch `feat/tui-phase0-contracts`); Phase 1 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
+**Date:** 2026-11-18 · **Status:** Phase 0 complete (merged); Phase 1 complete (2026-11-18, branch `feat/tui-phase1-shell`); Phase 2 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
 
 ## 0. Objective and user decisions
 
@@ -409,6 +409,6 @@ The Firewall prototype was approved for the whole suite. Phase 1 turns it into t
 
 ## Status and handoffs
 
-- Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there).
+- Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there). Latest: Phase 1 complete (2026-11-18); actions execute in the shell with confirmation (deviation recorded there).
 - Phase 0 taxonomy validation: `docs/audits/2026-11-18-envelope-taxonomy-validation.md`.
 - Generated coverage: `src/tui_manifest/COVERAGE.md` (`scripts/coverage_report.py`).
