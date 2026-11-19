@@ -40,7 +40,10 @@ msp-workflow = "src.workflows:main"
 msp-forensics = "src.forensics:main"
 
 [tool.setuptools]
-packages = ["src"]
+packages = ["src", "src.schemas", "src.tui_manifest"]
+
+[tool.setuptools.package-data]
+"src.tui_manifest" = ["*.toml", "*.json", "*.md", "pages/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
