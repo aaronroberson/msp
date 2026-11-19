@@ -140,6 +140,7 @@ class SlotComponent(Vertical):
         self.data: Any = None
         self.loaded = False
         self.failure: Optional[str] = None
+        self.busy = False
         if slot.props.get("span") == 2:
             self.add_class("span-2")
 
@@ -151,12 +152,20 @@ class SlotComponent(Vertical):
         self.data, self.failure, self.loaded = data, failure, True
         self.refresh(recompose=True)
 
+    def set_busy(self, busy: bool) -> None:
+        """Show that newer data is on its way (the shown data stays until it lands)."""
+        if busy != self.busy:
+            self.busy = busy
+            self.refresh(recompose=True)
+
     def heading(self, summary: str = "") -> ComposeResult:
         link = self.slot.props.get("link")
-        if not (self.title or link):
+        if not (self.title or link or self.busy):
             return
         with Horizontal(classes="slot-heading"):
             yield Label(" ".join(filter(None, [self.title, summary])), classes="eyebrow")
+            if self.busy:
+                yield Label(str(self.slot.props.get("busy_label", "⟳ updating…")), classes="busy")
             if link:
                 yield Button(f"{self.slot.props.get('link_label', 'View all')} →", id=f"link-{self._dom_key()}",
                              classes="quiet-action link", name=link)

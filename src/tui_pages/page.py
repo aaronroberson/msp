@@ -117,6 +117,7 @@ class PageView(VerticalScroll):
             return
         self.pending.update(run_ids)
         self._show_progress()
+        self._show_busy()
 
         def work() -> None:
             self.scheduler.execute(
@@ -146,12 +147,25 @@ class PageView(VerticalScroll):
     def _deliver(self, result: RunResult) -> None:
         self.pending.discard(result.run_id)
         self._render_run(result)
+        self.post_message(RunFinished(self.page.page.id, result))
+        # A read run that refreshes others (a scan rewrites the saved results
+        # `doctor` reads) re-runs them; mutations' refreshes are the shell's job.
+        targets = [r for r in self.scheduler.refresh_targets(result.run_id) if self.scheduler.command(r).risk == "read"]
+        if targets and self.scheduler.command(result.run_id).risk == "read" and not result.failure:
+            self.start(targets, force=True)
         self._show_progress()
         self._show_source()
-        self.post_message(RunFinished(self.page.page.id, result))
-        targets = [r for r in self.scheduler.refresh_targets(result.run_id) if self.scheduler.command(r).risk == "read"]
-        if targets and self.scheduler.runs[result.run_id].trigger == "manual" and not result.failure:
-            self.start(targets, force=True)
+        self._show_busy()
+
+    def _show_busy(self) -> None:
+        """Mark slots whose data is being replaced: their own run is pending, or a
+        pending run will refresh it (the findings card while a scan runs)."""
+        for slot in self.page.slots:
+            if not slot.run:
+                continue
+            refreshing = any(r in self.pending for r in self.scheduler.refreshed_by(slot.run))
+            reloading = slot.run in self.pending and slot.run in self.scheduler.results  # first load shows "Loading…"
+            self.slots[f"{slot.region}#{slot.order}"].set_busy(refreshing or reloading)
 
     @staticmethod
     def _project(slot: SlotSpec, result: RunResult) -> Any:
@@ -176,8 +190,12 @@ class PageView(VerticalScroll):
         suffix = " · replayed fixtures" if sources == ["replay"] else ""
         self.query_one("#page-meta", Label).update(concern + suffix)
 
-    def refresh_page(self) -> None:
+    def refresh_page(self, include_long: bool = True) -> None:
+        """Re-run what the page shows. A revisit passes ``include_long=False`` so
+        it does not repeat a slow run (a scan); Refresh and its button do."""
         shown = list(dict.fromkeys(self.scheduler.triggered("on_open") + list(self.scheduler.results)))
+        if not include_long:
+            shown = [r for r in shown if not self.scheduler.command(r).long_running]
         self.start(shown, force=True)
 
     # -- interaction ---------------------------------------------------
@@ -252,6 +270,7 @@ PAGE_CSS = """
 .workspace.split .aside { width: 1fr; height: auto; margin-left: 1; }
 .slot-heading { height: auto; margin-bottom: 1; }
 .slot-heading .eyebrow { width: 1fr; }
+.busy { color: #58A6FF; width: auto; margin-right: 2; }
 .eyebrow { color: #8B949E; text-style: bold; }
 .empty-note { color: #8B949E; height: auto; }
 .link { height: 1; min-width: 10; border: none; background: transparent; color: #58A6FF; }

@@ -990,8 +990,11 @@ class MspTUI(App[None]):
         self.sub_title = active_title
         self.query_one("#brand-right", Label).update(f"VIEW: {active_title.upper()}")
         self.query_one(Sidebar).mark_active("listening" if view_id == "established" else view_id)
-        if page is None or not fresh:
-            self.refresh_current()  # a new PageView runs its own on_open runs when mounted
+        if isinstance(pane, PageView):
+            if not fresh:
+                pane.refresh_page(include_long=False)  # revisit: fresh fast reads, no repeat scan
+        else:
+            self.refresh_current()
 
     def _page_action(self, view: PageView, run_id: str, command: CommandSpec, args: dict[str, Any]) -> None:
         """Confirm, run through the command rail, then re-run the action's ``refreshes``."""

@@ -1,6 +1,7 @@
 # Overview ▸ Dashboard (template: dashboard). Five fast reads open in parallel;
-# findings come from the latest *saved* scan (via doctor), so opening the page
-# never starts a 30 s+ scan. "Run scan quick" executes one and refreshes it.
+# findings show the latest *saved* scan (via doctor) at once, while a fresh
+# `scan quick` runs in the background and refreshes them when it finishes.
+# Revisiting the page repeats only the fast reads; Refresh / "Run scan quick" rescan.
 
 [page]
 id = "overview.dashboard"
@@ -37,7 +38,7 @@ order = 1
 [[runs]]
 id = "scan"
 command = "scan.quick"
-trigger = "manual"
+trigger = "on_open"
 order = 2
 refreshes = ["doctor"]
 
@@ -109,7 +110,8 @@ run = "doctor"
 select = "scan.checks[?status != 'ok' && status != 'n/a'].{id: name, title: title, severity: status, category: domain}"
 component = "FindingList"
 [slots.props]
-title = "Findings from the last scan"
+title = "Findings"
+busy_label = "⟳ scanning… showing the last saved scan"
 span = 2
 limit = 5
 columns = ["category", "title"]

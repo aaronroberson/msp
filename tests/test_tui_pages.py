@@ -98,3 +98,47 @@ def test_firewall_page_renders_from_one_run_and_only_previews_actions(monkeypatc
             assert calls == ["fw"]   # previews never execute
 
     asyncio.run(exercise())
+
+
+def test_dashboard_scans_in_background_and_refreshes_saved_findings():
+    """Saved findings show at once; `scan quick` runs in the background with the
+    card marked as scanning; when it finishes `doctor` re-reads the saved scan.
+    A revisit repeats the fast reads but not the scan."""
+    import threading
+
+    from src.tui_pages.page import PageView
+
+    calls, release = [], threading.Event()
+
+    def executor(run_id, command, args):
+        calls.append(run_id)
+        if run_id == "scan":
+            release.wait(5)
+        return run_replay(run_id, command, args)
+
+    async def exercise():
+        app = PagePreviewApp("overview.dashboard", executor=executor)
+        async with app.run_test(size=(160, 45)) as pilot:
+            page = app.query_one(PageView)
+            for _ in range(50):
+                await pilot.pause(0.05)
+                if "doctor" in page.scheduler.results and "scan" in page.pending:
+                    break
+            findings = page.slots["workspace.main#3"]
+            assert findings.loaded and findings.busy            # saved results shown, scan running
+            assert "scanning" in " ".join(str(l.render()) for l in findings.query(".busy"))
+            assert sorted(calls) == ["connections", "doctor", "listening", "scan", "startup", "status"]
+            release.set()
+            for _ in range(50):
+                await pilot.pause(0.05)
+                if calls.count("doctor") == 2 and not page.pending:
+                    break
+            await app.workers.wait_for_complete()
+            assert calls.count("doctor") == 2 and not findings.busy  # re-read after the scan
+            calls.clear()
+            page.refresh_page(include_long=False)               # what a revisit does
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            assert "scan" not in calls and "doctor" in calls
+
+    asyncio.run(exercise())

@@ -149,7 +149,14 @@ class RunScheduler:
         return [r.id for r in self.page.runs if r.trigger == trigger and self.command(r.id).risk == "read"]
 
     def manual_runs(self) -> List[str]:
-        return [r.id for r in self.page.runs if r.trigger == "manual" and self.command(r.id).risk == "read"]
+        """Read runs the user can start from the page header: manual ones, and
+        long-running ones (which a revisit does not repeat on its own)."""
+        return [r.id for r in self.page.runs if self.command(r.id).risk == "read"
+                and (r.trigger == "manual" or self.command(r.id).long_running)]
+
+    def refreshed_by(self, run_id: str) -> List[str]:
+        """Runs whose completion will refresh ``run_id`` (e.g. a scan refreshes its cached read)."""
+        return [r.id for r in self.page.runs if run_id in self.refresh_targets(r.id)]
 
     def refresh_targets(self, run_id: str) -> List[str]:
         """Runs to re-execute after ``run_id`` completes: its ``refreshes`` and ``after:`` followers."""
