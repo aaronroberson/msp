@@ -4,12 +4,13 @@
 import hashlib
 import os
 import json
+import shutil
 import subprocess
 import sys
 import threading
 import time
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional, Union
 from pathlib import Path
 
 from src.command import (
@@ -176,8 +177,16 @@ class FileWatcher:
         self._running = False
         self._events = []
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: Union[str, List[str]], sudo: bool = False, stderr: bool = True) -> tuple[bool, str]:
+        """Run a command. Pass an argv list for anything containing paths or names:
+        lists run with shell=False, so untrusted values can never become shell syntax.
+        ``stderr=False`` drops stderr (the list-form equivalent of ``2>/dev/null``).
+        """
         try:
+            if isinstance(cmd, (list, tuple)):
+                argv = (["sudo"] if sudo else []) + [str(part) for part in cmd]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+                return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
             if sudo:
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
@@ -391,8 +400,13 @@ class FileWatcher:
 
         if os.path.exists(baseline_file):
             print(f"Baseline exists. Comparing...")
-            success, current = self._run_cmd(f"cat '{file_path}'")
-            success2, baseline_content = self._run_cmd(f"cat '{baseline_file}'")
+            try:
+                current = Path(file_path).read_text(errors="replace")
+                baseline_content = Path(baseline_file).read_text(errors="replace")
+                success = success2 = True
+            except OSError as exc:
+                print(f"Could not read file: {exc}")
+                success = success2 = False
 
             if success and success2:
                 import difflib
@@ -413,11 +427,11 @@ class FileWatcher:
 
             confirm = input("Update baseline? [y/N] ")
             if confirm.lower() == 'y':
-                self._run_cmd(f"cp '{file_path}' '{baseline_file}'")
+                shutil.copy2(file_path, baseline_file)
                 print("Baseline updated.")
         else:
             print("No baseline. Creating...")
-            self._run_cmd(f"cp '{file_path}' '{baseline_file}'")
+            shutil.copy2(file_path, baseline_file)
             print(f"Baseline created at {baseline_file}")
 
         return True

@@ -7,7 +7,7 @@
     "quick"
   ],
   "returncode": 0,
-  "duration_s": 35.25,
+  "duration_s": 37.59,
   "json": [
     {
       "title": "Updates Available",
@@ -32,11 +32,11 @@
       "item": "Updates Available"
     },
     {
-      "title": "Many connections: 61",
+      "title": "Many connections: 107",
       "category": "Network",
       "severity": "low",
       "status": null,
-      "description": "System has 61 established connections",
+      "description": "System has 107 established connections",
       "recommendation": "Review if this is expected",
       "control_id": null,
       "check_id": "",
@@ -51,7 +51,7 @@
       "provenance": {},
       "data": {},
       "schema_version": "2.0",
-      "item": "Many connections: 61"
+      "item": "Many connections: 107"
     }
   ],
   "text": null,

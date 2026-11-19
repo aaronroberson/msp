@@ -9,7 +9,7 @@ import subprocess
 import sys
 from datetime import datetime
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, cast
+from typing import Any, Dict, List, Optional, Union, cast
 from pathlib import Path
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command, Item
@@ -54,8 +54,16 @@ class StartupManager:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: Union[str, List[str]], sudo: bool = False, stderr: bool = True) -> tuple[bool, str]:
+        """Run a command. Pass an argv list for anything containing paths or names:
+        lists run with shell=False, so untrusted values can never become shell syntax.
+        ``stderr=False`` drops stderr (the list-form equivalent of ``2>/dev/null``).
+        """
         try:
+            if isinstance(cmd, (list, tuple)):
+                argv = (["sudo"] if sudo else []) + [str(part) for part in cmd]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+                return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
             if sudo:
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
@@ -69,7 +77,7 @@ class StartupManager:
 
     def _read_plist_label(self, plist_path: str) -> Optional[str]:
         try:
-            success, output = self._run_cmd(f"defaults read '{plist_path}' Label 2>/dev/null")
+            success, output = self._run_cmd(["defaults", "read", plist_path, "Label"], stderr=False)
             if success and output.strip():
                 return output.strip()
         except Exception:
@@ -1110,7 +1118,7 @@ class StartupManager:
                     if f.endswith('.plist'):
                         full_path = os.path.join(path, f)
                         try:
-                            success, output = self._run_cmd(f"defaults read '{full_path}' Label 2>/dev/null")
+                            success, output = self._run_cmd(["defaults", "read", full_path, "Label"], stderr=False)
                             if success and output.strip() == label:
                                 plist_path = full_path
                                 break
@@ -1216,7 +1224,7 @@ class StartupManager:
                     break
 
             if item.pid and item.pid > 0:
-                success, output = self._run_cmd(f"codesign -dvvv '{item.path}' 2>/dev/null")
+                success, output = self._run_cmd(["codesign", "-dvvv", item.path])
                 if success and "not signed" in output.lower():
                     if risk_level == "OK":
                         risk_level = "REVIEW"

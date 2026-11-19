@@ -5,7 +5,7 @@ import json
 import subprocess
 import os
 import sys
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from src.command import (
     setup_completion,
@@ -91,8 +91,16 @@ class SharingManager:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: Union[str, List[str]], sudo: bool = False, stderr: bool = True) -> tuple[bool, str]:
+        """Run a command. Pass an argv list for anything containing paths or names:
+        lists run with shell=False, so untrusted values can never become shell syntax.
+        ``stderr=False`` drops stderr (the list-form equivalent of ``2>/dev/null``).
+        """
         try:
+            if isinstance(cmd, (list, tuple)):
+                argv = (["sudo"] if sudo else []) + [str(part) for part in cmd]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+                return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
             if sudo:
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
@@ -136,7 +144,7 @@ class SharingManager:
             if share.get("name", "").lower() == share_name.lower():
                 path = share.get("path", "")
                 if path:
-                    success, _ = self._run_cmd(f"sharing -r '{path}'", sudo=True)
+                    success, _ = self._run_cmd(["sharing", "-r", path], sudo=True)
                     if success:
                         print(f"Disabled: {share_name}")
                         return True
@@ -155,7 +163,7 @@ class SharingManager:
             if guest == "1":
                 path = share.get("path", "")
                 if path:
-                    self._run_cmd(f"sharing -e '{path}' -g no", sudo=True)
+                    self._run_cmd(["sharing", "-e", path, "-g", "no"], sudo=True)
                     print(f"Guest disabled: {share.get('name', path)}")
 
         return True
