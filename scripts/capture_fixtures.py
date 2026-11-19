@@ -64,7 +64,9 @@ CAPTURES: Dict[str, tuple] = {
     "net.list": (["net", "list"], 60, ()),
     "net.established": (["net", "established"], 60, ()),
     "net.arp": (["net", "arp"], 60, ()),
-    "net.hosts": (["net", "hosts"], 60, ()),
+    # net hosts is NOT passive: it runs `nmap -sn` across the local subnet.
+    # Its fixture (tests/fixtures/cli/net.hosts.json) was captured once on
+    # 2026-11-18 and is kept for the Collection[Host] shape; do not re-run here.
     "net.inspect": (lambda r: ["net", "inspect", "--pid", str(_first(r, "net.list", [0, "pid"]))]
                     if _first(r, "net.list", [0, "pid"]) else None, 60, ("net.list",)),
     # startup
