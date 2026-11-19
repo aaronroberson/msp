@@ -484,7 +484,8 @@
           "required": false,
           "help": "Argument for a new LaunchAgent (repeatable)",
           "default": [],
-          "multi": true
+          "multi": true,
+          "repeat": true
         },
         {
           "name": "force",
@@ -1078,7 +1079,8 @@
               "option": "--category",
               "required": false,
               "help": "Limit evaluation to a category. May be repeated.",
-              "multi": true
+              "multi": true,
+              "repeat": true
             },
             {
               "name": "minimum_severity",
@@ -1308,7 +1310,8 @@
               "option": "--yes",
               "required": false,
               "help": "Affirm applying. Repeat with a token (--yes TOKEN) to authorize confirm/dangerous actions.",
-              "multi": true
+              "multi": true,
+              "repeat": true
             }
           ],
           "args_source": "subparser"

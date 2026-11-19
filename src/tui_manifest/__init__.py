@@ -53,6 +53,7 @@ class ArgSpec(_Strict):
     required: bool = False
     choices: List[str] = Field(default_factory=list)
     multi: bool = False
+    repeat: bool = False   # multi via a repeated option (argparse append): --opt a --opt b
 
     @property
     def key(self) -> str:
@@ -92,6 +93,11 @@ class CommandSpec(_Strict):
         keys = [arg.key for arg in self.args]
         if len(keys) != len(set(keys)):
             raise ValueError(f"{self.id}: duplicate argument {sorted(k for k in keys if keys.count(k) > 1)}")
+        names = [arg.name for arg in self.args]
+        if len(names) != len(set(names)):
+            # aliases sharing an argparse dest (--json/--format, --force/--dry-run) need
+            # their own names, or forms and argv building cannot tell them apart
+            raise ValueError(f"{self.id}: duplicate argument name {sorted(n for n in names if names.count(n) > 1)}")
         return self
 
     @property

@@ -56,6 +56,20 @@ def test_drift_detects_missing_and_orphan_entries(commands):
     assert "manifest entry without CLI action: net.nonexistent" in problems
 
 
+def test_repeated_options_match_the_parsers(commands):
+    """``--opt a --opt b`` (argparse append) vs ``--opt a b`` (nargs) must match the CLI."""
+    from src.tui_manifest import seed_command_ids
+    seed = load_seed()
+    actions = [action for group in seed["groups"] for action in group["actions"]]
+    mismatched = []
+    for command_id, action in zip(seed_command_ids(seed), actions):
+        seeded = {a["option"]: bool(a.get("repeat")) for a in action.get("args", []) if a.get("option")}
+        for arg in commands[command_id].args:
+            if arg.option in seeded and arg.repeat != seeded[arg.option]:
+                mismatched.append(f"{command_id} {arg.option}")
+    assert mismatched == []
+
+
 # --------------------------------------------------------------- contracts
 
 def test_every_fixture_satisfies_its_command_contract(commands):

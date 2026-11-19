@@ -338,7 +338,7 @@ needs_root = false
 args = [
   { name = "label", kind = "text" },
   { name = "path", kind = "text", option = "--path" },
-  { name = "program_arg", kind = "text", option = "--program-arg", multi = true },
+  { name = "program_arg", kind = "text", option = "--program-arg", multi = true, repeat = true },
 ]
 
 [[command]]
@@ -888,8 +888,8 @@ args = [
   { name = "facts", kind = "text" },
   { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
   { name = "format", kind = "choice", option = "--format", choices = ["json", "table"] },
-  { name = "format", kind = "text", option = "--json" },
-  { name = "categories", kind = "text", option = "--category", multi = true },
+  { name = "json", kind = "flag", option = "--json" },
+  { name = "categories", kind = "text", option = "--category", multi = true, repeat = true },
   { name = "minimum_severity", kind = "choice", option = "--minimum-severity", choices = ["critical", "high", "info", "low", "medium"] },
   { name = "list_profiles", kind = "flag", option = "--list-profiles" },
 ]
@@ -965,7 +965,7 @@ args = [
   { name = "output", kind = "text", option = "--output" },
   { name = "max_safety", kind = "choice", option = "--max-safety", choices = ["destructive", "high", "low", "medium"] },
   { name = "allow_high_risk", kind = "flag", option = "--allow-high-risk" },
-  { name = "yes", kind = "text", option = "--yes", multi = true },
+  { name = "yes", kind = "text", option = "--yes", multi = true, repeat = true },
 ]
 
 [[command]]
@@ -1627,7 +1627,7 @@ needs_root = false
 args = [
   { name = "path", kind = "text", required = true },
   { name = "dry_run", kind = "flag", option = "--dry-run" },
-  { name = "dry_run", kind = "flag", option = "--force" },
+  { name = "force", kind = "flag", option = "--force" },
 ]
 
 
@@ -1660,7 +1660,7 @@ notes = "re-audits, then applies repairs allowed by --scope (auto-safe by defaul
 needs_root = false
 args = [
   { name = "dry_run", kind = "flag", option = "--dry-run" },
-  { name = "dry_run", kind = "flag", option = "--fix" },
+  { name = "fix", kind = "flag", option = "--fix" },
   { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
   { name = "categories", kind = "choice", option = "--categories", choices = ["completion", "executable", "package_manager", "path", "symlink", "zsh_startup"], multi = true },
   { name = "no_confirm", kind = "flag", option = "--no-confirm" },

@@ -14,6 +14,7 @@ Invariants
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
 import time
@@ -48,10 +49,16 @@ def build_argv(command: CommandSpec, args: Dict[str, Any]) -> List[str]:
         value = args.get(spec.name)
         if value in (None, "", False):
             continue
-        if spec.option:
-            tokens += [spec.option] if spec.kind == "flag" else [spec.option, str(value)]
+        # a multi-value argument typed into one field is split like a shell would
+        values = shlex.split(value) if spec.multi and isinstance(value, str) else value if isinstance(value, list) else [value]
+        if not spec.option:
+            tokens += [str(v) for v in values]
+        elif spec.kind == "flag":
+            tokens.append(spec.option)
+        elif spec.repeat:
+            tokens += [t for v in values for t in (spec.option, str(v))]       # --opt a --opt b
         else:
-            tokens.append(str(value))
+            tokens += [spec.option, *(str(v) for v in values)]                 # --opt a b
     return tokens
 
 
