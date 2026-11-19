@@ -7,437 +7,1726 @@
 #   data_key    wrapped: key holding the data;  key_field: keyed: field for the key
 #   channel     "stdout" (default) or "artifact:<option>" when the output is a file
 #   success     accepted exit codes (default [0])
+#   risk        read | confirm | dangerous      needs_root   prompts via sudo askpass (D13)
+#   long_running   progress + cancel in the TUI  active_network  leaves this host: never auto-run
+#   llm         sends data to a model provider (show provider / local_only)
+#   interactive TTY-only flow; the TUI must provide its own form
 #   fixture     tests/fixtures/cli/<fixture>.json, when one was captured
+#   args        per-action arguments; flat modules attributed from main() dispatch (P0.5)
+#
+# `X[Unverified]` marks output shapes not yet characterized (contract debt,
+# listed by the coverage report).
 #
 # Seeded inventory: commands.seed.json (generated; do not edit).
 
-# ------------------------------------------------------------------ privacy
-[[command]]
-id = "privacy.status"
-argv = ["status"]
-emits = "Item[PrivacyStatus]"
-encoding = "object"
-fixture = "privacy.status"
+
+# ---------------------------------------------------------------------- privacy
 
 [[command]]
 id = "privacy.list"
+group = "privacy"
 argv = ["list"]
 emits = "Collection[PrivacySetting]"
 encoding = "list"
+risk = "read"
 fixture = "privacy.list"
+args = [
+  { name = "category", kind = "text", option = "--category" },
+]
+
+[[command]]
+id = "privacy.status"
+group = "privacy"
+argv = ["status"]
+emits = "Item[PrivacyStatus]"
+encoding = "object"
+risk = "read"
+fixture = "privacy.status"
+
+[[command]]
+id = "privacy.enable"
+group = "privacy"
+argv = ["enable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "setting", kind = "choice", required = true, choices = ["Application Firewall", "Bluetooth", "Captive Portal Probe", "FileVault Encryption", "Firewall Stealth Mode", "Gatekeeper"] },
+]
+
+[[command]]
+id = "privacy.disable"
+group = "privacy"
+argv = ["disable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "setting", kind = "choice", required = true, choices = ["Application Firewall", "Bluetooth", "Captive Portal Probe", "Firewall Stealth Mode"] },
+]
 
 [[command]]
 id = "privacy.services.list"
+group = "privacy"
 argv = ["services", "list"]
 emits = "Collection[LaunchService]"
 encoding = "list"
+risk = "read"
 fixture = "privacy.services_list"
 
 [[command]]
+id = "privacy.preset.apply"
+group = "privacy"
+argv = ["preset", "apply"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+]
+
+[[command]]
+id = "privacy.preset.delete"
+group = "privacy"
+argv = ["preset", "delete"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+]
+
+[[command]]
 id = "privacy.preset.list"
+group = "privacy"
 argv = ["preset", "list"]
 emits = "Definitions[Preset]"
 encoding = "keyed"
 key_field = "key"
+risk = "read"
 fixture = "privacy.preset_list"
 
+[[command]]
+id = "privacy.preset.save"
+group = "privacy"
+argv = ["preset", "save"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "settings", kind = "text", option = "--settings" },
+  { name = "description", kind = "text", option = "--description" },
+]
+
+
 # ---------------------------------------------------------------------- net
+
 [[command]]
 id = "net.list"
+group = "net"
 argv = ["net", "list"]
 emits = "Collection[Socket]"
 encoding = "list"
+risk = "read"
 fixture = "net.list"
 
 [[command]]
 id = "net.established"
+group = "net"
 argv = ["net", "established"]
 emits = "Collection[Connection]"
 encoding = "list"
+risk = "read"
 fixture = "net.established"
 
 [[command]]
-id = "net.arp"
-argv = ["net", "arp"]
-emits = "Collection[ArpEntry]"
-encoding = "list"
-fixture = "net.arp"
+id = "net.top"
+group = "net"
+argv = ["net", "top"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+long_running = true
+args = [
+  { name = "limit", kind = "int", option = "--limit" },
+]
 
 [[command]]
-id = "net.hosts"
-argv = ["net", "hosts"]
-emits = "Collection[Host]"
-encoding = "list"
-fixture = "net.hosts"
+id = "net.kill"
+group = "net"
+argv = ["net", "kill"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = false
+args = [
+  { name = "pid", kind = "int", option = "--pid" },
+  { name = "force", kind = "flag", option = "--force" },
+  { name = "signal", kind = "choice", option = "--signal", choices = ["KILL", "TERM"] },
+  { name = "yes", kind = "flag", option = "--yes" },
+  { name = "expected_identity", kind = "text", option = "--expected-identity" },
+]
+
+[[command]]
+id = "net.terminate"
+group = "net"
+argv = ["net", "terminate"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "pid", kind = "int", option = "--pid" },
+  { name = "yes", kind = "flag", option = "--yes" },
+]
 
 [[command]]
 id = "net.inspect"
+group = "net"
 argv = ["net", "inspect"]
 emits = "Item[ProcessInfo]"
 encoding = "object"
+risk = "read"
 fixture = "net.inspect"
+args = [
+  { name = "pid", kind = "int", option = "--pid" },
+]
 
-# ------------------------------------------------------------------ startup
+[[command]]
+id = "net.lookup"
+group = "net"
+argv = ["net", "lookup"]
+emits = "Collection[Line]"
+encoding = "lines"
+risk = "read"
+active_network = true
+args = [
+  { name = "host", kind = "text", option = "--host" },
+]
+
+[[command]]
+id = "net.arp"
+group = "net"
+argv = ["net", "arp"]
+emits = "Collection[ArpEntry]"
+encoding = "list"
+risk = "read"
+fixture = "net.arp"
+args = [
+  { name = "limit", kind = "int", option = "--limit" },
+]
+
+[[command]]
+id = "net.nmap"
+group = "net"
+argv = ["net", "nmap"]
+emits = "Collection[Unverified]"
+encoding = "list"
+risk = "read"
+long_running = true
+active_network = true
+args = [
+  { name = "target", kind = "text", option = "--target" },
+  { name = "ports", kind = "text", option = "--ports" },
+  { name = "sudo", kind = "flag", option = "--sudo" },
+]
+
+[[command]]
+id = "net.hosts"
+group = "net"
+argv = ["net", "hosts"]
+emits = "Collection[Host]"
+encoding = "list"
+risk = "read"
+long_running = true
+active_network = true
+fixture = "net.hosts"
+args = [
+  { name = "target", kind = "text", option = "--target" },
+  { name = "sudo", kind = "flag", option = "--sudo" },
+]
+
+[[command]]
+id = "net.camsweep"
+group = "net"
+argv = ["net", "camsweep"]
+emits = "Collection[Unverified]"
+encoding = "list"
+risk = "read"
+long_running = true
+active_network = true
+args = [
+  { name = "target", kind = "text", option = "--target" },
+]
+
+
+# ---------------------------------------------------------------------- startup
+
 [[command]]
 id = "startup.list"
+group = "startup"
 argv = ["startup", "list"]
 emits = "Collection[StartupItem]"
 encoding = "list"
+risk = "read"
 fixture = "startup.list"
+args = [
+  { name = "include_system", kind = "flag", option = "--include-system" },
+]
 
 [[command]]
 id = "startup.managed"
+group = "startup"
 argv = ["startup", "managed"]
 emits = "Collection[StartupItem]"
 encoding = "wrapped"
 data_key = "items"
+risk = "read"
 fixture = "startup.managed"
 
 [[command]]
 id = "startup.login-items"
+group = "startup"
 argv = ["startup", "login-items"]
 emits = "Collection[StartupItem]"
 encoding = "wrapped"
 data_key = "items"
+risk = "read"
 fixture = "startup.login_items"
 
 [[command]]
+id = "startup.login-add"
+group = "startup"
+argv = ["startup", "login-add"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "text", option = "--name" },
+  { name = "path", kind = "text", option = "--path" },
+]
+
+[[command]]
+id = "startup.login-remove"
+group = "startup"
+argv = ["startup", "login-remove"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+  { name = "name", kind = "text", option = "--name" },
+]
+
+[[command]]
+id = "startup.agent-add"
+group = "startup"
+argv = ["startup", "agent-add"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+  { name = "path", kind = "text", option = "--path" },
+  { name = "program_arg", kind = "text", option = "--program-arg", multi = true },
+]
+
+[[command]]
+id = "startup.agent-remove"
+group = "startup"
+argv = ["startup", "agent-remove"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+]
+
+[[command]]
+id = "startup.agent-enable"
+group = "startup"
+argv = ["startup", "agent-enable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+]
+
+[[command]]
+id = "startup.agent-disable"
+group = "startup"
+argv = ["startup", "agent-disable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+]
+
+[[command]]
 id = "startup.agents"
+group = "startup"
 argv = ["startup", "agents"]
 emits = "Collection[StartupItem]"
 encoding = "list"
+risk = "read"
 fixture = "startup.agents"
 
 [[command]]
 id = "startup.daemons"
+group = "startup"
 argv = ["startup", "daemons"]
 emits = "Collection[StartupItem]"
 encoding = "list"
+risk = "read"
 fixture = "startup.daemons"
 
 [[command]]
 id = "startup.cron"
+group = "startup"
 argv = ["startup", "cron"]
 emits = "Collection[CronEntry]"
 encoding = "list"
+risk = "read"
 fixture = "startup.cron"
 
 [[command]]
-id = "startup.running"
-argv = ["startup", "running"]
-emits = "Collection[StartupItem]"
-encoding = "list"
-fixture = "startup.running"
+id = "startup.disable"
+group = "startup"
+argv = ["startup", "disable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+  { name = "force", kind = "flag", option = "--force" },
+]
 
 [[command]]
-id = "startup.disabled"
-argv = ["startup", "disabled"]
-emits = "Collection[StartupItem]"
-encoding = "list"
-fixture = "startup.disabled"
+id = "startup.enable"
+group = "startup"
+argv = ["startup", "enable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+]
 
 [[command]]
 id = "startup.audit"
+group = "startup"
 argv = ["startup", "audit"]
 emits = "Findings[StartupRisk]"
 encoding = "list"
+risk = "read"
 fixture = "startup.audit"
 
 [[command]]
 id = "startup.summary"
+group = "startup"
 argv = ["startup", "summary"]
 emits = "Findings[StartupRisk]"
 encoding = "list"
+risk = "read"
 fixture = "startup.summary"
 
 [[command]]
-id = "startup.comprehensive-audit"
-argv = ["startup", "comprehensive-audit"]
-emits = "Findings[StartupRisk]"
+id = "startup.search"
+group = "startup"
+argv = ["startup", "search"]
+emits = "Collection[StartupItem]"
 encoding = "list"
-fixture = "startup.comprehensive_audit"
+risk = "read"
+args = [
+  { name = "label", kind = "text" },
+]
+
+[[command]]
+id = "startup.running"
+group = "startup"
+argv = ["startup", "running"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+risk = "read"
+fixture = "startup.running"
+
+[[command]]
+id = "startup.disabled"
+group = "startup"
+argv = ["startup", "disabled"]
+emits = "Collection[StartupItem]"
+encoding = "list"
+risk = "read"
+fixture = "startup.disabled"
+
+[[command]]
+id = "startup.pause"
+group = "startup"
+argv = ["startup", "pause"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+]
+
+[[command]]
+id = "startup.start"
+group = "startup"
+argv = ["startup", "start"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "label", kind = "text" },
+]
 
 [[command]]
 id = "startup.inventory"
+group = "startup"
 argv = ["startup", "inventory"]
 emits = "Item[StartupInventory]"
 encoding = "object"
+risk = "read"
 fixture = "startup.inventory"
 
-# --------------------------------------------------- firewall/sharing/security
+[[command]]
+id = "startup.comprehensive-audit"
+group = "startup"
+argv = ["startup", "comprehensive-audit"]
+emits = "Findings[StartupRisk]"
+encoding = "list"
+risk = "read"
+fixture = "startup.comprehensive_audit"
+
+
+# ---------------------------------------------------------------------- firewall
+
 [[command]]
 id = "firewall.status"
+group = "firewall"
 argv = ["firewall", "status"]
 emits = "Item[FirewallState]"
 encoding = "object"
+risk = "read"
 fixture = "firewall.status"
 
 [[command]]
-id = "sharing.list"
-argv = ["sharing", "list"]
-emits = "Item[SharingState]"
-encoding = "object"
-fixture = "sharing.list"
+id = "firewall.set"
+group = "firewall"
+argv = ["firewall", "set"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "option", kind = "choice", required = true, choices = ["allows_signed", "allows_signed_app", "block_all", "enabled", "stealth_mode"] },
+  { name = "value", kind = "choice", required = true, choices = ["off", "on"] },
+]
 
 [[command]]
-id = "sharing.status"
-argv = ["sharing", "status"]
-emits = "Item[SharingState]"
-encoding = "object"
-fixture = "sharing.status"
+id = "firewall.app"
+group = "firewall"
+argv = ["firewall", "app"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "operation", kind = "choice", required = true, choices = ["add", "block", "remove", "unblock"] },
+  { name = "path", kind = "text", required = true },
+]
+
+
+# ---------------------------------------------------------------------- fswatch
 
 [[command]]
-id = "security.status"
-argv = ["security", "status"]
-emits = "Item[SecurityState]"
-encoding = "object"
-fixture = "security.status"
+id = "fswatch.watch"
+group = "fswatch"
+argv = ["fswatch", "watch"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+long_running = true
+args = [
+  { name = "path", kind = "text" },
+]
 
-# ------------------------------------------------------------------ fswatch
 [[command]]
 id = "fswatch.recent"
+group = "fswatch"
 argv = ["fswatch", "recent"]
 emits = "Collection[FileEvent]"
 encoding = "list"
+risk = "read"
 fixture = "fswatch.recent"
+args = [
+  { name = "path", kind = "text" },
+  { name = "seconds", kind = "int", option = "--seconds" },
+]
+
+[[command]]
+id = "fswatch.system"
+group = "fswatch"
+argv = ["fswatch", "system"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+long_running = true
 
 [[command]]
 id = "fswatch.new"
+group = "fswatch"
 argv = ["fswatch", "new"]
 emits = "Collection[FilePath]"
 encoding = "scalar-list"
 scalar_field = "path"
+risk = "read"
 fixture = "fswatch.new"
+args = [
+  { name = "path", kind = "text" },
+  { name = "days", kind = "int", option = "--days" },
+]
+
+[[command]]
+id = "fswatch.diff"
+group = "fswatch"
+argv = ["fswatch", "diff"]
+emits = "Diff[Unverified]"
+encoding = "list"
+risk = "read"
+notes = "creates a baseline under ~/.msp on first run"
+args = [
+  { name = "path", kind = "text" },
+]
 
 [[command]]
 id = "fswatch.audit"
+group = "fswatch"
 argv = ["fswatch", "audit"]
 emits = "Findings[FileChange]"
 encoding = "list"
+risk = "read"
 fixture = "fswatch.audit"
 
-# ------------------------------------------------------------------ traffic
+
+# ---------------------------------------------------------------------- traffic
+
 [[command]]
 id = "traffic.summary"
+group = "traffic"
 argv = ["traffic", "summary"]
 emits = "Collection[TrafficRow]"
 encoding = "list"
+risk = "read"
 fixture = "traffic.summary"
 
-# --------------------------------------------------------------------- scan
+[[command]]
+id = "traffic.dns"
+group = "traffic"
+argv = ["traffic", "dns"]
+emits = "Collection[Unverified]"
+encoding = "list"
+risk = "read"
+needs_root = true
+long_running = true
+args = [
+  { name = "count", kind = "int", option = "--count" },
+]
+
+[[command]]
+id = "traffic.http"
+group = "traffic"
+argv = ["traffic", "http"]
+emits = "Collection[Unverified]"
+encoding = "list"
+risk = "read"
+needs_root = true
+long_running = true
+args = [
+  { name = "count", kind = "int", option = "--count" },
+]
+
+[[command]]
+id = "traffic.capture"
+group = "traffic"
+argv = ["traffic", "capture"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+needs_root = true
+long_running = true
+args = [
+  { name = "count", kind = "int", option = "--count" },
+  { name = "output", kind = "text", option = "--output" },
+]
+
+[[command]]
+id = "traffic.stream"
+group = "traffic"
+argv = ["traffic", "stream"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+needs_root = true
+long_running = true
+args = [
+  { name = "duration", kind = "int", option = "--duration" },
+  { name = "filter", kind = "text", option = "--filter" },
+]
+
+
+# ---------------------------------------------------------------------- scan
+
 [[command]]
 id = "scan.quick"
+group = "scan"
 argv = ["scan", "quick"]
 emits = "Findings[HealthCheck]"
 encoding = "list"
+risk = "read"
+long_running = true
 fixture = "scan.quick"
 
 [[command]]
+id = "scan.deep"
+group = "scan"
+argv = ["scan", "deep"]
+emits = "Findings[HealthCheck]"
+encoding = "list"
+risk = "read"
+long_running = true
+
+[[command]]
 id = "scan.suspicious"
+group = "scan"
 argv = ["scan", "suspicious"]
 emits = "Findings[HealthCheck]"
 encoding = "list"
+risk = "read"
+long_running = true
 fixture = "scan.suspicious"
 
 [[command]]
-id = "scan.signature"
-argv = ["scan", "signature"]
-emits = "Item[Signature]"
-encoding = "object"
-fixture = "scan.signature"
-
-[[command]]
 id = "scan.verify"
+group = "scan"
 argv = ["scan", "verify"]
 emits = "Document"
 encoding = "text"
+risk = "read"
 fixture = "scan.verify"
+args = [
+  { name = "path", kind = "text" },
+]
+
+[[command]]
+id = "scan.signature"
+group = "scan"
+argv = ["scan", "signature"]
+emits = "Item[Signature]"
+encoding = "object"
+risk = "read"
+fixture = "scan.signature"
+args = [
+  { name = "path", kind = "text" },
+]
 
 [[command]]
 id = "scan.report"
+group = "scan"
 argv = ["scan", "report"]
 emits = "Document"
 encoding = "text"
+risk = "read"
+long_running = true
 fixture = "scan.report"
+args = [
+  { name = "output", kind = "text", option = "--output" },
+]
+
 
 # ---------------------------------------------------------------------- tcc
+
 [[command]]
 id = "tcc.list"
+group = "tcc"
 argv = ["tcc", "list"]
 emits = "Collection[Permission]"
 encoding = "wrapped"
 data_key = "permissions"
+risk = "read"
 fixture = "tcc.list"
+args = [
+  { name = "service_filter", kind = "text", option = "--service" },
+  { name = "client_filter", kind = "text", option = "--client" },
+]
 
 [[command]]
 id = "tcc.show"
+group = "tcc"
 argv = ["tcc", "show"]
 emits = "Collection[Permission]"
 encoding = "wrapped"
 data_key = "permissions"
+risk = "read"
 fixture = "tcc.show"
+args = [
+  { name = "service", kind = "text" },
+  { name = "client", kind = "text" },
+  { name = "service_filter", kind = "text", option = "--service" },
+  { name = "client_filter", kind = "text", option = "--client" },
+]
+
+[[command]]
+id = "tcc.grant"
+group = "tcc"
+argv = ["tcc", "grant"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "service", kind = "text" },
+  { name = "client", kind = "text" },
+]
+
+[[command]]
+id = "tcc.revoke"
+group = "tcc"
+argv = ["tcc", "revoke"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "service", kind = "text" },
+  { name = "client", kind = "text" },
+]
+
+[[command]]
+id = "tcc.reset"
+group = "tcc"
+argv = ["tcc", "reset"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = true
+args = [
+  { name = "service", kind = "text" },
+  { name = "client", kind = "text" },
+]
+
+[[command]]
+id = "tcc.backup"
+group = "tcc"
+argv = ["tcc", "backup"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "output", kind = "text", option = "--output" },
+]
+
+[[command]]
+id = "tcc.restore"
+group = "tcc"
+argv = ["tcc", "restore"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = true
+args = [
+  { name = "service", kind = "text" },
+]
 
 [[command]]
 id = "tcc.audit"
+group = "tcc"
 argv = ["tcc", "audit"]
 emits = "Findings[TccFinding]"
 encoding = "wrapped"
 data_key = "findings"
+risk = "read"
 fixture = "tcc.audit"
 
-# ----------------------------------------------------- analysis pipeline
-[[command]]
-id = "interrogate"
-argv = ["interrogate"]
-emits = "Item[Facts]"
-encoding = "object"
-channel = "artifact:--output"
-fixture = "interrogate"
+
+# ---------------------------------------------------------------------- audit
 
 [[command]]
 id = "audit"
+group = "audit"
 argv = ["audit"]
 emits = "Findings[RuleFinding]"
 encoding = "wrapped"
 data_key = "findings"
 success = [0, 1]
+risk = "read"
 fixture = "audit"
+args = [
+  { name = "facts", kind = "text" },
+  { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
+  { name = "format", kind = "choice", option = "--format", choices = ["json", "table"] },
+  { name = "format", kind = "text", option = "--json" },
+  { name = "categories", kind = "text", option = "--category", multi = true },
+  { name = "minimum_severity", kind = "choice", option = "--minimum-severity", choices = ["critical", "high", "info", "low", "medium"] },
+  { name = "list_profiles", kind = "flag", option = "--list-profiles" },
+]
+
+
+# ---------------------------------------------------------------------- interrogate
+
+[[command]]
+id = "interrogate"
+group = "interrogate"
+argv = ["interrogate"]
+emits = "Item[Facts]"
+encoding = "object"
+channel = "artifact:--output"
+risk = "read"
+fixture = "interrogate"
+args = [
+  { name = "output", kind = "text", option = "--output" },
+  { name = "sections", kind = "text", option = "--sections" },
+  { name = "no_redact", kind = "flag", option = "--no-redact" },
+]
+
+
+# ---------------------------------------------------------------------- reason
+
+[[command]]
+id = "reason"
+group = "reason"
+argv = ["reason"]
+emits = "Item[Unverified]"
+encoding = "object"
+risk = "read"
+llm = true
+args = [
+  { name = "facts", kind = "text", option = "--facts" },
+  { name = "findings", kind = "text", option = "--findings" },
+  { name = "plan", kind = "text", option = "--plan" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "auto", "local", "ollama", "openai"] },
+  { name = "output", kind = "text", option = "--output" },
+]
+
+
+# ---------------------------------------------------------------------- remediate
 
 [[command]]
 id = "remediate.plan"
+group = "remediate"
 argv = ["remediate", "plan"]
 emits = "Item[RemediationPlan]"
 encoding = "object"
 channel = "artifact:--output"
+risk = "read"
 fixture = "remediate.plan"
+args = [
+  { name = "findings_json", kind = "text", required = true },
+  { name = "output", kind = "text", option = "--output" },
+  { name = "max_safety", kind = "choice", option = "--max-safety", choices = ["destructive", "high", "low", "medium"] },
+]
 
 [[command]]
 id = "remediate.apply"
+group = "remediate"
 argv = ["remediate", "apply"]
 emits = "Run[ActionOutcome]"
 encoding = "wrapped"
 data_key = "results"
+risk = "dangerous"
 fixture = "remediate.apply_preview"
+notes = "preview unless --apply; the TUI action applies"
+args = [
+  { name = "plan_json", kind = "text", required = true },
+  { name = "apply", kind = "flag", option = "--apply" },
+  { name = "output", kind = "text", option = "--output" },
+  { name = "max_safety", kind = "choice", option = "--max-safety", choices = ["destructive", "high", "low", "medium"] },
+  { name = "allow_high_risk", kind = "flag", option = "--allow-high-risk" },
+  { name = "yes", kind = "text", option = "--yes", multi = true },
+]
+
+[[command]]
+id = "remediate.approve"
+group = "remediate"
+argv = ["remediate", "approve"]
+emits = "Item[Unverified]"
+encoding = "object"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "plan_json", kind = "text", required = true },
+  { name = "action", kind = "text", option = "--action", required = true },
+  { name = "ttl", kind = "int", option = "--ttl" },
+]
+
+
+# ---------------------------------------------------------------------- report
 
 [[command]]
 id = "report"
+group = "report"
 argv = ["report"]
 emits = "Document"
 encoding = "text"
 text_format = "markdown"
 channel = "artifact:--output"
+risk = "read"
 fixture = "report"
+args = [
+  { name = "facts", kind = "text", option = "--facts", required = true },
+  { name = "findings", kind = "text", option = "--findings", required = true },
+  { name = "plan", kind = "text", option = "--plan" },
+  { name = "format", kind = "choice", option = "--format", required = true, choices = ["json", "md"] },
+  { name = "output", kind = "text", option = "--output", required = true },
+]
 
-# ------------------------------------------------- workflows/chains/snapshots
+
+# ---------------------------------------------------------------------- workflow
+
 [[command]]
 id = "workflow.list"
+group = "workflow"
 argv = ["workflow", "list"]
 emits = "Definitions[WorkflowDef]"
 encoding = "wrapped"
 data_key = "workflows"
+risk = "read"
 fixture = "workflow.list"
 
 [[command]]
 id = "workflow.show"
+group = "workflow"
 argv = ["workflow", "show"]
 emits = "Run[PlannedStep]"
 encoding = "wrapped"
 data_key = "steps"
+risk = "read"
 fixture = "workflow.show"
+args = [
+  { name = "workflow", kind = "choice", required = true, choices = ["daily", "evidence", "harden", "incident"] },
+]
 
 [[command]]
 id = "workflow.run"
+group = "workflow"
 argv = ["workflow", "run"]
 emits = "Run[PlannedStep]"
 encoding = "wrapped"
 data_key = "steps"
+risk = "read"
+llm = true
 fixture = "workflow.run_dry"
+notes = "LLM reasoning unless --no-reason"
+args = [
+  { name = "workflow", kind = "choice", required = true, choices = ["daily", "evidence", "harden", "incident"] },
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+  { name = "no_reason", kind = "flag", option = "--no-reason" },
+]
+
+
+# ---------------------------------------------------------------------- snapshot
 
 [[command]]
-id = "chain.list"
-argv = ["chain", "list"]
-emits = "Definitions[ChainDef]"
-encoding = "keyed"
-key_field = "name"
-fixture = "chain.list"
+id = "snapshot.capture"
+group = "snapshot"
+argv = ["snapshot", "capture"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "text" },
+  { name = "include_network", kind = "flag", option = "--include-network" },
+  { name = "include_startup", kind = "flag", option = "--include-startup" },
+]
 
 [[command]]
 id = "snapshot.list"
+group = "snapshot"
 argv = ["snapshot", "list"]
 emits = "Collection[Snapshot]"
 encoding = "list"
+risk = "read"
 fixture = "snapshot.list"
 
 [[command]]
 id = "snapshot.diff"
+group = "snapshot"
 argv = ["snapshot", "diff"]
 emits = "Diff[SettingChange]"
 encoding = "list"
+risk = "read"
 fixture = "snapshot.diff"
+args = [
+  { name = "name", kind = "text" },
+]
 
-# ----------------------------------------------------------- ai / maintenance
+[[command]]
+id = "snapshot.restore"
+group = "snapshot"
+argv = ["snapshot", "restore"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = true
+args = [
+  { name = "name", kind = "text" },
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+  { name = "force", kind = "flag", option = "--force" },
+]
+
+[[command]]
+id = "snapshot.watch"
+group = "snapshot"
+argv = ["snapshot", "watch"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+long_running = true
+args = [
+  { name = "name", kind = "text" },
+  { name = "interval", kind = "int", option = "--interval" },
+  { name = "auto_restore", kind = "flag", option = "--auto-restore" },
+]
+
+[[command]]
+id = "snapshot.delete"
+group = "snapshot"
+argv = ["snapshot", "delete"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "text" },
+]
+
+
+# ---------------------------------------------------------------------- sharing
+
+[[command]]
+id = "sharing.list"
+group = "sharing"
+argv = ["sharing", "list"]
+emits = "Item[SharingState]"
+encoding = "object"
+risk = "read"
+fixture = "sharing.list"
+
+[[command]]
+id = "sharing.status"
+group = "sharing"
+argv = ["sharing", "status"]
+emits = "Item[SharingState]"
+encoding = "object"
+risk = "read"
+fixture = "sharing.status"
+
+[[command]]
+id = "sharing.disable"
+group = "sharing"
+argv = ["sharing", "disable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "name", kind = "text" },
+]
+
+[[command]]
+id = "sharing.disable-guest"
+group = "sharing"
+argv = ["sharing", "disable-guest"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "name", kind = "text" },
+]
+
+[[command]]
+id = "sharing.enable"
+group = "sharing"
+argv = ["sharing", "enable"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "name", kind = "text" },
+]
+
+[[command]]
+id = "sharing.stop-all"
+group = "sharing"
+argv = ["sharing", "stop-all"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = true
+
+
+# ---------------------------------------------------------------------- security
+
+[[command]]
+id = "security.status"
+group = "security"
+argv = ["security", "status"]
+emits = "Item[SecurityState]"
+encoding = "object"
+risk = "read"
+fixture = "security.status"
+
+[[command]]
+id = "security.lock"
+group = "security"
+argv = ["security", "lock"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+
+[[command]]
+id = "security.sleep"
+group = "security"
+argv = ["security", "sleep"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+
+[[command]]
+id = "security.set"
+group = "security"
+argv = ["security", "set"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = true
+args = [
+  { name = "key", kind = "text" },
+  { name = "value", kind = "text" },
+]
+
+[[command]]
+id = "security.computer-sleep"
+group = "security"
+argv = ["security", "computer-sleep"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+
+
+# ---------------------------------------------------------------------- ai
+
+[[command]]
+id = "ai.ask"
+group = "ai"
+argv = ["ai", "ask"]
+emits = "Document"
+encoding = "text"
+risk = "read"
+llm = true
+args = [
+  { name = "data", kind = "text", option = "--data" },
+  { name = "text", kind = "text", option = "--text" },
+  { name = "model", kind = "text", option = "--model" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "custom", "deepseek", "groq", "ollama", "openai", "openrouter", "openvino", "together"] },
+  { name = "openvino_device", kind = "text", option = "--openvino-device" },
+]
+
+[[command]]
+id = "ai.configure"
+group = "ai"
+argv = ["ai", "configure"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+interactive = true
+notes = "TTY-only setup flow; the TUI uses its own form"
+
 [[command]]
 id = "ai.providers"
+group = "ai"
 argv = ["ai", "providers"]
 emits = "Definitions[Provider]"
 encoding = "wrapped"
 data_key = "providers"
+risk = "read"
 fixture = "ai.providers"
 
 [[command]]
+id = "ai.analyze"
+group = "ai"
+argv = ["ai", "analyze"]
+emits = "Document"
+encoding = "text"
+risk = "read"
+llm = true
+args = [
+  { name = "file", kind = "text", option = "--file" },
+  { name = "model", kind = "text", option = "--model" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "custom", "deepseek", "groq", "ollama", "openai", "openrouter", "openvino", "together"] },
+  { name = "openvino_device", kind = "text", option = "--openvino-device" },
+]
+
+[[command]]
+id = "ai.watch"
+group = "ai"
+argv = ["ai", "watch"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+long_running = true
+llm = true
+args = [
+  { name = "interval", kind = "int", option = "--interval" },
+  { name = "modules", kind = "text", option = "--modules", multi = true },
+  { name = "model", kind = "text", option = "--model" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "custom", "deepseek", "groq", "ollama", "openai", "openrouter", "openvino", "together"] },
+  { name = "openvino_device", kind = "text", option = "--openvino-device" },
+]
+
+[[command]]
+id = "ai.explain"
+group = "ai"
+argv = ["ai", "explain"]
+emits = "Document"
+encoding = "text"
+risk = "read"
+llm = true
+args = [
+  { name = "setting", kind = "text", option = "--setting" },
+  { name = "model", kind = "text", option = "--model" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "custom", "deepseek", "groq", "ollama", "openai", "openrouter", "openvino", "together"] },
+  { name = "openvino_device", kind = "text", option = "--openvino-device" },
+]
+
+[[command]]
+id = "ai.compare"
+group = "ai"
+argv = ["ai", "compare"]
+emits = "Document"
+encoding = "text"
+risk = "read"
+llm = true
+args = [
+  { name = "preset1", kind = "text", option = "--preset1" },
+  { name = "preset2", kind = "text", option = "--preset2" },
+  { name = "model", kind = "text", option = "--model" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "custom", "deepseek", "groq", "ollama", "openai", "openrouter", "openvino", "together"] },
+  { name = "openvino_device", kind = "text", option = "--openvino-device" },
+]
+
+[[command]]
+id = "ai.suggest"
+group = "ai"
+argv = ["ai", "suggest"]
+emits = "Document"
+encoding = "text"
+risk = "read"
+llm = true
+args = [
+  { name = "model", kind = "text", option = "--model" },
+  { name = "provider", kind = "choice", option = "--provider", choices = ["apfel", "custom", "deepseek", "groq", "ollama", "openai", "openrouter", "openvino", "together"] },
+  { name = "openvino_device", kind = "text", option = "--openvino-device" },
+]
+
+[[command]]
 id = "ai.devices"
+group = "ai"
 argv = ["ai", "devices"]
 emits = "Document"
 encoding = "text"
+risk = "read"
 fixture = "ai.devices"
+
+
+# ---------------------------------------------------------------------- chain
+
+[[command]]
+id = "chain.list"
+group = "chain"
+argv = ["chain", "list"]
+emits = "Definitions[ChainDef]"
+encoding = "keyed"
+key_field = "name"
+risk = "read"
+fixture = "chain.list"
+
+[[command]]
+id = "chain.run"
+group = "chain"
+argv = ["chain", "run"]
+emits = "Run[Unverified]"
+encoding = "object"
+risk = "confirm"
+llm = true
+args = [
+  { name = "name", kind = "text" },
+  { name = "prompt", kind = "text", option = "--prompt" },
+]
+
+[[command]]
+id = "chain.define"
+group = "chain"
+argv = ["chain", "define"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "text" },
+  { name = "steps", kind = "text", option = "--steps" },
+  { name = "description", kind = "text", option = "--description" },
+  { name = "interval", kind = "int", option = "--interval" },
+]
+
+[[command]]
+id = "chain.delete"
+group = "chain"
+argv = ["chain", "delete"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "text" },
+]
+
+[[command]]
+id = "chain.watch"
+group = "chain"
+argv = ["chain", "watch"]
+emits = "Stream[Line]"
+encoding = "lines"
+risk = "read"
+long_running = true
+llm = true
+args = [
+  { name = "name", kind = "text" },
+  { name = "interval", kind = "int", option = "--interval" },
+  { name = "max", kind = "int", option = "--max" },
+  { name = "prompt", kind = "text", option = "--prompt" },
+]
+
+[[command]]
+id = "chain.export"
+group = "chain"
+argv = ["chain", "export"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "name", kind = "text" },
+  { name = "file", kind = "text", option = "--file" },
+]
+
+[[command]]
+id = "chain.import"
+group = "chain"
+argv = ["chain", "import"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "file", kind = "text", option = "--file" },
+]
+
+
+# ---------------------------------------------------------------------- deps
 
 [[command]]
 id = "deps.status"
+group = "deps"
 argv = ["deps", "status"]
 emits = "Collection[Dependency]"
 encoding = "keyed"
 key_field = "name"
+risk = "read"
 fixture = "deps.status"
 
 [[command]]
+id = "deps.doctor"
+group = "deps"
+argv = ["deps", "doctor"]
+emits = "Item[DoctorReport]"
+encoding = "object"
+risk = "read"
+
+[[command]]
 id = "deps.check"
+group = "deps"
 argv = ["deps", "check"]
 emits = "Item[PackageStatus]"
 encoding = "object"
 success = [0, 1]
+risk = "read"
 fixture = "deps.check"
+args = [
+  { name = "package", kind = "text" },
+  { name = "check", kind = "text", option = "--check" },
+]
 
 [[command]]
-id = "doctor"
-argv = ["doctor"]
-emits = "Item[DoctorReport]"
-encoding = "object"
-fixture = "doctor"
+id = "deps.install"
+group = "deps"
+argv = ["deps", "install"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+active_network = true
+args = [
+  { name = "package", kind = "text" },
+  { name = "install", kind = "text", option = "--install" },
+]
+
+[[command]]
+id = "deps.fix"
+group = "deps"
+argv = ["deps", "fix"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+active_network = true
+args = [
+  { name = "fix", kind = "flag", option = "--fix" },
+]
+
+[[command]]
+id = "deps.install-all"
+group = "deps"
+argv = ["deps", "install-all"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+active_network = true
+
+
+# ---------------------------------------------------------------------- tune
 
 [[command]]
 id = "tune.check"
+group = "tune"
 argv = ["tune", "check"]
 emits = "Findings[TuneCheck]"
 encoding = "list"
+risk = "read"
 fixture = "tune.check"
 
 [[command]]
+id = "tune.fix"
+group = "tune"
+argv = ["tune", "fix"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+]
+
+[[command]]
 id = "tune.top"
+group = "tune"
 argv = ["tune", "top"]
 emits = "Item[CommandOutput]"
 encoding = "object"
+risk = "read"
 fixture = "tune.top"
 
+
+# ---------------------------------------------------------------------- forensics
+
 [[command]]
-id = "config.list"
-argv = ["config", "list"]
-emits = "Item[ConfigSections]"
+id = "forensics.scan"
+group = "forensics"
+argv = ["forensics", "scan"]
+emits = "Collection[Unverified]"
 encoding = "object"
-fixture = "config.list"
+risk = "read"
+long_running = true
+args = [
+  { name = "path", kind = "text", required = true },
+]
+
+[[command]]
+id = "forensics.inspect"
+group = "forensics"
+argv = ["forensics", "inspect"]
+emits = "Item[Unverified]"
+encoding = "object"
+risk = "read"
+args = [
+  { name = "file", kind = "text", required = true },
+]
+
+[[command]]
+id = "forensics.correlate"
+group = "forensics"
+argv = ["forensics", "correlate"]
+emits = "Diff[Unverified]"
+encoding = "object"
+risk = "read"
+long_running = true
+args = [
+  { name = "volume", kind = "text", required = true },
+]
+
+[[command]]
+id = "forensics.spotlight"
+group = "forensics"
+argv = ["forensics", "spotlight"]
+emits = "Collection[Unverified]"
+encoding = "object"
+risk = "read"
+args = [
+  { name = "volume", kind = "text", required = true },
+]
+
+[[command]]
+id = "forensics.clean"
+group = "forensics"
+argv = ["forensics", "clean"]
+emits = "Result"
+encoding = "exit"
+risk = "dangerous"
+needs_root = false
+args = [
+  { name = "path", kind = "text", required = true },
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+  { name = "dry_run", kind = "flag", option = "--force" },
+]
+
+
+# ---------------------------------------------------------------------- shell
 
 [[command]]
 id = "shell.audit"
+group = "shell"
 argv = ["shell", "audit"]
 emits = "Findings[ShellFinding]"
 encoding = "list"
+risk = "read"
+notes = "--ai sends the audit to an LLM provider (opt-in)"
 fixture = "shell.audit"
+args = [
+  { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
+  { name = "output", kind = "text", option = "--output" },
+  { name = "categories", kind = "choice", option = "--categories", choices = ["completion", "executable", "package_manager", "path", "symlink", "zsh_startup"], multi = true },
+  { name = "ai", kind = "flag", option = "--ai" },
+]
+
+[[command]]
+id = "shell.repair"
+group = "shell"
+argv = ["shell", "repair"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+notes = "re-audits, then applies repairs allowed by --scope (auto-safe by default); --ai is opt-in LLM help"
+needs_root = false
+args = [
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+  { name = "dry_run", kind = "flag", option = "--fix" },
+  { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
+  { name = "categories", kind = "choice", option = "--categories", choices = ["completion", "executable", "package_manager", "path", "symlink", "zsh_startup"], multi = true },
+  { name = "no_confirm", kind = "flag", option = "--no-confirm" },
+  { name = "scope", kind = "choice", option = "--scope", choices = ["advisory", "all", "auto_safe", "guided"] },
+  { name = "ai", kind = "flag", option = "--ai" },
+]
+
+
+# ---------------------------------------------------------------------- config
+
+[[command]]
+id = "config.list"
+group = "config"
+argv = ["config", "list"]
+emits = "Item[ConfigSections]"
+encoding = "object"
+risk = "read"
+fixture = "config.list"
+
+[[command]]
+id = "config.set"
+group = "config"
+argv = ["config", "set"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "key", kind = "text", required = true },
+  { name = "value", kind = "text", required = true },
+]
+
+
+# ---------------------------------------------------------------------- ask
+
+[[command]]
+id = "ask"
+group = "ask"
+argv = ["ask"]
+emits = "Document"
+encoding = "text"
+risk = "read"
+llm = true
+args = [
+  { name = "prompt", kind = "text", required = true, multi = true },
+]
+
+
+# ---------------------------------------------------------------------- doctor
+
+[[command]]
+id = "doctor"
+group = "doctor"
+argv = ["doctor"]
+emits = "Item[DoctorReport]"
+encoding = "object"
+risk = "read"
+fixture = "doctor"
+
+[[command]]
+id = "doctor.fix"
+group = "doctor"
+argv = ["doctor", "fix"]
+emits = "Result"
+encoding = "exit"
+risk = "confirm"
+needs_root = false
+args = [
+  { name = "dry_run", kind = "flag", option = "--dry-run" },
+  { name = "yes", kind = "text", option = "--yes" },
+]

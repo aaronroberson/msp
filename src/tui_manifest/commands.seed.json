@@ -1064,6 +1064,14 @@
               "default": "table"
             },
             {
+              "name": "format",
+              "kind": "text",
+              "positional": false,
+              "option": "--json",
+              "required": false,
+              "help": "Same as --format json (the global msp --json flag maps here)."
+            },
+            {
               "name": "categories",
               "kind": "text",
               "positional": false,
@@ -1919,6 +1927,14 @@
       "module": "deps",
       "style": "flat",
       "shared_args": [
+        {
+          "name": "package",
+          "kind": "text",
+          "positional": true,
+          "option": null,
+          "required": false,
+          "help": "Package name for check/install"
+        },
         {
           "name": "fix",
           "kind": "flag",
