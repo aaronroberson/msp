@@ -8,7 +8,7 @@
     "/System/Applications/Calculator.app"
   ],
   "returncode": 0,
-  "duration_s": 0.09,
+  "duration_s": 0.16,
   "json": {
     "path": "/System/Applications/Calculator.app",
     "valid": false,
@@ -17,6 +17,6 @@
     "authority": "Apple"
   },
   "text": null,
-  "stdout_has_preamble": true,
-  "stderr": ""
+  "stdout_has_preamble": false,
+  "stderr": "Checking signature: /System/Applications/Calculator.app\n"
 }

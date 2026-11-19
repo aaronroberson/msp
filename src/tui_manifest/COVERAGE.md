@@ -68,7 +68,7 @@ Contracts: no-fixture 66 · sample 8 · unverified-shape 12 · verified 49
 | `scan.quick` | read | `Findings[HealthCheck]` | verified | fallback-only |
 | `scan.deep` | read | `Findings[HealthCheck]` | no-fixture | fallback-only |
 | `scan.suspicious` | read | `Findings[HealthCheck]` | verified | fallback-only |
-| `scan.verify` | read | `Document` | verified | fallback-only |
+| `scan.verify` | read | `Item[AppAssessment]` | verified | fallback-only |
 | `scan.signature` | read | `Item[Signature]` | verified | fallback-only |
 | `scan.report` | read | `Document` | verified | fallback-only |
 | `tcc.list` | read | `Collection[Permission]` | sample | fallback-only |
@@ -114,7 +114,7 @@ Contracts: no-fixture 66 · sample 8 · unverified-shape 12 · verified 49
 | `ai.explain` | read | `Document` | no-fixture | fallback-only |
 | `ai.compare` | read | `Document` | no-fixture | fallback-only |
 | `ai.suggest` | read | `Document` | no-fixture | fallback-only |
-| `ai.devices` | read | `Document` | verified | fallback-only |
+| `ai.devices` | read | `Item[DeviceList]` | verified | fallback-only |
 | `chain.list` | read | `Definitions[ChainDef]` | verified | fallback-only |
 | `chain.run` | confirm | `Run[Unverified]` | unverified-shape | fallback-only |
 | `chain.define` | confirm | `Result` | no-fixture | fallback-only |

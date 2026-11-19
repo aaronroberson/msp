@@ -1068,7 +1068,10 @@ Examples:
 
     elif args.action == "devices":
         devices = _openvino_list_devices()
-        print(f"\nAvailable OpenVINO devices: {devices if devices else 'none detected'}")
+        if args.json:
+            print(json.dumps({"openvino_available": OPENVINO_AVAILABLE, "devices": list(devices)}))
+        else:
+            print(f"\nAvailable OpenVINO devices: {devices if devices else 'none detected'}")
 
 
 if __name__ == "__main__":

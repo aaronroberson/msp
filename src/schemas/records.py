@@ -241,6 +241,14 @@ class Signature(Record):
     authority: str = ""
 
 
+class AppAssessment(Record):
+    """`scan verify`: Gatekeeper (spctl) assessment."""
+
+    path: str
+    verified: bool
+    assessment: str = ""
+
+
 class RuleFinding(Finding):
     """`audit` (rules engine)."""
 
@@ -405,6 +413,13 @@ class Provider(Record):
     configured: bool = False
     key_source: Optional[Literal["config", "env"]] = None
     default: bool = False
+
+
+class DeviceList(Record):
+    """`ai devices`: local inference devices."""
+
+    openvino_available: bool
+    devices: List[str] = Field(default_factory=list)
 
 
 class Facts(Record):

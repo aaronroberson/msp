@@ -8,9 +8,13 @@
     "/System/Applications/Calculator.app"
   ],
   "returncode": 0,
-  "duration_s": 0.53,
-  "json": null,
-  "text": "Verifying: /System/Applications/Calculator.app\n\u2713 App is verified and allowed to run\n",
+  "duration_s": 0.22,
+  "json": {
+    "path": "/System/Applications/Calculator.app",
+    "verified": true,
+    "assessment": "/System/Applications/Calculator.app: accepted\nsource=Apple System"
+  },
+  "text": null,
   "stdout_has_preamble": false,
   "stderr": ""
 }

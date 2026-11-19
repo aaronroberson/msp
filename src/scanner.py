@@ -534,29 +534,32 @@ class SecurityScanner:
                                 ))
                                 break
 
-    def verify_app(self, app_path: str) -> bool:
-        """Verify an app with Gatekeeper."""
+    def verify_app(self, app_path: str, json_output: bool = False) -> Dict[str, Any]:
+        """Assess an app with Gatekeeper (spctl). Returns {path, verified, assessment}."""
         if not os.path.exists(app_path):
             app_path = f"/Applications/{app_path}.app" if not app_path.endswith(".app") else app_path
 
-        print(f"Verifying: {app_path}")
         success, output = self._run_cmd(["spctl", "--assess", "--type", "exec", "--verbose=2", app_path])
-        
-        if success and ("accepted" in output.lower() or "pass" in output.lower()):
+        verified = bool(success and ("accepted" in output.lower() or "pass" in output.lower()))
+        result = {"path": app_path, "verified": verified, "assessment": output.strip()}
+        if json_output:
+            print(json.dumps(result, indent=2))
+            return result
+        print(f"Verifying: {app_path}")
+        if verified:
             print("✓ App is verified and allowed to run")
-            return True
         else:
             print("✗ App verification failed or was rejected")
             if output:
                 print(f"Output: {output}")
-            return False
+        return result
 
     def signature_info(self, app_path: str, json_output: bool = False) -> Dict[str, str]:
         """Get code signature information for an app."""
         if not os.path.exists(app_path):
             app_path = f"/Applications/{app_path}.app" if not app_path.endswith(".app") else app_path
 
-        print(f"Checking signature: {app_path}")
+        print(f"Checking signature: {app_path}", file=sys.stderr if json_output else sys.stdout)
         success, output = self._run_cmd(["codesign", "-dvvv", app_path])
 
         info = {"path": app_path, "valid": False, "signed": False, "details": ""}
@@ -764,7 +767,8 @@ def main():
         if not args.path:
             print("Error: path required")
             sys.exit(1)
-        scanner.verify_app(args.path)
+        result = scanner.verify_app(args.path, json_output=args.json)
+        sys.exit(0 if result["verified"] else 1)
     elif args.action == "signature":
         if not args.path:
             print("Error: path required")

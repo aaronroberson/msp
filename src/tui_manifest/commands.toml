@@ -614,7 +614,8 @@ argv = ["fswatch", "diff"]
 emits = "Diff[Unverified]"
 encoding = "list"
 risk = "read"
-notes = "creates a baseline under ~/.msp on first run"
+interactive = true
+notes = "creates a baseline under ~/.msp on first run; prompts to update it (TTY), so the TUI needs its own update action"
 args = [
   { name = "path", kind = "text" },
 ]
@@ -730,8 +731,9 @@ fixture = "scan.suspicious"
 id = "scan.verify"
 group = "scan"
 argv = ["scan", "verify"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AppAssessment]"
+encoding = "object"
+success = [0, 1]
 risk = "read"
 fixture = "scan.verify"
 args = [
@@ -1361,8 +1363,8 @@ args = [
 id = "ai.devices"
 group = "ai"
 argv = ["ai", "devices"]
-emits = "Document"
-encoding = "text"
+emits = "Item[DeviceList]"
+encoding = "object"
 risk = "read"
 fixture = "ai.devices"
 

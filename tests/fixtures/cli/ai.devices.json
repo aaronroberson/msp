@@ -7,9 +7,12 @@
     "devices"
   ],
   "returncode": 0,
-  "duration_s": 0.08,
-  "json": null,
-  "text": "\nAvailable OpenVINO devices: none detected\n",
+  "duration_s": 0.12,
+  "json": {
+    "openvino_available": false,
+    "devices": []
+  },
+  "text": null,
   "stdout_has_preamble": false,
   "stderr": ""
 }
