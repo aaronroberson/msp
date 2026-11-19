@@ -312,7 +312,8 @@ def test_every_command_is_reachable_and_fallback_pages_render_every_output(monke
         app = MspTUI(executor=run_replay)
         async with app.run_test(size=(170, 50)) as pilot:
             await pilot.pause(0.2)
-            assert app.query_one("#nav-fallback-deps").label == "deps"
+            first = sorted(generated)[0]
+            assert app.query_one("#nav-" + first.replace(".", "-")).label == generated[first].page.title
             failures = []
             for page_id, spec in generated.items():
                 app.switch_view_id(page_id)
@@ -334,13 +335,58 @@ def test_every_command_is_reachable_and_fallback_pages_render_every_output(monke
                             failures.append(f"{page_id} {slot.run}: did not render")
             assert failures == []
             # a mutation on a fallback page confirms before anything runs
-            app.switch_view_id("fallback.deps")
+            page_id, run = next((pid, r) for pid, spec in generated.items() for r in spec.runs
+                                if commands[r.command].risk != "read" and not commands[r.command].args)
+            app.switch_view_id(page_id)
             await pilot.pause(0.1)
-            page = app._panes["fallback.deps"]
-            page.request("deps_install", {"package": "jq"})
+            app._panes[page_id].request(run.id, {})
             await pilot.pause(0.1)
-            assert "deps install jq" in str(app.screen.query_one("#confirm-command").render())
+            expected = " ".join(commands[run.command].argv)
+            assert expected in str(app.screen.query_one("#confirm-command").render())
             await pilot.press("escape")
             assert lines == []
+
+    asyncio.run(exercise())
+
+
+def test_every_curated_page_and_tab_renders_its_runs():
+    """Open every manifest page, visit every tab, and check each panel whose run
+    succeeded actually rendered (replayed fixtures; nothing outbound runs)."""
+    from src.tui_manifest import load_pages
+    from src.tui_pages.page import PageView
+    from src.tui_pages.runtime import run_replay
+
+    pages = load_pages()
+    executed = []
+
+    def executor(run_id, command, args):
+        assert not (command.active_network or command.llm), f"{run_id} ran without asking"
+        executed.append(run_id)
+        return run_replay(run_id, command, args)
+
+    async def exercise():
+        app = MspTUI(executor=executor)
+        async with app.run_test(size=(180, 50)) as pilot:
+            await pilot.pause(0.2)
+            problems = []
+            for page_id, spec in pages.items():
+                app.switch_view_id(page_id)
+                await pilot.pause(0.1)
+                page = app._panes[app._current_id]
+                assert isinstance(page, PageView)
+                for tab in [t.id for t in spec.tabs] or [None]:
+                    if tab:
+                        page.show_tab(tab)
+                    await pilot.pause(0.1)
+                    await app.workers.wait_for_complete()
+                    await pilot.pause(0.1)
+                for slot in spec.slots:
+                    result = page.scheduler.results.get(slot.run or "")
+                    widget = page.slots[f"{slot.region}#{slot.order}"]
+                    if result and not result.failure and not widget.loaded:
+                        problems.append(f"{page_id} {slot.region}#{slot.order}: {slot.run} did not render")
+                    if result and result.failure and not result.failure.startswith("needs "):
+                        problems.append(f"{page_id} {slot.run}: {result.failure}")
+            assert problems == []
 
     asyncio.run(exercise())

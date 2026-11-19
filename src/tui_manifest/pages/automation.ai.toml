@@ -28,6 +28,21 @@ command = "ai.explain"
 trigger = "on_action"
 
 [[runs]]
+id = "context"
+command = "ask"
+trigger = "on_action"
+
+[[runs]]
+id = "compare"
+command = "ai.compare"
+trigger = "on_action"
+
+[[runs]]
+id = "analyze"
+command = "ai.analyze"
+trigger = "on_action"
+
+[[runs]]
 id = "suggest"
 command = "ai.suggest"
 trigger = "on_action"
@@ -62,6 +77,27 @@ order = 4
 run = "suggest"
 component = "ReportView"
 props = { title = "Hardening suggestions", text_field = "response", empty = "Request suggestions on the right." }
+
+[[slots]]
+region = "workspace.main"
+order = 5
+run = "context"
+component = "ReportView"
+props = { title = "Answer with system diagnostics", text_field = "response", empty = "Ask with load, memory and process context attached." }
+
+[[slots]]
+region = "workspace.main"
+order = 6
+run = "compare"
+component = "ReportView"
+props = { title = "Preset comparison", text_field = "response", empty = "Pick two presets on the right." }
+
+[[slots]]
+region = "workspace.main"
+order = 7
+run = "analyze"
+component = "ReportView"
+props = { title = "Analysis of a results file", text_field = "response", empty = "Point at a JSON results file on the right." }
 
 [[slots]]
 region = "workspace.aside"
@@ -101,6 +137,42 @@ submit = "Suggest ↗"
 [[slots]]
 region = "workspace.aside"
 order = 4
+component = "ActionForm"
+actions = ["context"]
+[slots.props]
+title = "Ask with system diagnostics"
+labels = { prompt = "Question" }
+submit = "Ask ↗"
+placeholders = { prompt = "Why is my Mac slow right now?" }
+
+[[slots]]
+region = "workspace.aside"
+order = 5
+component = "ActionForm"
+actions = ["compare"]
+[slots.props]
+title = "Compare presets"
+fields = ["preset1", "preset2", "provider"]
+required = ["preset1", "preset2"]
+labels = { preset1 = "First preset", preset2 = "Second preset" }
+submit = "Compare ↗"
+placeholders = { preset1 = "basic", preset2 = "paranoid" }
+
+[[slots]]
+region = "workspace.aside"
+order = 6
+component = "ActionForm"
+actions = ["analyze"]
+[slots.props]
+title = "Analyze a results file"
+fields = ["file", "provider"]
+required = ["file"]
+submit = "Analyze ↗"
+placeholders = { file = "~/.msp/scans/latest.json" }
+
+[[slots]]
+region = "workspace.aside"
+order = 7
 run = "devices"
 component = "ReportView"
 props = { title = "Local accelerators" }

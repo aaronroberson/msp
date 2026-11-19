@@ -30,6 +30,10 @@ title = "Deep"
 id = "apps"
 title = "App signatures"
 
+[[tabs]]
+id = "report"
+title = "Report"
+
 [[runs]]
 id = "saved"
 command = "doctor"
@@ -51,6 +55,11 @@ id = "deep"
 command = "scan.deep"
 trigger = "manual"
 refreshes = ["saved"]
+
+[[runs]]
+id = "report"
+command = "scan.report"
+trigger = "manual"
 
 [[runs]]
 id = "verify"
@@ -159,6 +168,14 @@ run = "signature"
 component = "ReportView"
 tab = "apps"
 props = { title = "Signature", empty = "Enter an app path to read and verify its code signature." }
+
+[[slots]]
+region = "workspace.main"
+order = 9
+run = "report"
+component = "ReportView"
+tab = "report"
+props = { title = "Scan report", max_height = 60, empty = "Use Run ⏱ to run a deep scan and print its report (takes several minutes)." }
 
 [[slots]]
 region = "workspace.aside"

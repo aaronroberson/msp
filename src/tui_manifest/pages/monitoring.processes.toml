@@ -1,0 +1,20 @@
+# Monitoring ▸ Processes & load (template: console). Top CPU / memory users,
+# memory pressure and load averages.
+
+[page]
+id = "monitoring.processes"
+concern = "monitoring"
+title = "Processes & load"
+order = 4
+template = "console"
+
+[[runs]]
+id = "top"
+command = "tune.top"
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "top"
+component = "ReportView"
+props = { title = "Top processes, memory pressure and load", text_field = "output", text_format = "text", max_height = 60 }

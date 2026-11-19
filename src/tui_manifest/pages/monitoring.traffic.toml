@@ -1,0 +1,40 @@
+# Monitoring ▸ Traffic (template: explorer). Bytes in/out per process.
+# Live capture and DNS/HTTP sniffing need the live panel (Phase 4) and root.
+
+[page]
+id = "monitoring.traffic"
+concern = "monitoring"
+title = "Traffic"
+order = 2
+template = "explorer"
+
+[[runs]]
+id = "summary"
+command = "traffic.summary"
+
+[[slots]]
+region = "strip"
+order = 1
+run = "summary"
+select = "sum([].total)"
+component = "KPICell"
+props = { title = "Total bytes" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "summary"
+component = "RecordTable"
+[slots.props]
+title = "Traffic by process"
+columns = ["process", "bytes_in", "bytes_out", "total"]
+labels = { bytes_in = "In (bytes)", bytes_out = "Out (bytes)", total = "Total" }
+sort_by = ["-total"]
+empty = "No traffic recorded."
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+props = { title = "Process", empty = "Select a process." }

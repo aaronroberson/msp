@@ -462,6 +462,21 @@ def check_bindings(
     return problems
 
 
+# Commands whose page needs a later component (plan §12, deferred list).
+PIPELINE_COMMANDS = ("reason", "remediate.plan", "report", "workflow.run")
+
+
+def deferral(command: CommandSpec) -> Optional[str]:
+    """Why a read command has no curated page yet, or None if nothing blocks one."""
+    if "Unverified" in command.emits:
+        return "no verified output contract yet"
+    if command.envelope_kind == "stream":
+        return "streams output: needs LiveStream (Phase 4)"
+    if command.id in PIPELINE_COMMANDS:
+        return "pipeline step: needs PipelineStepper (Phase 5)"
+    return None
+
+
 def coverage(
     commands: Dict[str, CommandSpec],
     pages: Dict[str, PageSpec],
@@ -485,6 +500,7 @@ def coverage(
             "contract": contract,
             "pages": placements[cid],
             "status": "curated" if placements[cid] else "fallback-only",
+            "deferred": None if placements[cid] else deferral(command),
         })
     return rows
 
@@ -504,10 +520,19 @@ def render_coverage(rows: List[Dict[str, Any]]) -> str:
         "",
         "Contracts: " + " · ".join(f"{k} {v}" for k, v in sorted(contracts.items())),
         "",
+    ]
+    deferred = [r for r in rows if r["status"] != "curated" and r.get("deferred")]
+    if deferred:
+        lines += ["## Deferred (reachable on fallback pages meanwhile)", ""]
+        for reason in sorted({r["deferred"] for r in deferred}):
+            ids = ", ".join(f"`{r['id']}`" for r in deferred if r["deferred"] == reason)
+            lines.append(f"- **{reason}:** {ids}")
+        lines.append("")
+    lines += [
         "| Command | Risk | Emits | Contract | Pages |",
         "|---|---|---|---|---|",
     ]
     for r in rows:
-        pages = ", ".join(r["pages"]) or "fallback-only"
+        pages = ", ".join(r["pages"]) or ("fallback-only (deferred)" if r.get("deferred") else "fallback-only")
         lines.append(f"| `{r['id']}` | {r['risk']} | `{r['emits']}` | {r['contract']} | {pages} |")
     return "\n".join(lines) + "\n"

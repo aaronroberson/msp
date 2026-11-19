@@ -1,0 +1,32 @@
+# Automation ▸ Chains (template: catalog). Saved command chains and their steps.
+# Running and watching chains arrives with the pipeline/live panels (Phases 4–5);
+# define / import / export / delete stay on the fallback page until Phase 3.
+
+[page]
+id = "automation.chains"
+concern = "automation"
+title = "Chains"
+order = 3
+template = "catalog"
+
+[[runs]]
+id = "list"
+command = "chain.list"
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "list"
+component = "DefinitionCatalog"
+props = { title = "Chains" }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+[slots.props]
+title = "Chain"
+empty = "Select a chain."
+fields = ["name", "description", "steps", "interval", "default"]
+labels = { steps = "Steps", interval = "Interval (s)", default = "Built-in" }

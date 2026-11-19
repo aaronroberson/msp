@@ -1,0 +1,80 @@
+# Security ▸ Posture (template: control-panel). Screen lock and power settings,
+# with lock / sleep actions and the raw `security set` for anything else.
+
+[page]
+id = "security.posture"
+concern = "security"
+title = "Posture"
+order = 1
+template = "control-panel"
+
+[[runs]]
+id = "status"
+command = "security.status"
+
+[[runs]]
+id = "lock"
+command = "security.lock"
+trigger = "on_action"
+
+[[runs]]
+id = "sleep"
+command = "security.sleep"
+trigger = "on_action"
+
+[[runs]]
+id = "computer_sleep"
+command = "security.computer-sleep"
+trigger = "on_action"
+
+[[runs]]
+id = "set"
+command = "security.set"
+trigger = "on_action"
+refreshes = ["status"]
+
+[[slots]]
+region = "strip"
+order = 1
+run = "status"
+select = "{password_after_sleep: display.password_after_sleep, block_all: firewall.block_all}"
+component = "StatusStrip"
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "status"
+component = "ReportView"
+props = { title = "Security settings", labels = { display = "Display", energy = "Energy", password_delay = "Password delay (s)", sleep_on_power = "Sleep on power" } }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+component = "ActionForm"
+actions = ["lock"]
+props = { title = "Lock the screen", submit = "Lock now…" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["sleep"]
+props = { title = "Sleep the display", submit = "Display sleep…" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+component = "ActionForm"
+actions = ["computer_sleep"]
+props = { title = "Sleep the Mac", submit = "Sleep…" }
+
+[[slots]]
+region = "workspace.aside"
+order = 4
+component = "ActionForm"
+actions = ["set"]
+[slots.props]
+title = "Change a setting"
+required = ["key", "value"]
+submit = "Set…"
+placeholders = { key = "Setting key", value = "Value" }

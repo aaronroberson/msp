@@ -162,6 +162,13 @@ def test_coverage_report_is_fresh():
     assert result.returncode == 0, result.stderr
 
 
+def test_every_read_command_is_curated_or_deferred_with_a_reason(commands, pages):
+    """Phase 2 exit: no read action is left on a fallback page without a reason."""
+    loose = [r["id"] for r in coverage(commands, pages)
+             if r["risk"] == "read" and r["status"] != "curated" and not r["deferred"]]
+    assert loose == []
+
+
 def test_fallback_pages_never_count_as_coverage(commands, pages):
     page = _firewall_page(pages)
     page["page"]["fallback"] = True

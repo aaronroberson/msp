@@ -649,8 +649,12 @@ class ReportView(SlotComponent):
         with Scroll(classes="report-body") as body:
             body.styles.max_height = int(self.slot.props.get("max_height", 30))
             if text_field and isinstance(data, dict):
-                # one long text field (an AI answer): render it as markdown, not a key/value row
-                yield Markdown(str(data.get(text_field) or "(no answer)"))
+                # one long text field: an AI answer (markdown) or command output (text_format = "text")
+                text = str(data.get(text_field) or "(no output)")
+                if self.slot.props.get("text_format", "markdown") == "text":
+                    yield Static(Text(text.rstrip()), classes="report-text")
+                else:
+                    yield Markdown(text)
             elif isinstance(data, dict) and "text" in data and "format" in data:
                 if data.get("format") == "markdown":
                     yield Markdown(str(data.get("text") or ""))

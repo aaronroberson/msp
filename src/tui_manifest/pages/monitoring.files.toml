@@ -1,0 +1,91 @@
+# Monitoring ▸ File activity (template: explorer). Recent file events, newly
+# created files and changes in persistence locations. Live watching needs the
+# live panel (Phase 4).
+
+[page]
+id = "monitoring.files"
+concern = "monitoring"
+title = "File activity"
+order = 3
+template = "explorer"
+
+[[tabs]]
+id = "recent"
+title = "Recent events"
+
+[[tabs]]
+id = "new"
+title = "New files"
+
+[[tabs]]
+id = "audit"
+title = "Persistence changes"
+
+[[runs]]
+id = "recent"
+command = "fswatch.recent"
+trigger = "on_view:recent"
+
+[[runs]]
+id = "new"
+command = "fswatch.new"
+trigger = "on_view:new"
+
+[[runs]]
+id = "audit"
+command = "fswatch.audit"
+trigger = "on_view:audit"
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "recent"
+component = "RecordTable"
+[slots.props]
+title = "Recent file events"
+columns = ["timestamp", "process", "call", "path"]
+labels = { timestamp = "Time", call = "Operation" }
+empty = "No file events in the window."
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "new"
+component = "RecordTable"
+props = { title = "New files", columns = ["path"], empty = "No new files." }
+
+[[slots]]
+region = "workspace.main"
+order = 3
+run = "audit"
+component = "FindingList"
+props = { title = "Changes in persistence locations", columns = ["path", "directory"], labels = { directory = "Location" } }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main"
+component = "RecordInspector"
+props = { title = "Selected", empty = "Select a row." }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["recent"]
+tab = "recent"
+[slots.props]
+title = "Window"
+submit = "Show events"
+placeholders = { path = "Folder (default: home)", seconds = "Seconds (default 60)" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+component = "ActionForm"
+actions = ["new"]
+tab = "new"
+[slots.props]
+title = "Window"
+submit = "Find new files"
+placeholders = { path = "Folder (default: home)", days = "Days (default 1)" }
