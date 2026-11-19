@@ -85,7 +85,7 @@ encoding = "exit"
 risk = "confirm"
 needs_root = true
 args = [
-  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "name", kind = "text" },
   { name = "dry_run", kind = "flag", option = "--dry-run" },
 ]
 
@@ -98,7 +98,7 @@ encoding = "exit"
 risk = "confirm"
 needs_root = false
 args = [
-  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "name", kind = "text" },
 ]
 
 [[command]]
@@ -120,7 +120,7 @@ encoding = "exit"
 risk = "confirm"
 needs_root = false
 args = [
-  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "name", kind = "text" },
   { name = "settings", kind = "text", option = "--settings" },
   { name = "description", kind = "text", option = "--description" },
 ]
@@ -208,7 +208,7 @@ encoding = "lines"
 risk = "read"
 active_network = true
 args = [
-  { name = "host", kind = "text", option = "--host" },
+  { name = "host", kind = "text", option = "--host", required = true },
 ]
 
 [[command]]
@@ -338,7 +338,7 @@ needs_root = false
 args = [
   { name = "label", kind = "text" },
   { name = "path", kind = "text", option = "--path" },
-  { name = "program_arg", kind = "text", option = "--program-arg", multi = true },
+  { name = "program_arg", kind = "text", option = "--program-arg", multi = true, repeat = true },
 ]
 
 [[command]]
@@ -507,6 +507,7 @@ argv = ["startup", "inventory"]
 emits = "Item[StartupInventory]"
 encoding = "object"
 risk = "read"
+long_running = true
 fixture = "startup.inventory"
 
 [[command]]
@@ -888,9 +889,10 @@ args = [
   { name = "facts", kind = "text" },
   { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
   { name = "format", kind = "choice", option = "--format", choices = ["json", "table"] },
-  { name = "format", kind = "text", option = "--json" },
-  { name = "categories", kind = "text", option = "--category", multi = true },
+  { name = "json", kind = "flag", option = "--json" },
+  { name = "categories", kind = "text", option = "--category", multi = true, repeat = true },
   { name = "minimum_severity", kind = "choice", option = "--minimum-severity", choices = ["critical", "high", "info", "low", "medium"] },
+  { name = "collect", kind = "flag", option = "--collect" },
   { name = "list_profiles", kind = "flag", option = "--list-profiles" },
 ]
 
@@ -965,7 +967,7 @@ args = [
   { name = "output", kind = "text", option = "--output" },
   { name = "max_safety", kind = "choice", option = "--max-safety", choices = ["destructive", "high", "low", "medium"] },
   { name = "allow_high_risk", kind = "flag", option = "--allow-high-risk" },
-  { name = "yes", kind = "text", option = "--yes", multi = true },
+  { name = "yes", kind = "text", option = "--yes", multi = true, repeat = true },
 ]
 
 [[command]]
@@ -1249,8 +1251,8 @@ needs_root = false
 id = "ai.ask"
 group = "ai"
 argv = ["ai", "ask"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [
@@ -1286,8 +1288,8 @@ fixture = "ai.providers"
 id = "ai.analyze"
 group = "ai"
 argv = ["ai", "analyze"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [
@@ -1318,8 +1320,8 @@ args = [
 id = "ai.explain"
 group = "ai"
 argv = ["ai", "explain"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [
@@ -1333,8 +1335,8 @@ args = [
 id = "ai.compare"
 group = "ai"
 argv = ["ai", "compare"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [
@@ -1349,8 +1351,8 @@ args = [
 id = "ai.suggest"
 group = "ai"
 argv = ["ai", "suggest"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [
@@ -1544,6 +1546,7 @@ argv = ["tune", "check"]
 emits = "Findings[TuneCheck]"
 encoding = "list"
 risk = "read"
+long_running = true
 fixture = "tune.check"
 
 [[command]]
@@ -1627,7 +1630,7 @@ needs_root = false
 args = [
   { name = "path", kind = "text", required = true },
   { name = "dry_run", kind = "flag", option = "--dry-run" },
-  { name = "dry_run", kind = "flag", option = "--force" },
+  { name = "force", kind = "flag", option = "--force" },
 ]
 
 
@@ -1660,7 +1663,7 @@ notes = "re-audits, then applies repairs allowed by --scope (auto-safe by defaul
 needs_root = false
 args = [
   { name = "dry_run", kind = "flag", option = "--dry-run" },
-  { name = "dry_run", kind = "flag", option = "--fix" },
+  { name = "fix", kind = "flag", option = "--fix" },
   { name = "profile", kind = "choice", option = "--profile", choices = ["developer", "enterprise", "high_security", "personal"] },
   { name = "categories", kind = "choice", option = "--categories", choices = ["completion", "executable", "package_manager", "path", "symlink", "zsh_startup"], multi = true },
   { name = "no_confirm", kind = "flag", option = "--no-confirm" },
@@ -1700,8 +1703,8 @@ args = [
 id = "ask"
 group = "ask"
 argv = ["ask"]
-emits = "Document"
-encoding = "text"
+emits = "Item[AIResponse]"
+encoding = "object"
 risk = "read"
 llm = true
 args = [

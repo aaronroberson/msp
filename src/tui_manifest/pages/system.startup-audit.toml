@@ -1,0 +1,104 @@
+# System control ▸ Startup audit (template: review). Startup items scored for
+# risk; the deep audit reads every launch plist; disable acts on the selection.
+
+[page]
+id = "system.startup-audit"
+concern = "system"
+title = "Startup audit"
+order = 2
+template = "review"
+
+[[tabs]]
+id = "audit"
+title = "Risky items"
+
+[[tabs]]
+id = "summary"
+title = "Summary"
+
+[[tabs]]
+id = "deep"
+title = "Deep audit"
+
+[[tabs]]
+id = "inventory"
+title = "Inventory"
+
+[[runs]]
+id = "audit"
+command = "startup.audit"
+trigger = "on_view:audit"
+
+[[runs]]
+id = "summary"
+command = "startup.summary"
+trigger = "on_view:summary"
+
+[[runs]]
+id = "deep"
+command = "startup.comprehensive-audit"
+trigger = "on_view:deep"
+
+[[runs]]
+id = "inventory"
+command = "startup.inventory"
+trigger = "on_view:inventory"
+
+[[runs]]
+id = "disable"
+command = "startup.disable"
+trigger = "on_action"
+args = { label = "{row.item}" }
+refreshes = ["audit", "summary", "deep"]
+
+[[slots]]
+region = "strip"
+order = 1
+run = "audit"
+component = "SeverityChips"
+props = { filters = "workspace.main#1" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "audit"
+component = "FindingList"
+props = { title = "Risky startup items", columns = ["item", "status"], labels = { item = "Item" } }
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "summary"
+component = "FindingList"
+props = { title = "Summary", columns = ["item", "status"], labels = { item = "Item" } }
+
+[[slots]]
+region = "workspace.main"
+order = 3
+run = "deep"
+component = "FindingList"
+props = { title = "Deep audit", columns = ["item"], labels = { item = "Item" } }
+
+[[slots]]
+region = "workspace.main"
+order = 4
+run = "inventory"
+select = "launch_plists"
+component = "RecordTable"
+[slots.props]
+title = "Launch plists"
+columns = ["label", "type", "run_at_load", "keep_alive", "path"]
+labels = { run_at_load = "At load", keep_alive = "Keep alive" }
+sort_by = ["label"]
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main"
+component = "RecordInspector"
+row_actions = ["disable"]
+[slots.props]
+title = "Selected"
+empty = "Select an item."
+labels = { disable = "Disable…", reasons = "Why" }
+hide_when = { disable = "!item" }

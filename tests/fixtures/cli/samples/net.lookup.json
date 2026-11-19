@@ -1,0 +1,6 @@
+{
+  "id": "net.lookup",
+  "derived_from": "src/network.py:365 (lookup prints '<host> -> <ip>' per dig +short line)",
+  "note": "Hand-authored: a lookup sends a DNS query, so it is not captured automatically.",
+  "json": "example.com -> 192.0.2.10\nexample.com -> 2001:db8::10\n"
+}

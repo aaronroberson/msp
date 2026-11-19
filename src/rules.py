@@ -795,6 +795,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Override the profile minimum severity.",
     )
     parser.add_argument(
+        "--collect",
+        action="store_true",
+        help="Collect facts from this Mac now (as 'msp interrogate' would) instead of reading them.",
+    )
+    parser.add_argument(
         "--list-profiles",
         action="store_true",
         help="Print built-in profile definitions and exit.",
@@ -866,7 +871,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(json.dumps(PROFILE_DEFINITIONS, indent=2, sort_keys=True))
         return 0
 
-    facts = load_facts(args.facts)
+    if args.collect:
+        from src.facts import collect_facts
+        facts = collect_facts()
+    else:
+        facts = load_facts(args.facts)
     findings = evaluate(
         facts,
         profile=args.profile,

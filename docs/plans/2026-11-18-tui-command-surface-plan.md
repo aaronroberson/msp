@@ -1,6 +1,6 @@
 # Plan: TUI as the graphical shell for every `msp` command
 
-**Date:** 2026-11-18 · **Status:** Phase 0 complete (merged); Phase 1 complete (2026-11-18, branch `feat/tui-phase1-shell`); Phase 2 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
+**Date:** 2026-11-18 · **Status:** Phase 0 complete (merged); Phase 1 complete (merged); Phase 2 complete (2026-11-18, branch `feat/tui-phase2-read-pages`); Phase 3 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
 
 ## 0. Objective and user decisions
 
@@ -407,8 +407,45 @@ The Firewall prototype was approved for the whole suite. Phase 1 turns it into t
 
 **Exit checks:** the existing TUI tests stay green, updated only where a legacy screen became a page, with the same behaviour asserted. Headless SVG screenshots of the three pages are saved under `docs/audits/assets/`. A scheduler test proves a run feeding several slots executes once and that `refreshes` re-runs exactly the named runs.
 
+## 12. Phase 2 build plan (2026-11-18)
+
+Inventory at the start: 84 read actions, 9 with a curated page. Phase 2 gives the rest a place. Work goes in this order, one commit per step.
+
+**Step 1: page machinery the remaining pages need**
+
+| Piece | What it does |
+|---|---|
+| ViewTabs | `[[page.tabs]]` (`id`, `title`) declared on the page. Runs with `trigger = "on_view:<tab>"` execute when the tab is first shown. Slots bound to them show only on that tab. Checked: every `on_view` trigger names a declared tab |
+| `on_select:<slot>` runs | Highlighting a row fills the run's `{row.<field>}` args and executes it (debounced). The result renders in the slot bound to it, e.g. `net inspect --pid` in the aside |
+| Read forms | An ActionForm whose run is a read executes it directly with the form's args (`scan verify <path>`, `startup search <label>`, `deps check <package>`). Mutations still go through confirm |
+| ReportView | Documents (text/markdown) and single records as a readable key/value report |
+| Outbound-traffic confirm | Read runs flagged `active_network` (port and host scans) or `llm` (sends data to an AI provider) ask first and say so. They never run on page open |
+
+**Step 2: fallback pages (D14).** These are generated, not authored: one page per command group for every command without a curated page, in a sidebar section "Not yet designed". The page is badged "Auto-generated · not yet designed". Read commands run on demand and render with their envelope's default component. Mutations get an ActionForm and go through confirm. This makes every CLI command reachable from the TUI early. Fallback pages never count as coverage.
+
+**Step 3: pages that replace legacy screens** (then the legacy TablePane, `VIEWS` and `_payload_rows` are deleted):
+
+| Page | Concern | Commands |
+|---|---|---|
+| Network | Monitoring | tabs Listening (`net list`), Established (`net established`), Neighbours (`net arp`); `net inspect` on select; `net lookup` form (outbound); `net hosts` (outbound, manual); terminate/kill row actions |
+| Startup & persistence | System control | tabs Managed, Login items, Agents, Daemons, Running, Disabled, Cron, All (`startup list`); `inventory` counts; `search` form; existing add/remove/enable/disable controls |
+| Permissions (TCC) | Privacy | tabs Grants (`tcc list`), Review (`tcc audit`); `tcc show` on select; revoke/reset row actions |
+| Scans | Security | `scan quick` / `suspicious` / `deep` (manual, slow), severity chips, finding inspector, `scan verify` / `signature` forms, `scan report` |
+| Snapshots | Forensics | `snapshot list`, `snapshot diff` on select, capture / restore / delete |
+| Workflows | Automation | `workflow list`, `workflow show` on select, `workflow run --dry-run --no-reason` |
+| AI | Automation | `ai providers`, `ai devices`; `ai ask` / `explain` / `suggest` forms (LLM confirm) |
+
+**Step 4: new pages.** Security posture (`security status`), Sharing (`sharing status` / `list`), Presets (`preset list`), Traffic (`traffic summary`), File activity (`fswatch recent` / `new` / `audit`), Processes & load (`tune top`), Startup audit (`startup audit` / `summary` / `comprehensive-audit`), Chains (`chain list`), Health (`doctor`, `deps status` / `doctor` / `check`, `config list`), Performance (`tune check`, `shell audit`), Rule audit (`audit`, `interrogate`).
+
+**Deferred, with reasons** (they stay on fallback pages until then):
+- Streams need LiveStream (Phase 4): `net top`, `fswatch watch` / `system`, `traffic capture` / `stream`, `snapshot watch`, `ai watch`, `chain watch`.
+- The pipeline needs PipelineStepper (Phase 5): `reason`, `remediate plan`, `report`.
+- These have no verified output contract yet: `net nmap`, `net camsweep`, `traffic dns` / `http`, `fswatch diff`, `forensics scan` / `inspect` / `correlate` / `spotlight`. Each needs a passive-safe capture or a source-derived sample first. Several of them send network traffic or need root, so they are not captured automatically. They are tracked as contract debt in `COVERAGE.md`.
+
+**Exit for Phase 2:** every read action is either on a curated page or on the deferred list above. `COVERAGE.md` lists the deferred ones by reason. Fallback pages render every remaining command. The legacy panes are gone.
+
 ## Status and handoffs
 
-- Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there). Latest: Phase 1 complete (2026-11-18); actions execute in the shell with confirmation (deviation recorded there).
+- Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there). Latest: Phase 2 complete (2026-11-18): every read command curated or deferred with a reason; Phase 1 deviation (actions execute in the shell with confirmation) recorded there.
 - Phase 0 taxonomy validation: `docs/audits/2026-11-18-envelope-taxonomy-validation.md`.
 - Generated coverage: `src/tui_manifest/COVERAGE.md` (`scripts/coverage_report.py`).

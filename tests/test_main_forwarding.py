@@ -44,3 +44,14 @@ def test_ask_still_validates_its_provider(monkeypatch):
     with contextlib.redirect_stderr(io.StringIO()), pytest.raises(SystemExit) as exc:
         main_module.main()
     assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("argv", [("--json", "shell", "audit"), ("shell", "audit", "--json")])
+def test_global_json_reaches_shell_audit_on_either_side(monkeypatch, argv):
+    """'msp --json shell audit' printed a table: the shell dispatcher dropped the global flag."""
+    import src.shell_audit_cli as shell_cli
+    received = []
+    monkeypatch.setattr(shell_cli, "main", lambda argv=None: received.append(list(argv)))
+    monkeypatch.setattr(sys, "argv", ["msp", *argv])
+    main_module.main()
+    assert received and received[0].count("--json") == 1

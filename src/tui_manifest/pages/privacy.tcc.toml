@@ -1,0 +1,143 @@
+# Privacy ▸ Permissions (TCC) (template: explorer). Replaces the legacy Permissions screen.
+# Grants lists every TCC record; Review lists the risky ones. Selecting a grant
+# shows its full record; revoke / reset are row actions (administrator password).
+
+[page]
+id = "privacy.tcc"
+concern = "privacy"
+title = "Permissions (TCC)"
+order = 2
+template = "explorer"
+
+[[tabs]]
+id = "grants"
+title = "Grants"
+
+[[tabs]]
+id = "review"
+title = "Review"
+
+[[runs]]
+id = "grants"
+command = "tcc.list"
+trigger = "on_view:grants"
+
+[[runs]]
+id = "review"
+command = "tcc.audit"
+trigger = "on_view:review"
+
+[[runs]]
+id = "show"
+command = "tcc.show"
+trigger = "on_select:workspace.main#1"
+args = { service = "{row.service}", client = "{row.client}" }
+
+[[runs]]
+id = "revoke"
+command = "tcc.revoke"
+trigger = "on_action"
+args = { service = "{row.service}", client = "{row.client}" }
+refreshes = ["grants", "review"]
+
+[[runs]]
+id = "reset"
+command = "tcc.reset"
+trigger = "on_action"
+args = { service = "{row.service}", client = "{row.client}" }
+refreshes = ["grants", "review"]
+
+[[runs]]
+id = "grant"
+command = "tcc.grant"
+trigger = "on_action"
+refreshes = ["grants", "review"]
+
+[[runs]]
+id = "backup"
+command = "tcc.backup"
+trigger = "on_action"
+
+[[slots]]
+region = "notice"
+order = 1
+run = "grants"
+facet = "errors"
+component = "NoticeBanner"
+
+[[slots]]
+region = "strip"
+order = 1
+run = "review"
+component = "SeverityChips"
+props = { filters = "workspace.main#2" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "grants"
+component = "RecordTable"
+[slots.props]
+title = "Permission grants"
+columns = ["service_name", "client_name", "auth_status", "source", "last_modified"]
+labels = { service_name = "Service", client_name = "App", auth_status = "Access", source = "Database", last_modified = "Changed" }
+sort_by = ["service_name", "client_name"]
+count_by = "auth_status"
+empty = "No grants returned. Reading the system TCC database needs Full Disk Access for this terminal."
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "review"
+component = "FindingList"
+[slots.props]
+title = "Grants to review"
+columns = ["service_name", "client_name", "title"]
+labels = { service_name = "Service", client_name = "App", title = "Why" }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+run = "show"
+component = "RecordInspector"
+tab = "grants"
+row_actions = ["revoke", "reset"]
+[slots.props]
+title = "Grant"
+empty = "Select a grant to see its full record."
+fields = ["service_name", "service", "client_name", "client", "auth_status", "source", "prompt_count", "last_modified", "db_path"]
+labels = { service_name = "Service", client_name = "App", auth_status = "Access", source = "Database", prompt_count = "Prompts", last_modified = "Changed", db_path = "Database file", revoke = "Revoke", reset = "Reset" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+follows = "workspace.main#2"
+component = "RecordInspector"
+tab = "review"
+row_actions = ["revoke", "reset"]
+[slots.props]
+title = "Finding"
+empty = "Select a finding."
+fields = ["service_name", "client_name", "reason", "source", "last_modified"]
+labels = { service_name = "Service", client_name = "App", last_modified = "Changed", revoke = "Revoke", reset = "Reset" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+component = "ActionForm"
+actions = ["grant"]
+[slots.props]
+title = "Grant access"
+required = ["service", "client"]
+submit = "Grant…"
+placeholders = { service = "kTCCServiceCamera", client = "com.example.app" }
+
+[[slots]]
+region = "workspace.aside"
+order = 4
+component = "ActionForm"
+actions = ["backup"]
+[slots.props]
+title = "Back up permissions"
+submit = "Back up…"
+placeholders = { output = "Backup file (optional)" }

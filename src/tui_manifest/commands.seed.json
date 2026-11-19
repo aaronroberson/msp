@@ -88,18 +88,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -134,18 +127,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -180,18 +166,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -226,18 +205,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -484,7 +456,8 @@
           "required": false,
           "help": "Argument for a new LaunchAgent (repeatable)",
           "default": [],
-          "multi": true
+          "multi": true,
+          "repeat": true
         },
         {
           "name": "force",
@@ -1078,7 +1051,8 @@
               "option": "--category",
               "required": false,
               "help": "Limit evaluation to a category. May be repeated.",
-              "multi": true
+              "multi": true,
+              "repeat": true
             },
             {
               "name": "minimum_severity",
@@ -1094,6 +1068,14 @@
                 "low",
                 "medium"
               ]
+            },
+            {
+              "name": "collect",
+              "kind": "flag",
+              "positional": false,
+              "option": "--collect",
+              "required": false,
+              "help": "Collect facts from this Mac now (as 'msp interrogate' would) instead of reading them."
             },
             {
               "name": "list_profiles",
@@ -1308,7 +1290,8 @@
               "option": "--yes",
               "required": false,
               "help": "Affirm applying. Repeat with a token (--yes TOKEN) to authorize confirm/dangerous actions.",
-              "multi": true
+              "multi": true,
+              "repeat": true
             }
           ],
           "args_source": "subparser"

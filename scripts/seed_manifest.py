@@ -121,6 +121,8 @@ def _arg(action: argparse.Action) -> Optional[Dict[str, Any]]:
         entry["default"] = action.default
     if action.nargs in ("*", "+") or isinstance(action, argparse._AppendAction):
         entry["multi"] = True
+    if isinstance(action, argparse._AppendAction):
+        entry["repeat"] = True   # --opt a --opt b (append), not --opt a b (nargs)
     return entry
 
 

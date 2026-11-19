@@ -1,0 +1,64 @@
+# Privacy ▸ Presets (template: catalog). Built-in and saved presets; apply or
+# delete the selected one; save the current choice under a new name.
+
+[page]
+id = "privacy.presets"
+concern = "privacy"
+title = "Presets"
+order = 4
+template = "catalog"
+
+[[runs]]
+id = "list"
+command = "privacy.preset.list"
+
+[[runs]]
+id = "apply"
+command = "privacy.preset.apply"
+trigger = "on_action"
+args = { name = "{row.key}" }
+refreshes = ["list"]
+
+[[runs]]
+id = "delete"
+command = "privacy.preset.delete"
+trigger = "on_action"
+args = { name = "{row.key}" }
+refreshes = ["list"]
+
+[[runs]]
+id = "save"
+command = "privacy.preset.save"
+trigger = "on_action"
+refreshes = ["list"]
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "list"
+component = "DefinitionCatalog"
+props = { title = "Presets" }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+row_actions = ["apply", "delete"]
+[slots.props]
+title = "Preset"
+empty = "Select a preset."
+fields = ["name", "description", "source", "settings"]
+labels = { source = "Source", settings = "Settings", apply = "Apply…", delete = "Delete" }
+hide_when = { delete = "source != 'custom'" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["save"]
+[slots.props]
+title = "Save a preset"
+required = ["name", "settings"]
+submit = "Save preset…"
+placeholders = { name = "my-preset", settings = "{\"Firewall Stealth Mode\": true}", description = "Description" }

@@ -1170,8 +1170,9 @@ Presets:
     # Preset command
     preset_parser = subparsers.add_parser("preset", help="Manage presets")
     preset_parser.add_argument("action", choices=["list", "apply", "save", "delete"])
-    preset_parser.add_argument("name", nargs="?", help="Preset name or ID",
-                              choices=["basic", "paranoid", "drduh", "term7", "nist"])
+    # any name: built-ins for apply, new names for save, saved customs for apply/delete
+    # (the manager validates; a fixed choice list blocked saving and deleting customs)
+    preset_parser.add_argument("name", nargs="?", help="Preset name or ID (built-in or custom)")
     preset_parser.add_argument("--dry-run", action="store_true", help="Show what would be changed")
     preset_parser.add_argument("--settings", help="JSON settings for save action")
     preset_parser.add_argument("--description", help="Description for save action")
@@ -1223,7 +1224,8 @@ Presets:
             if not args.name:
                 print("Please specify a preset name")
                 sys.exit(1)
-            preset_manager.apply_preset(args.name, dry_run=args.dry_run)
+            if preset_manager.apply_preset(args.name, dry_run=args.dry_run) is False:
+                sys.exit(1)
         elif args.action == "save":
             if not args.name or not args.settings:
                 print("Please provide name and --settings")
@@ -1231,7 +1233,8 @@ Presets:
             import json
             try:
                 settings = json.loads(args.settings)
-                preset_manager.save_preset(args.name, settings, args.name, args.description or "")
+                if preset_manager.save_preset(args.name, settings, args.name, args.description or "") is False:
+                    sys.exit(1)
             except json.JSONDecodeError:
                 print("Invalid JSON in --settings")
                 sys.exit(1)
@@ -1239,7 +1242,8 @@ Presets:
             if not args.name:
                 print("Please specify a preset name")
                 sys.exit(1)
-            preset_manager.delete_preset(args.name)
+            if preset_manager.delete_preset(args.name) is False:
+                sys.exit(1)
     else:
         parser.print_help()
 

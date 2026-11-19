@@ -142,3 +142,132 @@ def test_dashboard_scans_in_background_and_refreshes_saved_findings():
             assert "scan" not in calls and "doctor" in calls
 
     asyncio.run(exercise())
+
+
+# ------------------------------------------------- tabs, selection, outbound
+
+
+def _network_app(calls, **kw):
+    def executor(run_id, command, args):
+        calls.append((run_id, dict(args)))
+        return run_replay(run_id, command, args)
+    return PagePreviewApp("monitoring.network", executor=executor, **kw)
+
+
+def test_tabs_run_their_reads_when_first_shown_and_show_only_their_slots():
+    from src.tui_pages.page import PageView
+    calls = []
+
+    async def exercise():
+        app = _network_app(calls)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            page = app.query_one(PageView)
+            assert [c[0] for c in calls if not c[0].startswith("inspect_")] == ["listening"]
+            assert page.slots["workspace.main#1"].display and not page.slots["workspace.main#2"].display
+            page.query_one("#tab-established", Button).press()
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            assert [c[0] for c in calls if not c[0].startswith("inspect_")] == ["listening", "established"]
+            assert page.slots["workspace.main#2"].display and not page.slots["workspace.main#1"].display
+            page.query_one("#tab-listening", Button).press()       # cached: no re-run
+            await pilot.pause(0.2)
+            assert [c[0] for c in calls if not c[0].startswith("inspect_")] == ["listening", "established"]
+
+    asyncio.run(exercise())
+
+
+def test_selecting_a_row_inspects_that_rows_process():
+    from src.tui_pages.page import PageView
+    calls = []
+
+    async def exercise():
+        app = _network_app(calls)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            page = app.query_one(PageView)
+            table = page.query_one("#table-workspace-main-1", DataTable)
+            table.focus()
+            await pilot.press("down", "down", "down", "down")       # debounced: only the last row runs
+            await pilot.pause(0.5)
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.2)
+            inspects = [c[1]["pid"] for c in calls if c[0] == "inspect_listening"]
+            shown = page.slots["workspace.main#1"]._shown
+            # the row the cursor stopped on is inspected; the row it only passed
+            # over is skipped (debounce). Row 0 may be inspected as the table loads.
+            passed_over = {r["pid"] for r in shown[1:4]} - {shown[0]["pid"], shown[4]["pid"]}
+            assert passed_over and inspects[-1] == shown[4]["pid"]
+            assert not passed_over & set(inspects)
+            inspector = page.slots["workspace.aside#1"]
+            assert inspector.row.get("pid") and inspector.query("#act-terminate-terminate") and inspector.query("#act-kill-kill")
+
+    asyncio.run(exercise())
+
+
+def test_outbound_reads_never_run_automatically_and_are_previewed_without_a_shell():
+    from src.tui_pages.page import PageView
+    calls = []
+
+    async def exercise():
+        app = _network_app(calls)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            page = app.query_one(PageView)
+            page.show_tab("neighbours")
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            page.query_one("#run-hosts", Button).press()             # sends traffic: preview only here
+            await pilot.pause(0.1)
+            assert "hosts" not in [c[0] for c in calls]
+            assert "msp net hosts" in str(page.query_one("#action-preview", Static).render())
+            page.refresh_page()
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            assert "hosts" not in [c[0] for c in calls] and "lookup" not in [c[0] for c in calls]
+
+    asyncio.run(exercise())
+
+
+def test_pages_may_not_run_outbound_commands_automatically():
+    from src.tui_manifest import check_pages, load_labels, load_templates
+    page = load_pages()["monitoring.network"].model_dump()
+    next(r for r in page["runs"] if r["id"] == "hosts")["trigger"] = "on_view:neighbours"
+    problems = check_pages({"p": PageSpec.model_validate(page)}, load_templates(), load_labels(), commands=load_commands())
+    assert any("sends network traffic; it must be manual" in p for p in problems)
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda p: next(r for r in p["runs"] if r["id"] == "arp").update(trigger="on_view:nowhere"),
+    lambda p: next(r for r in p["runs"] if r["id"] == "inspect_listening").update(trigger="on_select:workspace.main#9"),
+    lambda p: next(r for r in p["runs"] if r["id"] == "arp").update(trigger="sometimes"),
+    lambda p: p["slots"][0].update(tab="nowhere"),
+])
+def test_triggers_and_tabs_must_reference_declared_things(mutate):
+    from pydantic import ValidationError
+    page = load_pages()["monitoring.network"].model_dump()
+    mutate(page)
+    with pytest.raises(ValidationError):
+        PageSpec.model_validate(page)
+
+
+def test_returning_to_a_loaded_tab_leaves_nothing_pending():
+    """Re-showing a tab whose run is cached must not mark it running forever."""
+    from src.tui_pages.page import PageView
+    calls = []
+
+    async def exercise():
+        app = _network_app(calls)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            page = app.query_one(PageView)
+            page.show_tab("listening")                              # already loaded
+            await pilot.pause(0.2)
+            assert page.pending == set()
+            assert not page.query("#page-notices .progress")
+
+    asyncio.run(exercise())

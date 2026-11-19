@@ -1,0 +1,8 @@
+{
+  "id": "ai.explain",
+  "derived_from": "src/ai.py explain_setting -> ask(json_output)",
+  "note": "Hand-authored: these send data to an AI provider, so they are never captured automatically.",
+  "json": {
+    "response": "FileVault encrypts the startup disk.\n\n1. Keep it on for any portable Mac.\n2. Store the recovery key somewhere other than this Mac."
+  }
+}

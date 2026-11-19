@@ -10,6 +10,7 @@ privacy = "Privacy"
 forensics = "Forensics"
 automation = "Automation"
 repair = "Repair & recovery"
+fallback = "Not yet designed"
 
 [fields]
 firewall = "Firewall"

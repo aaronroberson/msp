@@ -7,12 +7,10 @@ from textual.widgets import Button
 
 from src.network import NetworkMonitor
 from src.startup import StartupManager
-from src.tui_v2 import CommandBroker, MspTUI, REPO_ROOT, RUNNABLES, VIEWS, _requires_confirmation
+from src.tui_v2 import CommandBroker, MspTUI, REPO_ROOT, RUNNABLES, _requires_confirmation
 
 
 def test_catalog_and_command_confirmations():
-    assert len({view.id for view in VIEWS}) == len(VIEWS)
-    assert all(view.columns and view.command for view in VIEWS if view.id != "runner")
     assert RUNNABLES
     assert _requires_confirmation(["net", "terminate", "--pid", "22"])
     assert _requires_confirmation(["firewall", "set", "enabled", "off"])
@@ -150,10 +148,16 @@ def test_app_exposes_firewall_and_startup_controls(monkeypatch):
             await pilot.pause()
             assert app._current_id == "firewall"
             app.switch_view_id("startup")
-            await pilot.pause()
-            assert app.query_one("#startup-login-add")
-            assert app.query_one("#startup-agent-add")
-            assert app.query_one("#startup-remove")
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.2)
+            startup = app.query_one("#page-system-startup")
+            assert startup.query_one("#submit-workspace-aside-2", Button).label.plain == "Add Login Item"
+            assert startup.query_one("#submit-workspace-aside-3", Button).label.plain == "Add LaunchAgent"
+            # the managed list's first row is a current-user LaunchAgent: it can be disabled and removed
+            visible = {b.id for b in startup.query(Button) if b.display}
+            assert {"act-agent_disable-agent_disable", "act-agent_remove-agent_remove"} <= visible
+            assert "act-login_remove-login_remove" not in visible
 
     asyncio.run(exercise())
 
@@ -208,7 +212,7 @@ def test_page_actions_confirm_run_then_refresh(monkeypatch):
             await app.workers.wait_for_complete()
             await pilot.pause(0.3)
             await app.workers.wait_for_complete()
-            assert lines == ["firewall app add '/Applications/My App.app'"]
+            assert lines == ["firewall app add '/Applications/My App.app' --json"]
             assert executed == ["fw", "fw"]                # refreshed exactly its read
 
     asyncio.run(exercise())
@@ -232,5 +236,157 @@ def test_palette_lists_sidebar_screens_and_opens_the_firewall_add_form():
             await pilot.pause(0.3)
             assert app._current_id == "firewall"
             assert isinstance(app.focused, Input) and app.focused.id == "form-workspace-aside-2-path"
+
+    asyncio.run(exercise())
+
+
+def test_shell_confirms_outbound_reads_then_runs_them_inside_the_page():
+    from textual.widgets import DataTable
+
+    from src.tui_pages.runtime import run_replay
+
+    calls = []
+
+    def executor(run_id, command, args):
+        calls.append((run_id, dict(args)))
+        return run_replay(run_id, command, args)
+
+    async def exercise():
+        app = MspTUI(executor=executor)
+        async with app.run_test(size=(170, 50)) as pilot:
+            app.switch_view_id("listening")
+            await pilot.pause(0.3)
+            await app.workers.wait_for_complete()
+            page = app.query_one("#page-monitoring-network")
+            page.query_one("#form-workspace-aside-3-host").value = "example.com"
+            page.query_one("#submit-workspace-aside-3", Button).press()
+            await pilot.pause(0.1)
+            assert "sends network traffic" in str(app.screen.query_one("#confirm-description").render())
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert "lookup" not in [c[0] for c in calls]
+            page.query_one("#submit-workspace-aside-3", Button).press()
+            await pilot.pause(0.1)
+            await pilot.press("y")
+            await pilot.pause(0.3)
+            await app.workers.wait_for_complete()
+            assert ("lookup", {"host": "example.com"}) in calls
+            answers = page.query_one("#table-workspace-aside-4", DataTable)
+            assert answers.row_count == 2
+
+    asyncio.run(exercise())
+
+
+def test_every_command_is_reachable_and_fallback_pages_render_every_output(monkeypatch):
+    """Generated pages (D14) list every command without a curated page; each
+    replayable read renders with its envelope's default component; mutations
+    confirm; and fallback pages never count as coverage."""
+    from src.tui_manifest import coverage, load_commands, load_pages
+    from src.tui_pages.fallback import fallback_pages
+    from src.tui_pages.page import PageView
+    from src.tui_pages.runtime import run_replay
+    import src.tui_v2 as tui_v2
+
+    commands, curated = load_commands(), load_pages()
+    generated = fallback_pages(commands, curated)
+    reachable = {run.command for page in [*curated.values(), *generated.values()] for run in page.runs}
+    assert reachable == set(commands)
+    assert all(r["status"] == "fallback-only" for r in coverage(commands, {**curated, **generated})
+               if not any(run.command == r["id"] for p in curated.values() for run in p.runs))
+
+    lines = []
+
+    class RecordingBroker:
+        def __init__(self, line):
+            lines.append(line)
+
+        def run(self):
+            yield ("[exit 0 · 0.0s]", True, 0, 0.0)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(tui_v2, "CommandBroker", RecordingBroker)
+
+    async def exercise():
+        app = MspTUI(executor=run_replay)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            first = sorted(generated)[0]
+            assert app.query_one("#nav-" + first.replace(".", "-")).label == generated[first].page.title
+            failures = []
+            for page_id, spec in generated.items():
+                app.switch_view_id(page_id)
+                await pilot.pause(0.05)
+                page = app._panes[page_id]
+                assert isinstance(page, PageView) and "NOT YET DESIGNED" in str(page.query_one("#page-meta").render())
+                for run in spec.runs:
+                    command = commands[run.command]
+                    if command.risk != "read" or page.scheduler.outbound(run.id) or command.envelope_kind == "stream":
+                        continue
+                    page.request(run.id, {})
+                await app.workers.wait_for_complete()
+                await pilot.pause(0.05)
+                for slot in spec.slots:
+                    if slot.run:
+                        widget = page.slots[f"{slot.region}#{slot.order}"]
+                        result = page.scheduler.results.get(slot.run)
+                        if result and not result.failure and not widget.loaded:
+                            failures.append(f"{page_id} {slot.run}: did not render")
+            assert failures == []
+            # a mutation on a fallback page confirms before anything runs
+            page_id, run = next((pid, r) for pid, spec in generated.items() for r in spec.runs
+                                if commands[r.command].risk != "read" and not commands[r.command].args)
+            app.switch_view_id(page_id)
+            await pilot.pause(0.1)
+            app._panes[page_id].request(run.id, {})
+            await pilot.pause(0.1)
+            expected = " ".join(commands[run.command].argv)
+            assert expected in str(app.screen.query_one("#confirm-command").render())
+            await pilot.press("escape")
+            assert lines == []
+
+    asyncio.run(exercise())
+
+
+def test_every_curated_page_and_tab_renders_its_runs():
+    """Open every manifest page, visit every tab, and check each panel whose run
+    succeeded actually rendered (replayed fixtures; nothing outbound runs)."""
+    from src.tui_manifest import load_pages
+    from src.tui_pages.page import PageView
+    from src.tui_pages.runtime import run_replay
+
+    pages = load_pages()
+    executed = []
+
+    def executor(run_id, command, args):
+        assert not (command.active_network or command.llm), f"{run_id} ran without asking"
+        executed.append(run_id)
+        return run_replay(run_id, command, args)
+
+    async def exercise():
+        app = MspTUI(executor=executor)
+        async with app.run_test(size=(180, 50)) as pilot:
+            await pilot.pause(0.2)
+            problems = []
+            for page_id, spec in pages.items():
+                app.switch_view_id(page_id)
+                await pilot.pause(0.1)
+                page = app._panes[app._current_id]
+                assert isinstance(page, PageView)
+                for tab in [t.id for t in spec.tabs] or [None]:
+                    if tab:
+                        page.show_tab(tab)
+                    await pilot.pause(0.1)
+                    await app.workers.wait_for_complete()
+                    await pilot.pause(0.1)
+                for slot in spec.slots:
+                    result = page.scheduler.results.get(slot.run or "")
+                    widget = page.slots[f"{slot.region}#{slot.order}"]
+                    if result and not result.failure and not widget.loaded:
+                        problems.append(f"{page_id} {slot.region}#{slot.order}: {slot.run} did not render")
+                    if result and result.failure and not result.failure.startswith("needs "):
+                        problems.append(f"{page_id} {slot.run}: {result.failure}")
+            assert problems == []
 
     asyncio.run(exercise())

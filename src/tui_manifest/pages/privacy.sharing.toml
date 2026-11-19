@@ -1,0 +1,83 @@
+# Privacy ▸ Sharing (template: control-panel). File-sharing services and share
+# points; per-share enable / disable / guest-off, and stop all sharing.
+
+[page]
+id = "privacy.sharing"
+concern = "privacy"
+title = "Sharing"
+order = 3
+template = "control-panel"
+
+[[runs]]
+id = "status"
+command = "sharing.status"
+
+[[runs]]
+id = "list"
+command = "sharing.list"
+
+[[runs]]
+id = "enable"
+command = "sharing.enable"
+trigger = "on_action"
+args = { name = "{row.name}" }
+refreshes = ["status", "list"]
+
+[[runs]]
+id = "disable"
+command = "sharing.disable"
+trigger = "on_action"
+args = { name = "{row.name}" }
+refreshes = ["status", "list"]
+
+[[runs]]
+id = "disable_guest"
+command = "sharing.disable-guest"
+trigger = "on_action"
+args = { name = "{row.name}" }
+refreshes = ["status", "list"]
+
+[[runs]]
+id = "stop_all"
+command = "sharing.stop-all"
+trigger = "on_action"
+refreshes = ["status", "list"]
+
+[[slots]]
+region = "strip"
+order = 1
+run = "status"
+select = "{sharing: sharing_enabled, smb: services.smbd, afp: services.afpd, ftp: services.ftpd}"
+component = "StatusStrip"
+props = { labels = { smb = "SMB", afp = "AFP", ftp = "FTP" } }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "list"
+select = "share_points[].{name: name, path: path, shared: shared, guest_access: guest_access, read_only: \"read-only\"}"
+component = "RecordTable"
+[slots.props]
+title = "Share points"
+columns = ["name", "path", "shared", "guest_access", "read_only"]
+labels = { shared = "Shared", guest_access = "Guest access", read_only = "Read-only" }
+empty = "No share points."
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+row_actions = ["enable", "disable", "disable_guest"]
+[slots.props]
+title = "Share point"
+empty = "Select a share point."
+labels = { enable = "Share", disable = "Unshare…", disable_guest = "Guests off…", shared = "Shared", guest_access = "Guest access", read_only = "Read-only" }
+hide_when = { enable = "shared == '1'", disable = "shared != '1'", disable_guest = "guest_access != '1'" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["stop_all"]
+props = { title = "Stop all file sharing", submit = "Stop all sharing…" }

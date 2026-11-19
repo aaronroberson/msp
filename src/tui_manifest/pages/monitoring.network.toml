@@ -1,0 +1,180 @@
+# Monitoring ▸ Network (template: explorer). Replaces the legacy Network screen.
+# Tabs: listening sockets, established connections, LAN neighbours.
+# Selecting a socket or connection inspects its process; terminate / force quit
+# are row actions (confirmed by the shell). Host discovery and DNS lookups send
+# network traffic, so they only run when asked (and confirm first).
+
+[page]
+id = "monitoring.network"
+concern = "monitoring"
+title = "Network"
+order = 1
+template = "explorer"
+
+[[tabs]]
+id = "listening"
+title = "Listening"
+
+[[tabs]]
+id = "established"
+title = "Established"
+
+[[tabs]]
+id = "neighbours"
+title = "Neighbours"
+
+[[runs]]
+id = "listening"
+command = "net.list"
+trigger = "on_view:listening"
+
+[[runs]]
+id = "established"
+command = "net.established"
+trigger = "on_view:established"
+
+[[runs]]
+id = "arp"
+command = "net.arp"
+trigger = "on_view:neighbours"
+
+[[runs]]
+id = "hosts"
+command = "net.hosts"
+trigger = "manual"
+
+[[runs]]
+id = "inspect_listening"
+command = "net.inspect"
+trigger = "on_select:workspace.main#1"
+args = { pid = "{row.pid}" }
+
+[[runs]]
+id = "inspect_established"
+command = "net.inspect"
+trigger = "on_select:workspace.main#2"
+args = { pid = "{row.pid}" }
+
+[[runs]]
+id = "terminate"
+command = "net.terminate"
+trigger = "on_action"
+refreshes = ["listening", "established"]
+args = { pid = "{row.pid}", yes = true }
+
+[[runs]]
+id = "kill"
+command = "net.kill"
+trigger = "on_action"
+refreshes = ["listening", "established"]
+args = { pid = "{row.pid}", signal = "KILL", yes = true }
+
+[[runs]]
+id = "lookup"
+command = "net.lookup"
+trigger = "on_action"
+
+[[slots]]
+region = "strip"
+order = 1
+run = "listening"
+select = "length(@)"
+component = "KPICell"
+tab = "listening"
+props = { title = "Listening" }
+
+[[slots]]
+region = "strip"
+order = 2
+run = "established"
+select = "length(@)"
+component = "KPICell"
+tab = "established"
+props = { title = "Connections" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "listening"
+component = "RecordTable"
+[slots.props]
+title = "Listening sockets"
+columns = ["process", "pid", "user", "protocol", "local", "state"]
+sort_by = ["process"]
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "established"
+component = "RecordTable"
+[slots.props]
+title = "Established connections"
+columns = ["process", "pid", "user", "local", "remote"]
+sort_by = ["process"]
+
+[[slots]]
+region = "workspace.main"
+order = 3
+run = "arp"
+component = "RecordTable"
+[slots.props]
+title = "ARP cache"
+columns = ["ip", "mac", "interface", "status"]
+labels = { ip = "IP address", mac = "MAC address", interface = "Interface" }
+
+[[slots]]
+region = "workspace.main"
+order = 4
+run = "hosts"
+component = "RecordTable"
+tab = "neighbours"
+[slots.props]
+title = "Discovered hosts"
+columns = ["ip", "status"]
+labels = { ip = "IP address" }
+empty = "Use “Run net hosts ↗” to discover hosts on the local network (sends traffic)."
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+run = "inspect_listening"
+component = "RecordInspector"
+tab = "listening"
+row_actions = ["terminate", "kill"]
+[slots.props]
+title = "Process"
+empty = "Select a socket to inspect its process."
+labels = { terminate = "Terminate", kill = "Force quit" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+run = "inspect_established"
+component = "RecordInspector"
+tab = "established"
+row_actions = ["terminate", "kill"]
+[slots.props]
+title = "Process"
+empty = "Select a connection to inspect its process."
+labels = { terminate = "Terminate", kill = "Force quit" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+component = "ActionForm"
+actions = ["lookup"]
+[slots.props]
+title = "DNS lookup"
+submit = "Look up ↗"
+placeholders = { host = "example.com" }
+
+[[slots]]
+region = "workspace.aside"
+order = 4
+run = "lookup"
+component = "RecordTable"
+[slots.props]
+title = "Answers"
+columns = ["text"]
+labels = { text = "Answer" }
+empty = "Enter a host name above."

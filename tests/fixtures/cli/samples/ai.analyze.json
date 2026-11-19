@@ -1,0 +1,8 @@
+{
+  "id": "ai.analyze",
+  "derived_from": "src/ai.py analyze_results -> ask(json_output)",
+  "note": "Hand-authored: these send data to an AI provider, so they are never captured automatically.",
+  "json": {
+    "response": "Memory pressure is normal. The highest CPU use is from an indexing process that settles after login."
+  }
+}

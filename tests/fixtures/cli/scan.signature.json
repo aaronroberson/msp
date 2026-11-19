@@ -11,7 +11,7 @@
   "duration_s": 0.16,
   "json": {
     "path": "/System/Applications/Calculator.app",
-    "valid": false,
+    "valid": true,
     "signed": true,
     "details": "Executable=/System/Applications/Calculator.app/Contents/MacOS/Calculator\nIdentifier=com.apple.calculator\nFormat=app bundle with Mach-O universal (arm64e arm64e.x1)\nCodeDirectory v=20400 size=3661 flags=0x0(none) hashes=104+7 location=embedded\nPlatform identifier=27\nHash type=sha256 size=32\nCandidateCDHash sha256=8f65d8749643b08cb26c7abb7d8f47f2cf66ad95\nCandidateCDHashFull sha256=8f65d8749643b08cb26c7abb7d8f47f2cf66ad957a5aa8e9b781d3719fcb041d\nHash choices=sha256\nCMSDigest=8f65d8749643b08cb26c7abb7d8f47f2cf66ad957a5aa8e9b781d3719fcb041d\nCMSDigestType=2\nCDHash=8f65d8749643b08cb26c7abb7d8f47f2cf66ad95\nSignature size=4202\nAuthority=macOS Software Signing\nAuthority=Apple Code Signing Certification Authority\nAuthority=Apple Root CA\nSigned Time=Oct 7, 2026 at 2001:db8::1\u202fPM\nInfo.plist entries=35\nTeamIdentifier=not set\nSealed Resources version=2 rules=2 files=0\nInternal requirements count=1 size=68\nTotal signatures=1\nChosen signature=1",
     "authority": "Apple"

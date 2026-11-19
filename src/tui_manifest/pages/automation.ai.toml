@@ -1,0 +1,178 @@
+# Automation ▸ AI (template: console). Replaces the legacy AI screen.
+# Providers and local accelerators show at once; questions, explanations and
+# hardening suggestions send data to the configured provider, so they ask first.
+
+[page]
+id = "automation.ai"
+concern = "automation"
+title = "AI"
+order = 2
+template = "console"
+
+[[runs]]
+id = "providers"
+command = "ai.providers"
+
+[[runs]]
+id = "devices"
+command = "ai.devices"
+
+[[runs]]
+id = "ask"
+command = "ai.ask"
+trigger = "on_action"
+
+[[runs]]
+id = "explain"
+command = "ai.explain"
+trigger = "on_action"
+
+[[runs]]
+id = "context"
+command = "ask"
+trigger = "on_action"
+
+[[runs]]
+id = "compare"
+command = "ai.compare"
+trigger = "on_action"
+
+[[runs]]
+id = "analyze"
+command = "ai.analyze"
+trigger = "on_action"
+
+[[runs]]
+id = "suggest"
+command = "ai.suggest"
+trigger = "on_action"
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "providers"
+component = "RecordTable"
+[slots.props]
+title = "Providers"
+columns = ["name", "model", "configured", "default", "key_source"]
+labels = { configured = "Configured", default = "Default", key_source = "Key from" }
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "ask"
+component = "ReportView"
+props = { title = "Answer", text_field = "response", empty = "Ask a question on the right." }
+
+[[slots]]
+region = "workspace.main"
+order = 3
+run = "explain"
+component = "ReportView"
+props = { title = "Explanation", text_field = "response", empty = "Name a setting on the right to have it explained." }
+
+[[slots]]
+region = "workspace.main"
+order = 4
+run = "suggest"
+component = "ReportView"
+props = { title = "Hardening suggestions", text_field = "response", empty = "Request suggestions on the right." }
+
+[[slots]]
+region = "workspace.main"
+order = 5
+run = "context"
+component = "ReportView"
+props = { title = "Answer with system diagnostics", text_field = "response", empty = "Ask with load, memory and process context attached." }
+
+[[slots]]
+region = "workspace.main"
+order = 6
+run = "compare"
+component = "ReportView"
+props = { title = "Preset comparison", text_field = "response", empty = "Pick two presets on the right." }
+
+[[slots]]
+region = "workspace.main"
+order = 7
+run = "analyze"
+component = "ReportView"
+props = { title = "Analysis of a results file", text_field = "response", empty = "Point at a JSON results file on the right." }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+component = "ActionForm"
+actions = ["ask"]
+[slots.props]
+title = "Ask"
+fields = ["text", "provider"]
+required = ["text"]
+labels = { text = "Question" }
+submit = "Ask ↗"
+placeholders = { text = "Is my firewall configuration sensible?" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["explain"]
+[slots.props]
+title = "Explain a setting"
+fields = ["setting", "provider"]
+required = ["setting"]
+submit = "Explain ↗"
+placeholders = { setting = "Firewall Stealth Mode" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+component = "ActionForm"
+actions = ["suggest"]
+[slots.props]
+title = "Hardening suggestions"
+fields = ["provider"]
+submit = "Suggest ↗"
+
+[[slots]]
+region = "workspace.aside"
+order = 4
+component = "ActionForm"
+actions = ["context"]
+[slots.props]
+title = "Ask with system diagnostics"
+labels = { prompt = "Question" }
+submit = "Ask ↗"
+placeholders = { prompt = "Why is my Mac slow right now?" }
+
+[[slots]]
+region = "workspace.aside"
+order = 5
+component = "ActionForm"
+actions = ["compare"]
+[slots.props]
+title = "Compare presets"
+fields = ["preset1", "preset2", "provider"]
+required = ["preset1", "preset2"]
+labels = { preset1 = "First preset", preset2 = "Second preset" }
+submit = "Compare ↗"
+placeholders = { preset1 = "basic", preset2 = "paranoid" }
+
+[[slots]]
+region = "workspace.aside"
+order = 6
+component = "ActionForm"
+actions = ["analyze"]
+[slots.props]
+title = "Analyze a results file"
+fields = ["file", "provider"]
+required = ["file"]
+submit = "Analyze ↗"
+placeholders = { file = "~/.msp/scans/latest.json" }
+
+[[slots]]
+region = "workspace.aside"
+order = 7
+run = "devices"
+component = "ReportView"
+props = { title = "Local accelerators" }

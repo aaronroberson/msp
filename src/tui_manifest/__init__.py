@@ -53,6 +53,7 @@ class ArgSpec(_Strict):
     required: bool = False
     choices: List[str] = Field(default_factory=list)
     multi: bool = False
+    repeat: bool = False   # multi via a repeated option (argparse append): --opt a --opt b
 
     @property
     def key(self) -> str:
@@ -92,6 +93,11 @@ class CommandSpec(_Strict):
         keys = [arg.key for arg in self.args]
         if len(keys) != len(set(keys)):
             raise ValueError(f"{self.id}: duplicate argument {sorted(k for k in keys if keys.count(k) > 1)}")
+        names = [arg.name for arg in self.args]
+        if len(names) != len(set(names)):
+            # aliases sharing an argparse dest (--json/--format, --force/--dry-run) need
+            # their own names, or forms and argv building cannot tell them apart
+            raise ValueError(f"{self.id}: duplicate argument name {sorted(n for n in names if names.count(n) > 1)}")
         return self
 
     @property
@@ -123,10 +129,19 @@ class RunSpec(_Strict):
     args: Dict[str, Any] = Field(default_factory=dict)
 
 
+class TabSpec(_Strict):
+    id: str
+    title: str
+
+
+TRIGGER_KINDS = ("on_open", "on_action", "manual", "on_view:", "on_select:", "after:")
+
+
 class SlotSpec(_Strict):
     region: Region
     order: int
     component: str
+    tab: Optional[str] = None     # show only on this view tab (default: the tab of its run)
     run: Optional[str] = None
     select: Optional[str] = None
     facet: Optional[Literal["errors", "access_errors"]] = None
@@ -147,8 +162,16 @@ class PageMeta(_Strict):
 
 class PageSpec(_Strict):
     page: PageMeta
+    tabs: List[TabSpec] = Field(default_factory=list)
     runs: List[RunSpec] = Field(default_factory=list)
     slots: List[SlotSpec] = Field(default_factory=list)
+
+    def slot_tab(self, slot: SlotSpec) -> Optional[str]:
+        """The view tab a slot belongs to: explicit ``tab``, else its run's ``on_view`` tab."""
+        if slot.tab:
+            return slot.tab
+        run = next((r for r in self.runs if r.id == slot.run), None)
+        return run.trigger.split(":", 1)[1] if run and run.trigger.startswith("on_view:") else None
 
     @model_validator(mode="after")
     def _check(self) -> "PageSpec":
@@ -164,6 +187,21 @@ class PageSpec(_Strict):
             for ref in [slot.run] + slot.actions + slot.row_actions + _prop_runs(slot.props):
                 if ref and ref not in known:
                     raise ValueError(f"{self.page.id}: slot references unknown run {ref!r}")
+        tab_ids = {tab.id for tab in self.tabs}
+        slot_keys = {f"{s.region}#{s.order}" for s in self.slots}
+        for run in self.runs:
+            if not any(run.trigger == k or (k.endswith(":") and run.trigger.startswith(k)) for k in TRIGGER_KINDS):
+                raise ValueError(f"{self.page.id}: run {run.id!r} has unknown trigger {run.trigger!r}")
+            kind, _, target = run.trigger.partition(":")
+            if kind == "on_view" and target not in tab_ids:
+                raise ValueError(f"{self.page.id}: run {run.id!r} is triggered by undeclared tab {target!r}")
+            if kind == "on_select" and target not in slot_keys:
+                raise ValueError(f"{self.page.id}: run {run.id!r} follows unknown slot {target!r}")
+            if kind == "after" and target not in known:
+                raise ValueError(f"{self.page.id}: run {run.id!r} runs after unknown run {target!r}")
+        for slot in self.slots:
+            if slot.tab and slot.tab not in tab_ids:
+                raise ValueError(f"{self.page.id}: slot {slot.region}#{slot.order} is on undeclared tab {slot.tab!r}")
         _check_acyclic(self.page.id, {run.id: run.depends_on for run in self.runs})
         positions = [(REGION_ORDER.index(s.region), s.order) for s in self.slots]
         if positions != sorted(positions):
@@ -235,6 +273,7 @@ def check_pages(
     templates: Dict[str, TemplateSpec],
     labels: Dict[str, Dict[str, str]],
     extra_links: Tuple[str, ...] = (),
+    commands: Optional[Dict[str, CommandSpec]] = None,
 ) -> List[str]:
     """Pages use a known template and concern, only its regions, and link to real pages."""
     problems = []
@@ -247,6 +286,12 @@ def check_pages(
             continue
         if page.page.concern not in labels["concerns"]:
             problems.append(f"{pid}: unknown concern {page.page.concern!r}")
+        for run in page.runs:
+            command = commands.get(run.command) if commands else None
+            automatic = run.trigger == "on_open" or run.trigger.startswith(("on_view:", "on_select:", "after:"))
+            if command and automatic and (command.active_network or command.llm or command.interactive):
+                why = "sends network traffic" if command.active_network else "sends data to an AI provider" if command.llm else "is interactive"
+                problems.append(f"{pid}: run {run.id!r} {why}; it must be manual or on_action, never automatic")
         for slot in page.slots:
             if slot.region not in template.regions:
                 problems.append(f"{pid}: {template.name} template has no {slot.region} region")
@@ -303,8 +348,10 @@ def command_envelope(command: CommandSpec, fixtures: Path = FIXTURES) -> Tuple[O
     """
     if "Unverified" in command.emits:
         return None, "unverified-shape"
+    sample_path = fixtures / "samples" / f"{command.id}.json"
     if not command.fixture:
-        return None, "no-fixture"
+        # never captured (sends traffic, needs root, …): a source-derived sample may stand in
+        return _sample_envelope(command, sample_path) if sample_path.exists() else (None, "no-fixture")
     fixture = json.loads((fixtures / f"{command.fixture}.json").read_text())
     if fixture.get("returncode") not in command.success:
         return None, f"failed: exit {fixture.get('returncode')} not in {command.success}"
@@ -315,9 +362,12 @@ def command_envelope(command: CommandSpec, fixtures: Path = FIXTURES) -> Tuple[O
         return None, f"failed: {str(exc).splitlines()[0]}"
     if not _is_empty(envelope):
         return envelope, "verified"
-    sample_path = fixtures / "samples" / f"{command.id}.json"
     if not sample_path.exists():
         return envelope, "empty-unverified"
+    return _sample_envelope(command, sample_path)
+
+
+def _sample_envelope(command: CommandSpec, sample_path: Path) -> Tuple[Optional[Any], str]:
     try:
         sample = validate_output(json.loads(sample_path.read_text())["json"], command.emits,
                                  **command.normalize_kwargs(0))
@@ -412,6 +462,21 @@ def check_bindings(
     return problems
 
 
+# Commands whose page needs a later component (plan §12, deferred list).
+PIPELINE_COMMANDS = ("reason", "remediate.plan", "report", "workflow.run")
+
+
+def deferral(command: CommandSpec) -> Optional[str]:
+    """Why a read command has no curated page yet, or None if nothing blocks one."""
+    if "Unverified" in command.emits:
+        return "no verified output contract yet"
+    if command.envelope_kind == "stream":
+        return "streams output: needs LiveStream (Phase 4)"
+    if command.id in PIPELINE_COMMANDS:
+        return "pipeline step: needs PipelineStepper (Phase 5)"
+    return None
+
+
 def coverage(
     commands: Dict[str, CommandSpec],
     pages: Dict[str, PageSpec],
@@ -435,6 +500,7 @@ def coverage(
             "contract": contract,
             "pages": placements[cid],
             "status": "curated" if placements[cid] else "fallback-only",
+            "deferred": None if placements[cid] else deferral(command),
         })
     return rows
 
@@ -454,10 +520,19 @@ def render_coverage(rows: List[Dict[str, Any]]) -> str:
         "",
         "Contracts: " + " · ".join(f"{k} {v}" for k, v in sorted(contracts.items())),
         "",
+    ]
+    deferred = [r for r in rows if r["status"] != "curated" and r.get("deferred")]
+    if deferred:
+        lines += ["## Deferred (reachable on fallback pages meanwhile)", ""]
+        for reason in sorted({r["deferred"] for r in deferred}):
+            ids = ", ".join(f"`{r['id']}`" for r in deferred if r["deferred"] == reason)
+            lines.append(f"- **{reason}:** {ids}")
+        lines.append("")
+    lines += [
         "| Command | Risk | Emits | Contract | Pages |",
         "|---|---|---|---|---|",
     ]
     for r in rows:
-        pages = ", ".join(r["pages"]) or "fallback-only"
+        pages = ", ".join(r["pages"]) or ("fallback-only (deferred)" if r.get("deferred") else "fallback-only")
         lines.append(f"| `{r['id']}` | {r['risk']} | `{r['emits']}` | {r['contract']} | {pages} |")
     return "\n".join(lines) + "\n"

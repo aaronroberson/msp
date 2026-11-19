@@ -1,0 +1,79 @@
+# Repair & recovery ▸ Performance (template: review). System and shell
+# diagnostics (both slow: they run when their tab is first shown).
+
+[page]
+id = "repair.performance"
+concern = "repair"
+title = "Performance"
+order = 2
+template = "review"
+
+[[tabs]]
+id = "system"
+title = "System"
+
+[[tabs]]
+id = "shell"
+title = "Shell startup"
+
+[[runs]]
+id = "tune"
+command = "tune.check"
+trigger = "on_view:system"
+
+[[runs]]
+id = "shell"
+command = "shell.audit"
+trigger = "on_view:shell"
+
+[[runs]]
+id = "fix"
+command = "tune.fix"
+trigger = "on_action"
+refreshes = ["tune"]
+
+[[slots]]
+region = "strip"
+order = 1
+run = "tune"
+component = "SeverityChips"
+props = { filters = "workspace.main#1" }
+
+[[slots]]
+region = "strip"
+order = 2
+run = "shell"
+component = "SeverityChips"
+props = { filters = "workspace.main#2" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "tune"
+component = "FindingList"
+props = { title = "System checks", columns = ["title", "domain"], labels = { domain = "Area" } }
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "shell"
+component = "FindingList"
+props = { title = "Shell findings", columns = ["title", "category"] }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main"
+component = "RecordInspector"
+props = { title = "Finding", empty = "Select a finding.", labels = { remediation = "Remediation" } }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["fix"]
+tab = "system"
+[slots.props]
+title = "Apply fixes"
+labels = { dry_run = "Preview only (dry run)" }
+submit = "Fix…"

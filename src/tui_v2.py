@@ -48,6 +48,7 @@ from src.tui_manifest import CommandSpec, load_commands, load_labels, load_pages
 from src.tui_pages.page import PAGE_CSS, PageView, RunFinished, RunStarted
 from src.tui_pages.components import OpenPage
 from src.tui_pages.runtime import Executor, build_argv, executor_for
+from src.tui_pages.fallback import fallback_pages
 from src.tui_pages.shell import PAGE_ALIASES, SIDEBAR_CSS, Sidebar, nav_entries, nav_key
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -145,45 +146,6 @@ RUNNABLES: list[dict[str, str]] = [
 # CLI payload helpers
 # --------------------------------------------------------------------------
 
-def _cell(row: Any, key: str, default: str = "-") -> str:
-    if isinstance(row, dict):
-        value = row.get(key, default)
-    else:
-        value = getattr(row, key, default)
-    if value is None:
-        return default
-    return str(value)
-
-
-def _trunc(value: Any, width: int) -> str:
-    text = str(value)
-    return text if len(text) <= width else text[: width - 1] + "…"
-
-
-@dataclass(frozen=True)
-class ViewSpec:
-    id: str
-    title: str
-    columns: tuple[str, ...] = ()
-    command: Optional[str] = None
-
-
-VIEWS: list[ViewSpec] = [
-    ViewSpec("runner", "Commands"),
-    ViewSpec("findings", "Findings", ("severity", "category", "item", "description"), "scan quick --json"),
-    ViewSpec("listening", "Listening sockets", ("process", "pid", "user", "protocol", "local", "state"), "net list --json"),
-    ViewSpec("established", "Established connections", ("process", "pid", "user", "local", "remote"), "net established --json"),
-    ViewSpec("startup", "Startup", ("label", "type", "path", "status"), "startup managed --json"),
-    ViewSpec("tcc", "Permissions", ("service", "client", "auth", "source", "last_modified"), "tcc list --json"),
-    ViewSpec("snapshots", "Snapshots", ("name", "timestamp", "firewall", "gatekeeper", "filevault"), "snapshot list --json"),
-    ViewSpec("workflows", "Workflows", ("run_id", "status", "completed_steps"), "workflow run daily --dry-run"),
-    ViewSpec("ai", "AI", ("provider", "model", "local_only"), "ai ask --json"),
-]
-
-def view_by_id(view_id: str) -> Optional[ViewSpec]:
-    return next((view for view in VIEWS if view.id == view_id), None)
-
-
 def _extract_json(lines: Iterable[str]) -> Any:
     """Find a JSON payload in CLI output that may include a human progress line."""
     text = "\n".join(lines)
@@ -198,56 +160,6 @@ def _extract_json(lines: Iterable[str]) -> Any:
         except json.JSONDecodeError:
             continue
     return None
-
-
-def _payload_rows(view_id: str, payload: Any) -> list[dict[str, Any]]:
-    """Normalize real CLI JSON into the table columns for a view."""
-    if view_id == "findings":
-        values = payload if isinstance(payload, list) else payload.get("findings", []) if isinstance(payload, dict) else []
-        return [{**row, "severity": str(row.get("severity", "")).upper()} for row in values if isinstance(row, dict)]
-    if view_id in {"listening", "established"}:
-        values = payload if isinstance(payload, list) else payload.get("connections", []) if isinstance(payload, dict) else []
-        rows = []
-        for item in values:
-            if not isinstance(item, dict):
-                continue
-            row = dict(item)
-            local = row.get("local", row.get("local_addr"))
-            if local is not None:
-                row["local"] = local
-                row["port"] = str(local).rsplit(":", 1)[-1]
-            remote = row.get("remote", row.get("remote_addr"))
-            if remote is not None:
-                row["remote"] = remote
-            rows.append(row)
-        return rows
-    if view_id == "startup":
-        values = payload if isinstance(payload, list) else payload.get("items", []) if isinstance(payload, dict) else []
-        return [dict(row) for row in values if isinstance(row, dict)]
-    if view_id == "tcc":
-        values = payload.get("permissions", []) if isinstance(payload, dict) else payload
-        return [
-            {
-                **row,
-                "service": row.get("service_name", row.get("service", "")),
-                "client": row.get("client_name") or row.get("client", ""),
-                "auth": row.get("auth_status", row.get("auth_value", row.get("authorization", ""))),
-            }
-            for row in values if isinstance(row, dict)
-        ] if isinstance(values, list) else []
-    if view_id == "snapshots":
-        values = payload if isinstance(payload, list) else payload.get("snapshots", []) if isinstance(payload, dict) else []
-        rows = []
-        for item in values:
-            if not isinstance(item, dict):
-                continue
-            row = dict(item)
-            settings = row.get("settings") if isinstance(row.get("settings"), dict) else {}
-            for name in ("firewall", "gatekeeper", "filevault"):
-                row[name] = settings.get(name, "")
-            rows.append(row)
-        return rows
-    return []
 
 
 # --------------------------------------------------------------------------
@@ -314,204 +226,6 @@ class CommandBroker:
 # --------------------------------------------------------------------------
 # Panes
 # --------------------------------------------------------------------------
-
-class TablePane(Vertical):
-    """Data table backed by one real CLI JSON command."""
-
-    BINDINGS = [("/", "toggle_filter", "Filter"), ("r", "refresh", "Refresh"), ("enter", "open_detail", "Detail")]
-
-    def __init__(self, spec: ViewSpec, app_ref: "MspTUI") -> None:
-        super().__init__(id=f"pane-{spec.id}")
-        self.spec = spec
-        self._app_ref = app_ref
-        self._all_rows: list[dict[str, Any]] = []
-        self._filter_term = ""
-        self._severity = "all"
-        self._selected_row: Optional[dict[str, Any]] = None
-
-    def compose(self) -> ComposeResult:
-        with Horizontal(classes="screen-toolbar"):
-            title = "Network" if self.spec.id in {"listening", "established"} else self.spec.title
-            yield Label(title, classes="screen-title")
-            yield Button("Refresh", id="refresh-view")
-        if self.spec.id in {"listening", "established"}:
-            with Horizontal(id="network-tabs"):
-                yield Button("Listening sockets", id="network-listening")
-                yield Button("Established connections", id="network-established")
-        if self.spec.id == "findings":
-            with Horizontal(id="finding-filter-row"):
-                yield Input(placeholder="Filter findings", id="filter-findings")
-                for level in ("all", "high", "warn", "info"):
-                    yield Button(level.title(), id=f"severity-{level}")
-            with Horizontal(id="findings-layout"):
-                yield DataTable(id="table-findings", cursor_type="row")
-                with Vertical(id="finding-inspector", classes="dashboard-panel"):
-                    yield Label("RECORD INSPECTION", classes="eyebrow")
-                    yield Static("Select a finding to inspect its live details.", id="finding-detail", markup=False)
-        elif self.spec.id in {"listening", "established", "startup"}:
-            if self.spec.id == "startup":
-                with Vertical(id="startup-intro", classes="dashboard-panel"):
-                    yield Label("CURRENT USER STARTUP ITEMS", classes="eyebrow")
-                    yield Static("Login Items and LaunchAgents", id="startup-inventory-summary", markup=False)
-                with Horizontal(id="startup-add-form"):
-                    yield Input(placeholder="App or executable path…", id="startup-path")
-                    yield Input(placeholder="LaunchAgent label or Login Item name…", id="startup-name")
-                    yield Button("Add Login Item", id="startup-login-add", variant="primary")
-                    yield Button("Add LaunchAgent", id="startup-agent-add")
-                    yield Button("Remove selected", id="startup-remove", variant="error")
-                yield Input(placeholder="Filter items", id="filter-startup")
-            with Horizontal(id="record-layout"):
-                yield DataTable(id=f"table-{self.spec.id}", cursor_type="row")
-                with Vertical(id="row-inspector", classes="dashboard-panel"):
-                    yield Label("SELECTED ITEM", classes="eyebrow")
-                    yield Static("Select a row to inspect available actions.", id="row-detail", markup=False)
-                    with Horizontal(id="row-actions"):
-                        if self.spec.id in {"listening", "established"}:
-                            yield Button("Inspect process", id="inspect-process")
-                            yield Button("Stop process", id="stop-process", variant="error")
-                        elif self.spec.id == "startup":
-                            yield Button("Disable item", id="disable-startup", variant="warning")
-                            yield Button("Enable item", id="enable-startup")
-        else:
-            if self.spec.id == "startup":
-                with Vertical(id="startup-intro", classes="dashboard-panel"):
-                    yield Label("STARTUP ITEMS & PERSISTENCE INVENTORY", classes="eyebrow")
-                    yield Static("", id="startup-inventory-summary", markup=False)
-            elif self.spec.id == "tcc":
-                with Vertical(id="tcc-intro", classes="dashboard-panel"):
-                    yield Label("TCC PRIVACY PERMISSIONS", classes="eyebrow")
-                    yield Static("", id="tcc-summary", markup=False)
-            elif self.spec.id == "snapshots":
-                with Horizontal(id="snapshot-intro", classes="dashboard-panel"):
-                    with Vertical():
-                        yield Label("SECURITY STATE SNAPSHOTS", classes="eyebrow")
-                        yield Static("Saved snapshots on this system", markup=False)
-                    yield Button("Capture snapshot", id="capture-snapshot", variant="primary")
-            yield Input(placeholder="Filter rows", id=f"filter-{self.spec.id}")
-            yield DataTable(id=f"table-{self.spec.id}", cursor_type="row")
-        yield Label("", id=f"status-{self.spec.id}")
-
-    def on_mount(self) -> None:
-        for box in self.query(Input):
-            box.display = box.id in {"startup-path", "startup-name"}
-        if self.spec.id == "findings":
-            table = self.query_one("#table-findings", DataTable)
-            for column, title in zip(self.spec.columns, ("SEV", "CATEGORY", "ITEM", "DESCRIPTION")):
-                table.add_column(title, key=column)
-        else:
-            table = self.query_one(DataTable)
-            for column in self.spec.columns:
-                table.add_column(column.replace("_", " ").title(), key=column)
-        for view_id, button_id in (("listening", "network-listening"), ("established", "network-established")):
-            if self.spec.id in {"listening", "established"}:
-                self.query_one(f"#{button_id}", Button).set_class(view_id == self.spec.id, "-active")
-
-    def data_ready(self, rows: list[dict[str, Any]]) -> None:
-        self._all_rows = rows
-        if self.spec.id == "startup":
-            agents = sum(row.get("type") == "agent" for row in rows)
-            login_items = sum(row.get("type") == "login_item" for row in rows)
-            self.query_one("#startup-inventory-summary", Static).update(f"{login_items} Login Items · {agents} LaunchAgents · current user")
-        elif self.spec.id == "tcc":
-            self.query_one("#tcc-summary", Static).update(f"{len(rows)} permission records returned by the TCC query")
-        elif self.spec.id == "findings":
-            counts = {"all": len(rows), "high": 0, "warn": 0, "info": 0}
-            for row in rows:
-                severity = str(row.get("severity", "")).lower()
-                key = "warn" if severity in {"warn", "warning"} else severity
-                if key in counts:
-                    counts[key] += 1
-            for key, count in counts.items():
-                title = "All" if key == "all" else "Warn" if key == "warn" else key.title()
-                self.query_one(f"#severity-{key}", Button).label = f"{title} ({count})"
-        self._redraw()
-        self._refresh_status()
-
-    def data_failed(self, error: str) -> None:
-        self.query_one(f"#status-{self.spec.id}", Label).update(f"Unavailable · {_trunc(error, 90)}")
-
-    def data_notice(self, notice: str) -> None:
-        self.query_one(f"#status-{self.spec.id}", Label).update(_trunc(notice, 100))
-
-    def _visible_rows(self) -> list[tuple[int, dict[str, Any]]]:
-        term = self._filter_term.lower()
-        selected = getattr(self, "_severity", "all")
-        return [
-            (i, row) for i, row in enumerate(self._all_rows)
-            if (not term or term in json.dumps(row, default=str).lower())
-            and (
-                self.spec.id != "findings" or selected == "all"
-                or ("warn" if str(row.get("severity", "")).lower() in {"warn", "warning"} else str(row.get("severity", "")).lower()) == selected
-            )
-        ]
-
-    def _redraw(self) -> None:
-        table = self.query_one(DataTable)
-        table.clear()
-        for index, row in self._visible_rows():
-            cells = [_trunc(_cell(row, name), 64) for name in self.spec.columns]
-            table.add_row(*cells, key=index)
-
-    def _refresh_status(self) -> None:
-        total = len(self._all_rows)
-        message = "No rows returned" if total == 0 else f"{len(self._visible_rows())} of {total} rows"
-        self.query_one(f"#status-{self.spec.id}", Label).update(message)
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id in {f"filter-{self.spec.id}", "filter-findings"}:
-            self._filter_term = event.value
-            self._redraw()
-            self._refresh_status()
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == f"filter-{self.spec.id}":
-            self.query_one(DataTable).focus()
-
-    def action_toggle_filter(self) -> None:
-        box = self.query_one(Input)
-        box.display = True
-        box.focus()
-
-    def action_refresh(self) -> None:
-        self._app_ref.refresh_current()
-
-    def action_open_detail(self) -> None:
-        table = self.query_one(DataTable)
-        if not table.row_count:
-            return
-        key = table.coordinate_to_cell_key((table.cursor_row, 0)).row_key
-        if key is not None:
-            index = int(key.value)
-            if 0 <= index < len(self._all_rows):
-                self._app_ref.open_detail(self.spec, index, self._all_rows[index])
-
-    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        if event.row_key is None:
-            return
-        try:
-            index = int(event.row_key.value)
-        except (TypeError, ValueError):
-            return
-        if not 0 <= index < len(self._all_rows):
-            return
-        row = self._all_rows[index]
-        if self.spec.id == "findings":
-            detail = "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in row.items() if value not in (None, ""))
-            self.query_one("#finding-detail", Static).update(detail)
-        elif self.spec.id in {"listening", "established", "startup"}:
-            self._selected_row = row
-            detail = "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in row.items() if value not in (None, ""))
-            self.query_one("#row-detail", Static).update(detail or "No details available")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        button_id = event.button.id or ""
-        if button_id.startswith("severity-"):
-            self._severity = button_id.removeprefix("severity-")
-            self._redraw()
-            self._refresh_status()
-            for level in ("all", "high", "warn", "info"):
-                self.query_one(f"#severity-{level}", Button).set_class(level == self._severity, "-active")
-
 
 class RunnerPane(Vertical):
     """Compact history of commands executed through the shared runner."""
@@ -618,27 +332,6 @@ class PaletteScreen(ModalScreen):
 # --------------------------------------------------------------------------
 # Modal screens
 # --------------------------------------------------------------------------
-
-class DetailScreen(ModalScreen):
-    """Full record view; q / esc dismisses."""
-
-    BINDINGS = [("q", "dismiss_screen", "Close"), ("escape", "dismiss_screen", "Close")]
-
-    def __init__(self, title: str, body: str) -> None:
-        super().__init__()
-        self._title = title
-        self._body = body
-
-    def compose(self) -> ComposeResult:
-        yield VerticalScroll(
-            Static(self._title, id="detail-title", markup=False),
-            Static(self._body, id="detail-body", markup=False),
-            id="detail-dialog",
-        )
-
-    def action_dismiss_screen(self) -> None:
-        self.dismiss(None)
-
 
 class WorkflowsScreen(ModalScreen):
     """Show workflow execution state and gate status."""
@@ -854,7 +547,7 @@ class MspTUI(App[None]):
     #detail-body, #confirm-body, #help-body {
         margin: 2 4; padding: 1 2; border: solid #30363D; background: #161B22;
     }
-    DetailScreen, ConfirmScreen, HelpScreen, ConfigScreen { align: center middle; background: #000000 85%; }
+    ConfirmScreen, HelpScreen, ConfigScreen { align: center middle; background: #000000 85%; }
     HelpScreen VerticalScroll { align: center middle; }
     HelpScreen #help-body { width: 72; margin: 0; height: auto; }
     /* .stitch: thin dark scrollbars */
@@ -912,13 +605,14 @@ class MspTUI(App[None]):
 
     def __init__(self, executor: Optional[Executor] = None) -> None:
         super().__init__()
-        self.pages = load_pages()
         self.commands = load_commands()
+        curated = load_pages()
+        self.pages = {**curated, **fallback_pages(self.commands, curated)}
         self.templates = load_templates()
         self.labels = load_labels()
         self.nav = nav_entries(self.pages, self.labels["concerns"])
         self.page_executor = executor or executor_for(False)
-        self._panes: dict[str, Union[PageView, TablePane, RunnerPane]] = {}
+        self._panes: dict[str, Union[PageView, RunnerPane]] = {}
         self._current_id: Optional[str] = None
         self.current_broker: Optional[CommandBroker] = None
         self._command_busy = False
@@ -970,8 +664,7 @@ class MspTUI(App[None]):
         view_id = nav_key(view_id)
         page_id = PAGE_ALIASES.get(view_id, view_id)
         page = self.pages.get(page_id)
-        spec = view_by_id(view_id)
-        if page is None and spec is None and view_id != "runner":
+        if page is None and view_id != "runner":
             return
         pane = self._panes.get(view_id)
         fresh = pane is None
@@ -980,26 +673,42 @@ class MspTUI(App[None]):
                 pane = PageView(page, self.commands, self.templates[page.page.template], self.labels, self.page_executor)
                 pane.action_handler = self._page_action
             else:
-                pane = RunnerPane(self) if view_id == "runner" else TablePane(spec, self)
+                pane = RunnerPane(self)
             self._panes[view_id] = pane
             self.query_one("#page", Vertical).mount(pane)
         for other_id, other_pane in self._panes.items():
             other_pane.display = other_id == view_id
         self._current_id = view_id
-        active_title = page.page.title if page else "Network" if view_id in {"listening", "established"} else spec.title if spec else "Commands"
+        active_title = page.page.title if page else "Commands"
         self.sub_title = active_title
         self.query_one("#brand-right", Label).update(f"VIEW: {active_title.upper()}")
-        self.query_one(Sidebar).mark_active("listening" if view_id == "established" else view_id)
-        if isinstance(pane, PageView):
-            if not fresh:
-                pane.refresh_page(include_long=False)  # revisit: fresh fast reads, no repeat scan
-        else:
-            self.refresh_current()
+        self.query_one(Sidebar).mark_active(view_id)
+        if isinstance(pane, PageView) and not fresh:
+            pane.refresh_page(include_long=False)  # revisit: fresh fast reads, no repeat scan
 
     def _page_action(self, view: PageView, run_id: str, command: CommandSpec, args: dict[str, Any]) -> None:
         """Confirm, run through the command rail, then re-run the action's ``refreshes``."""
         line = shlex.join(build_argv(command, args))
-        targets = view.scheduler.refresh_targets(run_id)
+        if command.risk == "read":
+            # outbound read: confirm, then run inside the page so its slots fill
+            reasons = []
+            if command.active_network:
+                reasons.append("This sends network traffic to other hosts (a scan or lookup).")
+            if command.llm:
+                reasons.append("This sends system data to the configured AI provider, which may be a cloud service.")
+            if command.needs_root:
+                reasons.append("macOS will ask for an administrator password.")
+            if command.long_running:
+                reasons.append("It can take a while.")
+            self.push_screen(
+                ConfirmScreen(line, " ".join(reasons) or "Run this command?"),
+                lambda ok: view.start([run_id], force=True, args={run_id: args}) if ok else None,
+            )
+            return
+        targets = view.refreshable(run_id)
+        # --json: the rail shows the structured result, and follow-ups (a terminate
+        # that left the process running offers a force quit) can read it
+        line += " --json"
         detail = "This changes system settings."
         if command.needs_root:
             detail += " macOS will ask for an administrator password."
@@ -1059,9 +768,6 @@ class MspTUI(App[None]):
         pane = self._panes.get(view_id or "")
         if isinstance(pane, PageView):
             pane.refresh_page()
-            return
-        commands = [view_by_id(view_id).command]
-        self.execute_commands([cmd for cmd in commands if cmd], view_id=view_id)
 
     def action_open_runner_default(self) -> None:
         self.switch_view_id("runner")
@@ -1091,27 +797,20 @@ class MspTUI(App[None]):
             self.open_help()
         elif payload.startswith("form:"):
             form = payload[5:]
-            target = "firewall" if form == "firewall-app" else "startup"
+            target, field = {
+                "firewall-app": ("firewall", "#form-workspace-aside-2-path"),
+                "startup-login": ("startup", "#form-workspace-aside-2-name"),
+                "startup-agent": ("startup", "#form-workspace-aside-3-label"),
+            }[form]
             self.switch_view_id(target)
             pane = self._panes[target]
-            # the Firewall page's add-app form, or the startup path field
-            self.call_after_refresh(lambda: (pane.query(Input).first() if target == "firewall" else pane.query_one("#startup-path", Input)).focus())
+            self.call_after_refresh(lambda: pane.query_one(field, Input).focus())
 
     def action_open_palette(self) -> None:
         self.open_palette()
 
     def action_help(self) -> None:
         self.open_help()
-
-    def open_detail(self, spec: ViewSpec, index: int, row: dict[str, Any]) -> None:
-        lines = []
-        for key in row:
-            value = row.get(key)
-            if isinstance(value, (dict, list)):
-                value = json.dumps(value, default=str)
-            lines.append(f"{key.replace('_', ' ').title():<18} {value}")
-        body = "\n".join(lines) if lines else "(empty record)"
-        self.push_screen(DetailScreen(f"{spec.title} · row {index + 1}", body))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id or ""
@@ -1123,26 +822,12 @@ class MspTUI(App[None]):
             self.open_help()
         elif button_id == "open-config":
             self.open_config()
-        elif button_id in {"inspect-process", "stop-process", "force-stop-process", "disable-startup", "enable-startup", "startup-login-add", "startup-agent-add", "startup-remove"}:
-            self._run_context_action(button_id)
-        elif button_id == "refresh-view":
-            self.refresh_current()
         elif button_id == "run-command":
             self.submit_command()
         elif button_id == "ask-question":
             self.submit_question()
         elif button_id == "stop-command":
             self.action_stop_command()
-        elif button_id == "network-listening":
-            self.switch_view_id("listening")
-        elif button_id == "network-established":
-            self.switch_view_id("established")
-        elif button_id == "capture-snapshot":
-            command = "snapshot capture"
-            self.push_screen(
-                ConfirmScreen(command),
-                lambda confirmed: self.execute_commands([command, "snapshot list --json"], view_id="snapshots") if confirmed else None,
-            )
         elif button_id.startswith("preset-"):
             command = {
                 "preset-status": "status --json",
@@ -1204,51 +889,6 @@ class MspTUI(App[None]):
 
     def _append_output(self, text: str) -> None:
         self.query_one("#command-log", RichLog).write(text)
-
-    def _run_context_action(self, action: str) -> None:
-        pane = self._panes.get(self._current_id or "")
-        row = getattr(pane, "_selected_row", None)
-        if action in {"startup-login-add", "startup-agent-add"}:
-            path = self.query_one("#startup-path", Input).value.strip()
-            name = self.query_one("#startup-name", Input).value.strip()
-            if not path or not name:
-                self.select_runner_tab("logs")
-                self._append_output("Enter an application or executable path and a name first.")
-                return
-            command = f"startup login-add --name {shlex.quote(name)} --path {shlex.quote(path)}" if action == "startup-login-add" else f"startup agent-add {shlex.quote(name)} --path {shlex.quote(path)}"
-            self.push_screen(ConfirmScreen(command), lambda confirmed: self.execute_commands([command, "startup managed --json"], update_view=True, view_id="startup") if confirmed else None)
-            return
-        if action == "startup-remove":
-            if not isinstance(row, dict):
-                return
-            name = str(row.get("name") or row.get("label") or "")
-            command = f"startup login-remove --name {shlex.quote(name)}" if row.get("type") == "login_item" else f"startup agent-remove {shlex.quote(str(row.get('label') or name))}" if row.get("type") == "agent" else ""
-            if not command:
-                self._append_output("Only current-user Login Items and LaunchAgents can be removed here.")
-                self.select_runner_tab("logs")
-                return
-            self.push_screen(ConfirmScreen(command), lambda confirmed: self.execute_commands([command, "startup managed --json"], update_view=True, view_id="startup") if confirmed else None)
-            return
-        if not isinstance(row, dict):
-            return
-        if action == "inspect-process":
-            pid = row.get("pid")
-            if pid:
-                self.execute_commands([f"net inspect --pid {int(pid)} --json"], update_view=False)
-        elif action in {"stop-process", "force-stop-process"}:
-            pid = row.get("pid")
-            if pid:
-                command = f"net kill --pid {int(pid)} --signal KILL --yes" if action == "force-stop-process" else f"net terminate --pid {int(pid)} --yes --json"
-                self.push_screen(ConfirmScreen(command), lambda confirmed: self.execute_commands([command], update_view=False) if confirmed else None)
-        elif action in {"disable-startup", "enable-startup"}:
-            label = str(row.get("label") or row.get("name") or "")
-            if not label or row.get("type") != "agent" or not str(row.get("path", "")).startswith(str(Path.home() / "Library" / "LaunchAgents")):
-                self._append_output("Only current-user Login Items and LaunchAgents can be changed here.")
-                self.select_runner_tab("logs")
-                return
-            operation = "agent-disable" if action == "disable-startup" else "agent-enable"
-            command = f"startup {operation} {shlex.quote(label)}"
-            self.push_screen(ConfirmScreen(command), lambda confirmed: self.execute_commands([command], update_view=False) if confirmed else None)
 
     def execute_commands(
         self, commands: list[str], update_view: bool = True, view_id: Optional[str] = None,
@@ -1345,25 +985,6 @@ class MspTUI(App[None]):
                         lambda confirmed, cmd=force_command: self.execute_commands([cmd], update_view=False) if confirmed else None,
                     )
                     return
-        if not update_view:
-            return
-        if view_id and view_id != self._current_id:
-            self.refresh_current()
-            return
-        pane = self._panes.get(view_id or self._current_id or "")
-        if isinstance(pane, TablePane):
-            command = pane.spec.command or ""
-            code, lines = results.get(command, (1, []))
-            if code != 0:
-                pane.data_failed("command failed; see output")
-                return
-            payload = _extract_json(lines)
-            if payload is None:
-                pane.data_failed("no JSON data returned")
-            else:
-                pane.data_ready(_payload_rows(pane.spec.id, payload))
-                if isinstance(payload, dict) and payload.get("errors"):
-                    pane.data_notice("Some data is unavailable due to system permissions. See command output below.")
 
     def action_stop_command(self) -> None:
         if self.current_broker is not None:

@@ -1,0 +1,121 @@
+# Repair & recovery ▸ Health (template: console). Dependencies, configuration
+# and the doctor's fixes.
+
+[page]
+id = "repair.health"
+concern = "repair"
+title = "Health"
+order = 1
+template = "console"
+
+[[runs]]
+id = "doctor"
+command = "deps.doctor"
+
+[[runs]]
+id = "deps"
+command = "deps.status"
+
+[[runs]]
+id = "config"
+command = "config.list"
+
+[[runs]]
+id = "check"
+command = "deps.check"
+trigger = "on_action"
+
+[[runs]]
+id = "install"
+command = "deps.install"
+trigger = "on_action"
+args = { package = "{row.name}" }
+refreshes = ["deps", "doctor"]
+
+[[runs]]
+id = "install_all"
+command = "deps.install-all"
+trigger = "on_action"
+refreshes = ["deps", "doctor"]
+
+[[runs]]
+id = "doctor_fix"
+command = "doctor.fix"
+trigger = "on_action"
+refreshes = ["doctor"]
+
+[[slots]]
+region = "strip"
+order = 1
+run = "doctor"
+select = "{ok: ok}"
+component = "StatusStrip"
+props = { labels = { ok = "Required dependencies" } }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "deps"
+component = "RecordTable"
+[slots.props]
+title = "Dependencies"
+columns = ["name", "status", "required", "description"]
+labels = { required = "Required" }
+sort_by = ["status", "name"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "config"
+component = "ReportView"
+props = { title = "Configuration", empty = "No configuration set (defaults apply)." }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+row_actions = ["install"]
+[slots.props]
+title = "Dependency"
+empty = "Select a dependency."
+labels = { install = "Install…", required = "Required" }
+hide_when = { install = "status == 'installed'" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["check"]
+[slots.props]
+title = "Check a package"
+fields = ["package"]
+required = ["package"]
+submit = "Check"
+placeholders = { package = "jq" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+run = "check"
+component = "ReportView"
+props = { title = "Package", empty = "Enter a package name above." }
+
+[[slots]]
+region = "workspace.aside"
+order = 4
+component = "ActionForm"
+actions = ["install_all"]
+props = { title = "Install missing dependencies", submit = "Install all…" }
+
+[[slots]]
+region = "workspace.aside"
+order = 5
+component = "ActionForm"
+actions = ["doctor_fix"]
+[slots.props]
+title = "Apply the doctor's fixes"
+fields = ["dry_run"]
+labels = { dry_run = "Preview only (dry run)" }
+submit = "Fix…"

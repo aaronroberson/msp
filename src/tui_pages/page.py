@@ -3,8 +3,13 @@
 Lays out header → notice → strip → workspace (main/aside, or a card grid) →
 action line, mounts every slot empty, then executes the page's ``on_open``
 runs in a thread worker. As each run finishes, only the slots bound to it
-re-render. Actions on mutating commands are previewed (Phase 1); manual read
-runs (e.g. ``scan quick``) execute and then re-run their ``refreshes``.
+re-render.
+
+Triggers: ``on_open`` (page opens), ``on_view:<tab>`` (tab first shown),
+``on_select:<slot>`` (row highlighted; ``{row.*}`` args), ``manual`` (header
+button), ``on_action`` (button/form/toggle). Read actions execute directly;
+reads that send traffic or data to an AI provider, and all mutations, go to
+``action_handler`` (the shell confirms them) or are previewed without one.
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ from textual.widgets import Button, Label, Static
 from src.tui_manifest import CommandSpec, PageSpec, SlotSpec, TemplateSpec
 from src.tui_pages.components import (
     COMPONENTS, ActionRequested, FindingList, PageContext, RecordInspector, RowSelected,
-    SeverityFilter, SlotComponent,
+    SeverityFilter, SlotComponent, fill_args,
 )
 from src.tui_pages.runtime import Executor, RunResult, RunScheduler, preview_command
 
@@ -56,6 +61,8 @@ class PageView(VerticalScroll):
         # Set by the shell to execute actions (confirm → run → refreshes).
         # Without one, actions are previewed only.
         self.action_handler: Optional[Callable[["PageView", str, CommandSpec, Dict[str, Any]], None]] = None
+        self.tab: Optional[str] = page.tabs[0].id if page.tabs else None
+        self._select_timer: Any = None
 
     # -- layout --------------------------------------------------------
 
@@ -64,6 +71,13 @@ class PageView(VerticalScroll):
         if cls is None:
             raise KeyError(f"{self.page.page.id}: component {slot.component} is not implemented yet")
         widget = cls(slot, self.ctx)
+        run = self.ctx.runs.get(slot.run or "")
+        if run and (run.trigger in ("manual", "on_action") or run.trigger.startswith("on_select:")):
+            widget.idle_text = slot.props.get("empty", "Not run yet.")   # runs only when asked
+        if run and run.id in self._slot_runs:
+            widget.run_button = self._run_label(run.id)                  # run it from its own panel
+        tab = self.page.slot_tab(slot)
+        widget.display = tab is None or tab == self.tab
         self.slots[widget.slot_key] = widget
         return widget
 
@@ -71,11 +85,15 @@ class PageView(VerticalScroll):
         meta = self.page.page
         with Horizontal(classes="page-header"):
             yield Label(meta.title, classes="page-title")
-            yield Label(self.ctx.labels["concerns"].get(meta.concern, meta.concern).upper(), classes="page-meta", id="page-meta")
+            yield Label(self._meta_text(), classes="page-meta" + (" fallback-badge" if meta.fallback else ""), id="page-meta")
             for run_id in self.scheduler.manual_runs():
-                command = self.scheduler.command(run_id)
-                yield Button(self.page_props_label(run_id, command), id=f"run-{run_id}", classes="header-action")
+                if run_id not in self._slot_runs:   # runs with a panel get their button there
+                    yield Button(self._run_label(run_id, header=True), id=f"run-{run_id}", classes="header-action")
             yield Button("Refresh", id="page-refresh", classes="header-action")
+        if self.page.tabs:
+            with Horizontal(classes="view-tabs"):
+                for tab in self.page.tabs:
+                    yield Button(tab.title, id=f"tab-{tab.id}", classes="view-tab" + (" -active" if tab.id == self.tab else ""))
         yield Vertical(id="page-notices")
         by_region: Dict[str, List[SlotSpec]] = {}
         for slot in self.page.slots:
@@ -103,16 +121,44 @@ class PageView(VerticalScroll):
         preview.display = False
         yield preview
 
-    def page_props_label(self, run_id: str, command: CommandSpec) -> str:
-        return f"Run {' '.join(command.argv)}" + (" ⏱" if command.long_running else "")
+    @property
+    def _slot_runs(self) -> set:
+        """Manual runs whose output has a titled panel: the button lives in that panel."""
+        manual = set(self.scheduler.manual_runs())
+        return {s.run for s in self.page.slots if s.run in manual and s.props.get("title")}
+
+    def _run_label(self, run_id: str, header: bool = False) -> str:
+        # ⏱ slow · ↗ sends network traffic or data to an AI provider (asks first)
+        command = self.scheduler.command(run_id)
+        name = f"Run {' '.join(command.argv)}" if header else "Run"
+        return name + (" ⏱" if command.long_running else "") + (" ↗" if self.scheduler.outbound(run_id) else "")
 
     # -- runs ----------------------------------------------------------
 
     def on_mount(self) -> None:
-        self.start(self.scheduler.triggered("on_open"))
+        self.start(self.scheduler.triggered("on_open") + self._tab_runs())
 
-    def start(self, run_ids: List[str], *, force: bool = False) -> None:
-        run_ids = [r for r in run_ids if r not in self.pending]  # never duplicate an in-flight run
+    def _run_tab(self, run_id: str) -> Optional[str]:
+        slot = next((s for s in self.page.slots if s.run == run_id), None)
+        return self.page.slot_tab(slot) if slot else None
+
+    def _tab_runs(self) -> List[str]:
+        return self.scheduler.triggered(f"on_view:{self.tab}") if self.tab else []
+
+    def show_tab(self, tab_id: str) -> None:
+        """Switch view tab: show its slots, run its reads the first time it is shown."""
+        self.tab = tab_id
+        for button in self.query(".view-tab"):
+            button.set_class(button.id == f"tab-{tab_id}", "-active")
+        for slot in self.page.slots:
+            tab = self.page.slot_tab(slot)
+            self.slots[f"{slot.region}#{slot.order}"].display = tab is None or tab == tab_id
+        self.start(self._tab_runs())
+
+    def start(self, run_ids: List[str], *, force: bool = False, args: Optional[Dict[str, Dict[str, Any]]] = None) -> None:
+        # never duplicate an in-flight run; a cached run is only re-run when forced (the
+        # scheduler skips it, so marking it pending would leave "running…" up forever)
+        run_ids = [r for r in run_ids if r not in self.pending and (force or r not in self.scheduler.results)]
         if not run_ids:
             return
         self.pending.update(run_ids)
@@ -121,7 +167,7 @@ class PageView(VerticalScroll):
 
         def work() -> None:
             self.scheduler.execute(
-                run_ids, force=force,
+                run_ids, force=force, args=args,
                 on_start=lambda rid: self.app.call_from_thread(self._started, rid),
                 on_result=lambda result: self.app.call_from_thread(self._deliver, result),
             )
@@ -150,12 +196,19 @@ class PageView(VerticalScroll):
         self.post_message(RunFinished(self.page.page.id, result))
         # A read run that refreshes others (a scan rewrites the saved results
         # `doctor` reads) re-runs them; mutations' refreshes are the shell's job.
-        targets = [r for r in self.scheduler.refresh_targets(result.run_id) if self.scheduler.command(r).risk == "read"]
+        targets = self.refreshable(result.run_id)
         if targets and self.scheduler.command(result.run_id).risk == "read" and not result.failure:
             self.start(targets, force=True)
         self._show_progress()
         self._show_source()
         self._show_busy()
+
+    def refreshable(self, run_id: str) -> List[str]:
+        """Reads to re-run after ``run_id``: its ``refreshes`` that are already on
+        screen (never-shown tabs load when shown; outbound runs are never resent)."""
+        return [r for r in self.scheduler.refresh_targets(run_id)
+                if self.scheduler.command(r).risk == "read" and r in self.scheduler.results
+                and not self.scheduler.outbound(r)]
 
     def _show_busy(self) -> None:
         """Mark slots whose data is being replaced: their own run is pending, or a
@@ -186,14 +239,22 @@ class PageView(VerticalScroll):
 
     def _show_source(self) -> None:
         sources = sorted({r.source for r in self.scheduler.results.values() if not r.failure})
-        concern = self.ctx.labels["concerns"].get(self.page.page.concern, self.page.page.concern).upper()
-        suffix = " · replayed fixtures" if sources == ["replay"] else ""
-        self.query_one("#page-meta", Label).update(concern + suffix)
+        self.query_one("#page-meta", Label).update(self._meta_text(sources == ["replay"]))
+
+    def _meta_text(self, replayed: bool = False) -> str:
+        if self.page.page.fallback:
+            meta = "AUTO-GENERATED · NOT YET DESIGNED"
+        else:
+            meta = self.ctx.labels["concerns"].get(self.page.page.concern, self.page.page.concern).upper()
+        return meta + (" · replayed fixtures" if replayed else "")
 
     def refresh_page(self, include_long: bool = True) -> None:
         """Re-run what the page shows. A revisit passes ``include_long=False`` so
         it does not repeat a slow run (a scan); Refresh and its button do."""
-        shown = list(dict.fromkeys(self.scheduler.triggered("on_open") + list(self.scheduler.results)))
+        executed = [r for r in self.scheduler.results
+                    if not self.scheduler.outbound(r)          # never resend traffic or data unasked
+                    and self._run_tab(r) in (None, self.tab)]  # other tabs refresh when shown
+        shown = list(dict.fromkeys(self.scheduler.triggered("on_open") + self._tab_runs() + executed))
         if not include_long:
             shown = [r for r in shown if not self.scheduler.command(r).long_running]
         self.start(shown, force=True)
@@ -205,15 +266,27 @@ class PageView(VerticalScroll):
         if button_id == "page-refresh":
             event.stop()
             self.refresh_page()
+        elif button_id.startswith("tab-"):
+            event.stop()
+            self.show_tab(button_id.removeprefix("tab-"))
         elif button_id.startswith("run-"):
             event.stop()
-            self.start([button_id.removeprefix("run-")], force=True)
+            self.request(button_id.removeprefix("run-"), {})
 
     def on_row_selected(self, message: RowSelected) -> None:
         message.stop()
         for widget in self.slots.values():
-            if isinstance(widget, RecordInspector) and widget.slot.follows == message.slot_key:
+            # follows one slot ("workspace.main#2") or every slot of a region ("workspace.main")
+            if isinstance(widget, RecordInspector) and widget.slot.follows in (message.slot_key, message.slot_key.split("#")[0]):
                 widget.show(message.row)
+        runs = self.scheduler.triggered(f"on_select:{message.slot_key}")
+        if not runs:
+            return
+        args = {r: fill_args(self.scheduler.runs[r].args, {"row": message.row}) for r in runs}
+        if self._select_timer is not None:
+            self._select_timer.stop()
+        # debounce: moving the cursor quickly through a table runs only the last row
+        self._select_timer = self.set_timer(0.25, lambda: self.start(runs, force=True, args=args))
 
     def on_severity_filter(self, message: SeverityFilter) -> None:
         message.stop()
@@ -223,13 +296,31 @@ class PageView(VerticalScroll):
 
     def on_action_requested(self, message: ActionRequested) -> None:
         message.stop()
-        command = self.ctx.command_for(message.run_id)
+        self.request(message.run_id, message.args)
+
+    def request(self, run_id: str, args: Dict[str, Any]) -> None:
+        """A button, form or toggle asked for ``run_id``. Plain reads run now;
+        outbound reads and mutations are confirmed by the shell (or previewed)."""
+        command = self.ctx.command_for(run_id)
         if command is None:
             return
-        if self.action_handler is not None:
-            self.action_handler(self, message.run_id, command, message.args)
+        self._reveal(run_id)
+        if command.risk == "read" and not self.scheduler.outbound(run_id):
+            self.start([run_id], force=True, args={run_id: args})
             return
-        line = preview_command(command, message.args)
+        self._confirm_or_preview(run_id, command, args)
+
+    def _reveal(self, run_id: str) -> None:
+        """A requested run whose output lives on another tab switches to that tab."""
+        tab = self._run_tab(run_id)
+        if tab and tab != self.tab:
+            self.show_tab(tab)
+
+    def _confirm_or_preview(self, run_id: str, command: CommandSpec, args: Dict[str, Any]) -> None:
+        if self.action_handler is not None:
+            self.action_handler(self, run_id, command, args)
+            return
+        line = preview_command(command, args)
         badge = " · needs administrator password" if command.needs_root else ""
         preview = self.query_one("#action-preview", Static)
         preview.update(f"Would run (preview only, nothing executed{badge}):  {line}")
@@ -243,6 +334,14 @@ PAGE_CSS = """
 .page-title { text-style: bold; color: #F0F6FC; width: 1fr; }
 .page-meta { color: #8B949E; margin-right: 2; }
 .header-action { height: 3; margin-left: 1; }
+.fallback-badge { color: #D29922; text-style: bold; }
+.view-tabs { height: 1; margin-bottom: 1; border-bottom: none; }
+.view-tab { height: 1; min-width: 0; width: auto; border: none; background: transparent; color: #8B949E; padding: 0 1; margin-right: 0; }
+.view-tab:hover { background: #161B22; color: #F0F6FC; border: none; }
+.view-tab:focus { border: none; text-style: underline; }
+.view-tab.-active { background: #1F2B3A; color: #58A6FF; text-style: bold; border: none; }
+.report-body { height: auto; }
+.report-text { color: #C9D1D9; }
 #page-notices { height: auto; }
 .notice { background: #2D1416; color: #F85149; padding: 0 1; margin-bottom: 1; height: auto; }
 .progress { background: #161B22; color: #58A6FF; padding: 0 1; margin-bottom: 1; height: auto; }
@@ -251,7 +350,7 @@ PAGE_CSS = """
 .strip-region > .slot.status-strip.wraps { width: 1fr; max-width: 100; }
 .strip { height: 3; width: auto; }
 .grid-strip { height: auto; width: 1fr; layout: grid; grid-gutter: 0 1; }
-.pill { border: solid #30363D; background: #161B22; width: auto; height: 3; padding: 0 1; margin-right: 1; }
+.pill { border: solid #30363D; background: #161B22; width: auto; height: 3; padding: 0 1; margin-right: 0; }
 .grid-strip .pill { width: 1fr; margin-right: 0; }
 .pill-label { color: #8B949E; text-style: bold; margin-right: 2; }
 .state-on { color: #3FB950; text-style: bold; }
@@ -280,8 +379,9 @@ PAGE_CSS = """
 .toggle-unknown { padding-top: 1; }
 .slot DataTable { height: auto; max-height: 18; border: none; }
 .inspector-body { color: #C9D1D9; margin: 1 0; }
-.row-actions { height: 3; }
-.row-actions Button { margin-right: 1; min-width: 10; }
+.row-actions { height: auto; layout: grid; grid-size: 2; grid-gutter: 0 1; }
+.slot-run { height: 1; min-width: 8; border: none; background: #1F2B3A; color: #58A6FF; margin-left: 1; }
+.row-actions Button { width: 100%; min-width: 8; }
 .form-submit { margin-top: 1; }
 .slot Input, .slot Select { margin-top: 1; }
 .preview { color: #58A6FF; background: #161B22; height: auto; padding: 0 1; }

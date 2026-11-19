@@ -1446,7 +1446,10 @@ def main():
         search_term = args.label.lower()
         items = manager._get_all_items()
         matches = [i for i in items if search_term in i.label.lower() or search_term in i.name.lower()]
-        if console:
+        if args.json:
+            print(json.dumps([{"name": i.name, "label": i.label, "path": i.path, "type": i.type,
+                               "status": i.status, "pid": i.pid} for i in matches], indent=2))
+        elif console:
             console.print(f"\n[bold]Found {len(matches)} items matching '{args.label}'[/bold]\n")
             for item in matches:
                 console.print(f"  • {item.label}")

@@ -566,8 +566,10 @@ class SecurityScanner:
 
         if success and output.strip():
             info["details"] = output.strip()
-            info["signed"] = "signed" in output.lower() and "not signed" not in output.lower()
-            info["valid"] = "valid" in output.lower() and "invalid" not in output.lower()
+            info["signed"] = ("not signed" not in output.lower()) and ("Authority=" in output or "Signature=adhoc" in output)
+            # -dvvv only displays the signature; validity needs an actual verification
+            verified, _ = self._run_cmd(["codesign", "--verify", "--strict", app_path])
+            info["valid"] = bool(info["signed"] and verified)
 
             if "Apple" in output:
                 info["authority"] = "Apple"

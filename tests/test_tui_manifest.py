@@ -56,6 +56,20 @@ def test_drift_detects_missing_and_orphan_entries(commands):
     assert "manifest entry without CLI action: net.nonexistent" in problems
 
 
+def test_repeated_options_match_the_parsers(commands):
+    """``--opt a --opt b`` (argparse append) vs ``--opt a b`` (nargs) must match the CLI."""
+    from src.tui_manifest import seed_command_ids
+    seed = load_seed()
+    actions = [action for group in seed["groups"] for action in group["actions"]]
+    mismatched = []
+    for command_id, action in zip(seed_command_ids(seed), actions):
+        seeded = {a["option"]: bool(a.get("repeat")) for a in action.get("args", []) if a.get("option")}
+        for arg in commands[command_id].args:
+            if arg.option in seeded and arg.repeat != seeded[arg.option]:
+                mismatched.append(f"{command_id} {arg.option}")
+    assert mismatched == []
+
+
 # --------------------------------------------------------------- contracts
 
 def test_every_fixture_satisfies_its_command_contract(commands):
@@ -116,8 +130,9 @@ def test_pages_enforce_order_references_and_acyclic_runs(pages, mutate):
 
 
 def test_pages_use_known_templates_regions_and_links(pages):
-    from src.tui_v2 import VIEWS
-    assert check_pages(pages, load_templates(), load_labels(), tuple(v.id for v in VIEWS)) == []
+    from src.tui_pages.shell import LEGACY_ENTRIES, PAGE_ALIASES
+    links = tuple(PAGE_ALIASES) + tuple(entry[0] for entry in LEGACY_ENTRIES)
+    assert check_pages(pages, load_templates(), load_labels(), links, load_commands()) == []
 
 
 @pytest.mark.parametrize("mutate, expected", [
@@ -145,6 +160,13 @@ def test_prop_actions_must_reference_page_runs(pages):
 def test_coverage_report_is_fresh():
     result = _script("coverage_report.py", "--check")
     assert result.returncode == 0, result.stderr
+
+
+def test_every_read_command_is_curated_or_deferred_with_a_reason(commands, pages):
+    """Phase 2 exit: no read action is left on a fallback page without a reason."""
+    loose = [r["id"] for r in coverage(commands, pages)
+             if r["risk"] == "read" and r["status"] != "curated" and not r["deferred"]]
+    assert loose == []
 
 
 def test_fallback_pages_never_count_as_coverage(commands, pages):

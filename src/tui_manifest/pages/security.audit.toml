@@ -1,0 +1,74 @@
+# Security ▸ Rule audit (template: review). Best-practice rules evaluated
+# against the machine's facts, by profile and minimum severity, plus the
+# facts themselves.
+
+[page]
+id = "security.audit"
+concern = "security"
+title = "Rule audit"
+order = 4
+template = "review"
+
+[[tabs]]
+id = "findings"
+title = "Findings"
+
+[[tabs]]
+id = "facts"
+title = "System facts"
+
+[[runs]]
+id = "audit"
+command = "audit"
+trigger = "on_view:findings"
+args = { collect = true }   # gather facts now rather than reading them from a file
+
+[[runs]]
+id = "facts"
+command = "interrogate"
+trigger = "on_view:facts"
+
+[[slots]]
+region = "strip"
+order = 1
+run = "audit"
+component = "SeverityChips"
+props = { filters = "workspace.main#1" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "audit"
+component = "FindingList"
+props = { title = "Rule findings", columns = ["rule_id", "title", "category"], labels = { rule_id = "Rule" } }
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "facts"
+component = "ReportView"
+props = { title = "Collected facts", max_height = 60 }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+tab = "findings"
+[slots.props]
+title = "Finding"
+empty = "Select a finding."
+fields = ["rule_id", "severity", "title", "category", "remediation"]
+labels = { rule_id = "Rule", remediation = "Remediation" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["audit"]
+tab = "findings"
+[slots.props]
+title = "Audit options"
+fields = ["profile", "minimum_severity"]
+labels = { minimum_severity = "Minimum severity" }
+submit = "Re-run audit"

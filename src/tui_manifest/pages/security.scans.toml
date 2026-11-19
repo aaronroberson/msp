@@ -1,0 +1,189 @@
+# Security ▸ Scans (template: review). Replaces the legacy Findings screen.
+# The latest saved scan shows at once (via doctor); quick / suspicious / deep
+# scans run on request (they are slow) and open their own tab. App signature
+# checks take a path.
+
+[page]
+id = "security.scans"
+concern = "security"
+title = "Scans"
+order = 3
+template = "review"
+
+[[tabs]]
+id = "saved"
+title = "Last saved scan"
+
+[[tabs]]
+id = "quick"
+title = "Quick"
+
+[[tabs]]
+id = "suspicious"
+title = "Suspicious"
+
+[[tabs]]
+id = "deep"
+title = "Deep"
+
+[[tabs]]
+id = "apps"
+title = "App signatures"
+
+[[tabs]]
+id = "report"
+title = "Report"
+
+[[runs]]
+id = "saved"
+command = "doctor"
+trigger = "on_view:saved"
+
+[[runs]]
+id = "quick"
+command = "scan.quick"
+trigger = "manual"
+refreshes = ["saved"]
+
+[[runs]]
+id = "suspicious"
+command = "scan.suspicious"
+trigger = "manual"
+
+[[runs]]
+id = "deep"
+command = "scan.deep"
+trigger = "manual"
+refreshes = ["saved"]
+
+[[runs]]
+id = "report"
+command = "scan.report"
+trigger = "manual"
+
+[[runs]]
+id = "verify"
+command = "scan.verify"
+trigger = "on_action"
+
+[[runs]]
+id = "signature"
+command = "scan.signature"
+trigger = "on_action"
+
+[[slots]]
+region = "strip"
+order = 1
+run = "quick"
+component = "SeverityChips"
+tab = "quick"
+props = { filters = "workspace.main#2" }
+
+[[slots]]
+region = "strip"
+order = 2
+run = "suspicious"
+component = "SeverityChips"
+tab = "suspicious"
+props = { filters = "workspace.main#3" }
+
+[[slots]]
+region = "strip"
+order = 3
+run = "deep"
+component = "SeverityChips"
+tab = "deep"
+props = { filters = "workspace.main#4" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "saved"
+select = "scan.checks[?status != 'ok' && status != 'n/a'].{id: name, title: title, severity: status, category: domain, description: detail, recommendation: fix_cmd}"
+component = "FindingList"
+[slots.props]
+title = "Open findings in the last saved scan"
+empty = "No open findings in the last saved scan."
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "quick"
+component = "FindingList"
+tab = "quick"
+props = { title = "Quick scan", empty = "Use “Run scan quick ⏱” to scan now." }
+
+[[slots]]
+region = "workspace.main"
+order = 3
+run = "suspicious"
+component = "FindingList"
+tab = "suspicious"
+props = { title = "Suspicious activity", empty = "Use “Run scan suspicious ⏱” to scan for suspicious processes and files." }
+
+[[slots]]
+region = "workspace.main"
+order = 4
+run = "deep"
+component = "FindingList"
+tab = "deep"
+props = { title = "Deep scan", empty = "Use “Run scan deep ⏱” for a full scan (takes several minutes)." }
+
+[[slots]]
+region = "workspace.main"
+order = 5
+component = "ActionForm"
+actions = ["verify"]
+tab = "apps"
+[slots.props]
+title = "Gatekeeper assessment"
+required = ["path"]
+submit = "Assess"
+placeholders = { path = "/Applications/Example.app" }
+
+[[slots]]
+region = "workspace.main"
+order = 6
+run = "verify"
+component = "ReportView"
+tab = "apps"
+props = { title = "Assessment", empty = "Enter an app path to check whether Gatekeeper accepts it." }
+
+[[slots]]
+region = "workspace.main"
+order = 7
+component = "ActionForm"
+actions = ["signature"]
+tab = "apps"
+[slots.props]
+title = "Code signature"
+required = ["path"]
+submit = "Check signature"
+placeholders = { path = "/Applications/Example.app" }
+
+[[slots]]
+region = "workspace.main"
+order = 8
+run = "signature"
+component = "ReportView"
+tab = "apps"
+props = { title = "Signature", empty = "Enter an app path to read and verify its code signature." }
+
+[[slots]]
+region = "workspace.main"
+order = 9
+run = "report"
+component = "ReportView"
+tab = "report"
+props = { title = "Scan report", max_height = 60, empty = "Use Run ⏱ to run a deep scan and print its report (takes several minutes)." }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main"
+component = "RecordInspector"
+[slots.props]
+title = "Finding"
+empty = "Select a finding."
+fields = ["severity", "title", "category", "description", "recommendation", "fix_cmd"]
+labels = { recommendation = "Recommendation", fix_cmd = "Fix command" }

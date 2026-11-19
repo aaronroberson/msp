@@ -404,6 +404,12 @@ class ActionOutcome(Record):
     message: str = ""
 
 
+class AIResponse(Record):
+    """`ai ask` / `explain` / `suggest` / `analyze` / `compare` with --json: the model's answer."""
+
+    response: str
+
+
 class Provider(Record):
     """`ai providers` (never carries key values; only `key_source`)."""
 

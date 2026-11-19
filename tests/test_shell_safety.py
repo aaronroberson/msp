@@ -45,3 +45,19 @@ def test_argv_mode_runs_without_a_shell(monkeypatch):
     argv, kwargs = calls[0]
     assert argv == ["codesign", "-dvvv", "/a b"] and not kwargs.get("shell")
     assert (ok, output) == (True, "out")
+
+
+def test_signature_validity_comes_from_codesign_verify(monkeypatch):
+    """-dvvv only displays a signature; 'valid' must come from --verify (it was always false)."""
+    displayed = "Executable=/A.app/Contents/MacOS/A\nAuthority=Developer ID Application: X\n"
+    outcomes = {"-dvvv": (True, displayed)}
+
+    def fake(cmd, **kw):
+        return outcomes.get(cmd[1], (verify_ok, ""))
+
+    scanner = SecurityScanner()
+    monkeypatch.setattr(scanner, "_run_cmd", fake)
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    for verify_ok, expected in ((True, True), (False, False)):
+        info = scanner.signature_info("/A.app")
+        assert info["signed"] is True and info["valid"] is expected
