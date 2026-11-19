@@ -1,0 +1,38 @@
+# Page recipes (plan §4.3). A page names one; the page frame lays out its regions.
+#
+#   layout   split: workspace.main and workspace.aside side by side (2:1)
+#            grid:  workspace.main slots become a card grid (props.span = 2 for a wide card)
+#   regions  regions a page using this template may fill
+
+[template.dashboard]
+layout = "grid"
+regions = ["header", "notice", "strip", "workspace.main", "dock"]
+
+[template.control-panel]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside"]
+
+[template.explorer]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside", "dock"]
+
+[template.review]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside", "dock"]
+
+# Phases 4–5 (declared so pages can be authored against them)
+[template.catalog]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside", "dock"]
+
+[template.compare]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside"]
+
+[template.pipeline]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside", "dock"]
+
+[template.console]
+layout = "split"
+regions = ["header", "notice", "strip", "workspace.main", "workspace.aside", "dock"]
