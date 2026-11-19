@@ -1,0 +1,102 @@
+# Privacy ▸ Privacy settings (template: control-panel).
+# `status` feeds the strip and the firewall rule summary; `list` feeds the
+# toggles; switching one requests `enable` / `disable` (preview-only in Phase 1).
+
+[page]
+id = "privacy.settings"
+concern = "privacy"
+title = "Privacy settings"
+order = 1
+template = "control-panel"
+
+[[runs]]
+id = "status"
+command = "privacy.status"
+order = 1
+
+[[runs]]
+id = "settings"
+command = "privacy.list"
+order = 1
+
+[[runs]]
+id = "services"
+command = "privacy.services.list"
+order = 1
+
+[[runs]]
+id = "enable"
+command = "privacy.enable"
+trigger = "on_action"
+refreshes = ["settings", "status"]
+
+[[runs]]
+id = "disable"
+command = "privacy.disable"
+trigger = "on_action"
+refreshes = ["settings", "status"]
+
+[[slots]]
+region = "notice"
+order = 1
+run = "status"
+facet = "errors"
+component = "NoticeBanner"
+
+[[slots]]
+region = "strip"
+order = 1
+run = "status"
+select = "{firewall: firewall.enabled, gatekeeper: gatekeeper.enabled, filevault: filevault.enabled, bluetooth: bluetooth.enabled, sharing: sharing.sharing_enabled, password_required: security.password_required}"
+component = "StatusStrip"
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "settings"
+component = "SettingsPanel"
+actions = ["enable", "disable"]
+[slots.props]
+title = "Settings"
+key = "name"
+state = "state"
+on_value = "enabled"
+detail = "description"
+on = { run = "enable", args = { setting = "{key}" } }
+off = { run = "disable", args = { setting = "{key}" } }
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "status"
+select = "firewall.exceptions"
+component = "RecordTable"
+[slots.props]
+title = "Firewall app rules"
+columns = ["name", "status"]
+sort_by = ["status", "name"]
+count_by = "status"
+height = 10
+link = "security.firewall"
+link_label = "Manage rules"
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+run = "status"
+select = "listening_services"
+component = "FindingList"
+[slots.props]
+title = "Listening services to review"
+columns = ["title", "port"]
+labels = { title = "Process", port = "Port" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+run = "services"
+component = "RecordTable"
+[slots.props]
+title = "Launch services"
+columns = ["name", "pid"]
+height = 14

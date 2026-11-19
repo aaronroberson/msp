@@ -96,7 +96,9 @@ class PageView(VerticalScroll):
                     with Vertical(classes="aside"):
                         for slot in by_region["workspace.aside"]:
                             yield self._component(slot)
-        yield Static("", id="action-preview", classes="preview")
+        preview = Static("", id="action-preview", classes="preview")
+        preview.display = False
+        yield preview
 
     def page_props_label(self, run_id: str, command: CommandSpec) -> str:
         return f"Run {' '.join(command.argv)}" + (" ⏱" if command.long_running else "")
@@ -196,8 +198,9 @@ class PageView(VerticalScroll):
             return
         line = preview_command(command, message.args)
         badge = " · needs administrator password" if command.needs_root else ""
-        self.query_one("#action-preview", Static).update(
-            f"Would run (preview only, nothing executed{badge}):  {line}")
+        preview = self.query_one("#action-preview", Static)
+        preview.update(f"Would run (preview only, nothing executed{badge}):  {line}")
+        preview.display = True
         self.post_message(ActionPreviewed(self.page.page.id, line))
 
 
@@ -211,6 +214,7 @@ PAGE_CSS = """
 .notice { background: #2D1416; color: #F85149; padding: 0 1; margin-bottom: 1; height: auto; }
 .progress { background: #161B22; color: #58A6FF; padding: 0 1; margin-bottom: 1; height: auto; }
 .strip-region { height: auto; margin-bottom: 1; }
+.strip-region > .slot { width: auto; margin-right: 1; }
 .strip { height: 3; width: auto; }
 .pill { border: solid #30363D; background: #161B22; width: auto; height: 3; padding: 0 1; margin-right: 1; }
 .pill-label { color: #8B949E; text-style: bold; margin-right: 2; }
