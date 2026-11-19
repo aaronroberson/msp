@@ -164,16 +164,16 @@ def test_tabs_run_their_reads_when_first_shown_and_show_only_their_slots():
             await pilot.pause(0.2)
             await app.workers.wait_for_complete()
             page = app.query_one(PageView)
-            assert [c[0] for c in calls] == ["listening"]
+            assert [c[0] for c in calls if not c[0].startswith("inspect_")] == ["listening"]
             assert page.slots["workspace.main#1"].display and not page.slots["workspace.main#2"].display
             page.query_one("#tab-established", Button).press()
             await pilot.pause(0.2)
             await app.workers.wait_for_complete()
-            assert [c[0] for c in calls] == ["listening", "established"]
+            assert [c[0] for c in calls if not c[0].startswith("inspect_")] == ["listening", "established"]
             assert page.slots["workspace.main#2"].display and not page.slots["workspace.main#1"].display
             page.query_one("#tab-listening", Button).press()       # cached: no re-run
             await pilot.pause(0.2)
-            assert [c[0] for c in calls] == ["listening", "established"]
+            assert [c[0] for c in calls if not c[0].startswith("inspect_")] == ["listening", "established"]
 
     asyncio.run(exercise())
 
@@ -252,3 +252,22 @@ def test_triggers_and_tabs_must_reference_declared_things(mutate):
     mutate(page)
     with pytest.raises(ValidationError):
         PageSpec.model_validate(page)
+
+
+def test_returning_to_a_loaded_tab_leaves_nothing_pending():
+    """Re-showing a tab whose run is cached must not mark it running forever."""
+    from src.tui_pages.page import PageView
+    calls = []
+
+    async def exercise():
+        app = _network_app(calls)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            page = app.query_one(PageView)
+            page.show_tab("listening")                              # already loaded
+            await pilot.pause(0.2)
+            assert page.pending == set()
+            assert not page.query("#page-notices .progress")
+
+    asyncio.run(exercise())

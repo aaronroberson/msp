@@ -156,7 +156,9 @@ class PageView(VerticalScroll):
         self.start(self._tab_runs())
 
     def start(self, run_ids: List[str], *, force: bool = False, args: Optional[Dict[str, Dict[str, Any]]] = None) -> None:
-        run_ids = [r for r in run_ids if r not in self.pending]  # never duplicate an in-flight run
+        # never duplicate an in-flight run; a cached run is only re-run when forced (the
+        # scheduler skips it, so marking it pending would leave "running…" up forever)
+        run_ids = [r for r in run_ids if r not in self.pending and (force or r not in self.scheduler.results)]
         if not run_ids:
             return
         self.pending.update(run_ids)
