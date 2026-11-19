@@ -487,6 +487,8 @@ Examples:
         # Parse shell args: msp shell audit [options] | msp shell repair
         raw_args = _args_after_command("shell")
         action = raw_args[0] if raw_args else None
+        if args.json and "--json" not in raw_args:
+            raw_args.append("--json")  # the global flag may sit before the command (msp --json shell audit)
 
         if action == "audit":
             import warnings
