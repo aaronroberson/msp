@@ -58,7 +58,12 @@ class Finding(Record):
                 )
             data["severity"] = mapped
         if "id" not in data:
-            data["id"] = next((str(data[f]) for f in cls.ID_FIELDS if data.get(f)), "")
+            # an ID_FIELDS entry may be composite: "service+client" -> "svc:client"
+            for spec in cls.ID_FIELDS:
+                parts = [data.get(f) for f in spec.split("+")]
+                if all(parts):
+                    data["id"] = ":".join(str(p) for p in parts)
+                    break
         if "title" not in data or cls.TITLE_FIELDS[0] != "title":
             data.setdefault("title", next((str(data[f]) for f in cls.TITLE_FIELDS if data.get(f)), ""))
         if not data.get("id"):

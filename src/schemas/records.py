@@ -198,14 +198,28 @@ class SecurityState(Record):
 
 
 class Permission(Record):
-    """`tcc list/show` (empty without Full Disk Access; shape from source)."""
+    """`tcc list/show`: one TCC database row (src/tcc.py TCCEntry)."""
 
-    service: str = Field(validation_alias="service_name", default="")
-    client: str = ""
+    service: str
+    service_name: str = ""
+    client: str
+    client_name: str = ""
+    auth_status: str = ""
+    allowed: bool
+    source: str = ""
+    last_modified: Optional[str] = None
 
 
 class TccFinding(Finding):
-    """`tcc audit`."""
+    """`tcc audit`: an allowed high-risk TCC grant."""
+
+    SEVERITY_FIELD: ClassVar[str] = "risk"
+    SEVERITY_MAP: ClassVar[Dict[str, str]] = {"high": "high", "medium": "medium"}
+    ID_FIELDS: ClassVar[Tuple[str, ...]] = ("service+client",)
+    TITLE_FIELDS: ClassVar[Tuple[str, ...]] = ("reason", "service_name")
+
+    service: str
+    client: str
 
 
 # ------------------------------------------------------------- scan/audit/shell
