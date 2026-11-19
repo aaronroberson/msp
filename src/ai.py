@@ -883,7 +883,7 @@ Example format:
         try:
             result = subprocess.run(
                 cmd, shell=True, capture_output=True, text=True, timeout=timeout,
-                env={**os.environ, "HOME": os.environ.get("HOME", "/Users/conscious")}
+                env={**os.environ, "HOME": os.environ.get("HOME", str(Path.home()))}
             )
             return result.returncode == 0, result.stdout + result.stderr
         except subprocess.TimeoutExpired:
@@ -891,16 +891,16 @@ Example format:
         except Exception as e:
             return False, str(e)
 
-    def explain_setting(self, setting_name: str) -> Optional[str]:
+    def explain_setting(self, setting_name: str, json_output: bool = False) -> Optional[str]:
         prompt = f"""Explain the macOS security setting '{setting_name}':
 1. What does it do?
 2. What are the security implications of having it on/off?
 3. Who should enable/disable it based on their threat model?
 
 Keep the response practical and concise."""
-        return self.ask(prompt)
+        return self.ask(prompt, json_output=json_output)
 
-    def compare_presets(self, preset1: str, preset2: str) -> Optional[str]:
+    def compare_presets(self, preset1: str, preset2: str, json_output: bool = False) -> Optional[str]:
         prompt = f"""Compare these two macOS security presets:
 Preset 1: {preset1}
 Preset 2: {preset2}
@@ -911,7 +911,7 @@ For each, explain:
 - Trade-offs between security and usability
 
 Be concise and practical."""
-        return self.ask(prompt)
+        return self.ask(prompt, json_output=json_output)
 
     def suggest_hardening(self, json_output: bool = False) -> Optional[str]:
         prompt = "Based on this system's current security configuration, suggest specific hardening steps:"
@@ -1055,13 +1055,13 @@ Examples:
         if not args.setting:
             print("Error: --setting required", file=sys.stderr)
             sys.exit(1)
-        analyzer.explain_setting(args.setting)
+        analyzer.explain_setting(args.setting, json_output=args.json)
 
     elif args.action == "compare":
         if not args.preset1 or not args.preset2:
             print("Error: --preset1 and --preset2 required", file=sys.stderr)
             sys.exit(1)
-        analyzer.compare_presets(args.preset1, args.preset2)
+        analyzer.compare_presets(args.preset1, args.preset2, json_output=args.json)
 
     elif args.action == "suggest":
         analyzer.suggest_hardening(json_output=args.json)
