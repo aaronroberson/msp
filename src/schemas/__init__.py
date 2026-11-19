@@ -59,9 +59,12 @@ def validate_output(
     key_field: str = "name",
     scalar_field: str = "value",
     text_format: str = "text",
+    returncode: Optional[int] = None,
+    success_codes: tuple = (0,),
 ) -> Envelope:
     payload: Dict[str, Any] = normalize(
         raw, encoding=encoding, data_key=data_key, key_field=key_field,
         scalar_field=scalar_field, text_format=text_format,
+        returncode=returncode, success_codes=success_codes,
     )
     return resolve(emits).model_validate(payload)

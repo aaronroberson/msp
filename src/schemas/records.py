@@ -403,6 +403,23 @@ class RemediationPlan(Record):
     actions: List[Dict[str, Any]]
 
 
+# ------------------------------------------------------------- cross-cutting
+
+
+class Line(Record):
+    """One line of streamed or text output (`Stream[Line]`)."""
+
+    text: str
+
+
+class Unverified(Record):
+    """Explicit contract debt: an action whose output shape is not yet characterized.
+
+    Accepts any record. The coverage report lists every command that emits it,
+    so unknown shapes are visible instead of silently untyped.
+    """
+
+
 RECORDS: Dict[str, type] = {
     name: obj for name, obj in list(globals().items())
     if isinstance(obj, type) and issubclass(obj, Record) and obj.__module__ == __name__

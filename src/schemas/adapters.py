@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal, Optional
 
-Encoding = Literal["list", "keyed", "wrapped", "scalar-list", "object", "text"]
+Encoding = Literal["list", "keyed", "wrapped", "scalar-list", "object", "text", "lines", "exit"]
 FACET_KEYS = ("errors", "access_errors")
 
 
@@ -34,7 +34,19 @@ def normalize(
     key_field: str = "name",
     scalar_field: str = "value",
     text_format: str = "text",
+    returncode: Optional[int] = None,
+    success_codes: tuple = (0,),
 ) -> Dict[str, Any]:
+    if encoding == "exit":
+        # mutations: outcome is the exit code; any output is the message
+        if returncode is None:
+            raise EncodingError("exit encoding requires the command's returncode")
+        message = raw if isinstance(raw, str) else ("" if raw is None else str(raw))
+        return {"data": {"ok": returncode in success_codes, "message": message.strip()}}
+    if encoding == "lines":
+        if not isinstance(raw, str):
+            raise EncodingError(f"lines encoding expects str, got {type(raw).__name__}")
+        return {"data": [{"text": line} for line in raw.splitlines() if line.strip()]}
     if encoding == "text":
         if not isinstance(raw, str):
             raise EncodingError(f"text encoding expects str, got {type(raw).__name__}")

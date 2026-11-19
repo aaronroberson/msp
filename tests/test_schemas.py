@@ -77,3 +77,24 @@ def test_findings_reject_unknown_severity_vocabulary():
 def test_envelopes_forbid_unknown_top_level_fields():
     with pytest.raises(ValidationError):
         resolve("Collection[Socket]").model_validate({"data": [], "surprise": 1})
+
+
+def test_exit_encoding_builds_a_result_from_the_exit_code():
+    ok = validate_output("Firewall enabled\n", "Result", encoding="exit", returncode=0)
+    assert (ok.data.ok, ok.data.message) == (True, "Firewall enabled")
+    failed = validate_output("", "Result", encoding="exit", returncode=2)
+    assert failed.data.ok is False
+    accepted = validate_output("", "Result", encoding="exit", returncode=1, success_codes=(0, 1))
+    assert accepted.data.ok is True
+    with pytest.raises(EncodingError):
+        normalize("x", encoding="exit")
+
+
+def test_lines_encoding_feeds_streams():
+    env = validate_output("a\n\n b \n", "Stream[Line]", encoding="lines")
+    assert [line.text for line in env.data] == ["a", " b "]
+
+
+def test_unverified_accepts_any_record():
+    env = validate_output([{"anything": 1}], "Collection[Unverified]", encoding="list")
+    assert env.data[0].model_extra == {"anything": 1}
