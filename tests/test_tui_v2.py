@@ -50,28 +50,27 @@ def test_privacy_firewall_exceptions_are_summarised_not_dumped():
     assert rows[0]["rules"] == [{"name": "DeviceHub", "status": "ALLOW"}, {"name": "Zoom", "status": "BLOCK"}]
 
 
-def test_privacy_tab_renders_firewall_rules_table():
+def test_privacy_page_renders_firewall_rules_and_links_to_firewall():
     from textual.widgets import DataTable
 
+    from src.tui_pages.runtime import run_replay
+
     async def exercise():
-        app = MspTUI()
-        async with app.run_test(size=(140, 40)) as pilot:
+        app = MspTUI(executor=run_replay)
+        async with app.run_test(size=(170, 50)) as pilot:
             await pilot.pause(0.1)
             app.switch_view_id("privacy")
-            await pilot.pause()
-            pane = app.query_one("#pane-privacy")
-            pane.data_ready(_payload_rows("privacy", {
-                "firewall": {"enabled": True, "exceptions": [{"name": "Zoom", "status": "BLOCK"}]},
-                "gatekeeper": {"enabled": True},
-                "filevault": {"enabled": True, "encrypted": True},
-            }))
-            await pilot.pause()
-            table = app.query_one("#privacy-firewall-rules", DataTable)
-            assert table.row_count == 1
-            assert list(table.get_row_at(0)) == ["Zoom", "Blocked"]
-            await pilot.click("#privacy-manage-firewall")
-            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.3)
+            assert app.query_one("#nav-privacy").has_class("-active")
+            page = app.query_one("#page-privacy-settings")
+            rules = page.query_one("#table-workspace-main-2", DataTable)
+            assert rules.row_count == 8
+            assert [str(c) for c in rules.get_row_at(0)] == ["DeviceHub", "Allowed"]
+            page.query_one("#link-workspace-main-2", Button).press()
+            await pilot.pause(0.2)
             assert app._current_id == "firewall"
+            assert app.query_one("#nav-firewall").has_class("-active")
 
     asyncio.run(exercise())
 
@@ -140,6 +139,7 @@ def test_terminate_process_uses_graceful_signal_and_wait(monkeypatch):
 
 def test_app_exposes_firewall_and_startup_controls(monkeypatch):
     import src.tui_v2 as tui_v2
+    from src.tui_pages.runtime import run_replay
 
     class QuietBroker:
         def __init__(self, line):
@@ -155,16 +155,18 @@ def test_app_exposes_firewall_and_startup_controls(monkeypatch):
     monkeypatch.setattr(tui_v2, "CommandBroker", QuietBroker)
 
     async def exercise():
-        app = MspTUI()
-        async with app.run_test(size=(120, 40)) as pilot:
+        app = MspTUI(executor=run_replay)
+        async with app.run_test(size=(160, 45)) as pilot:
             await pilot.pause(0.1)
             assert app.query_one("#nav-dashboard", Button).label == "Dashboard"
             assert app.query_one("#open-config", Button)
             app.switch_view_id("firewall")
-            await pilot.pause()
-            assert app.query_one("#firewall-enable")
-            assert app.query_one("#firewall-app-path")
-            assert app.query_one("#nav-privacy").has_class("-active")
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.2)
+            page = app.query_one("#page-security-firewall")
+            assert page.query("Switch")                         # firewall toggles
+            assert page.query_one("#form-workspace-aside-2-path")  # add-app path field
+            assert app.query_one("#nav-firewall").has_class("-active")
             await pilot.press("7")
             await pilot.pause()
             assert app._current_id == "snapshots"
@@ -176,5 +178,61 @@ def test_app_exposes_firewall_and_startup_controls(monkeypatch):
             assert app.query_one("#startup-login-add")
             assert app.query_one("#startup-agent-add")
             assert app.query_one("#startup-remove")
+
+    asyncio.run(exercise())
+
+
+def test_page_actions_confirm_run_then_refresh(monkeypatch):
+    """In the shell a page action asks for confirmation, runs the exact argv
+    through the command rail, then re-runs only the action's ``refreshes``."""
+    import src.tui_v2 as tui_v2
+    from src.tui_pages.runtime import run_replay
+
+    lines, executed = [], []
+
+    class RecordingBroker:
+        def __init__(self, line):
+            lines.append(line)
+
+        def run(self):
+            yield ("[exit 0 · 0.0s]", True, 0, 0.0)
+
+        def kill(self):
+            pass
+
+    def executor(run_id, command, args):
+        executed.append(run_id)
+        return run_replay(run_id, command, args)
+
+    monkeypatch.setattr(tui_v2, "CommandBroker", RecordingBroker)
+
+    async def exercise():
+        app = MspTUI(executor=executor)
+        async with app.run_test(size=(160, 45)) as pilot:
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            executed.clear()                               # the dashboard opened first
+            app.switch_view_id("firewall")
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.2)
+            assert executed == ["fw"]
+            page = app.query_one("#page-security-firewall")
+            page.query_one("#form-workspace-aside-2-path").value = "/Applications/My App.app"
+            page.query_one("#submit-workspace-aside-2", Button).press()
+            await pilot.pause(0.1)
+            confirm = app.screen
+            assert "firewall app add '/Applications/My App.app'" in str(confirm.query_one("#confirm-command").render())
+            assert "administrator password" in str(confirm.query_one("#confirm-description").render())
+            await pilot.press("escape")                    # cancel: nothing runs
+            await pilot.pause(0.1)
+            assert lines == []
+            page.query_one("#submit-workspace-aside-2", Button).press()
+            await pilot.pause(0.1)
+            await pilot.press("y")
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.3)
+            await app.workers.wait_for_complete()
+            assert lines == ["firewall app add '/Applications/My App.app'"]
+            assert executed == ["fw", "fw"]                # refreshed exactly its read
 
     asyncio.run(exercise())
