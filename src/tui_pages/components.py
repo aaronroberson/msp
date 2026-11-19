@@ -501,8 +501,76 @@ class RecordInspector(SlotComponent):
         self.post_message(ActionRequested(run_id, args))
 
 
+class ActionForm(SlotComponent):
+    """Arguments for one action: ``slot.actions[0]``.
+
+    props: title, fields (arg names to ask for; default: all without a fixed
+    value), fixed (arg values set by the page, e.g. ``operation = "add"``),
+    submit (button label), placeholders (per field).
+    """
+
+    def __init__(self, slot: SlotSpec, ctx: PageContext, **kw: Any) -> None:
+        super().__init__(slot, ctx, **kw)
+        self.loaded = True
+        self.run_id = slot.actions[0] if slot.actions else ""
+
+    def compose(self) -> ComposeResult:
+        from textual.widgets import Select
+
+        props = self.slot.props
+        command = self.ctx.command_for(self.run_id)
+        yield Label(self.title or "ACTION", classes="eyebrow")
+        if command is None:
+            yield Static("No action configured.", classes="empty-note")
+            return
+        fixed = props.get("fixed", {})
+        wanted = props.get("fields") or [a.name for a in command.args if a.name not in fixed]
+        placeholders = props.get("placeholders", {})
+        for spec in command.args:
+            if spec.name not in wanted:
+                continue
+            field_id = f"form-{self._dom_key()}-{spec.name}"
+            if spec.choices:
+                yield Select([(c, c) for c in spec.choices], id=field_id, prompt=self.ctx.field_label(spec.name, self.slot))
+            else:
+                yield Input(placeholder=placeholders.get(spec.name, self.ctx.field_label(spec.name, self.slot)), id=field_id)
+        yield Button(props.get("submit", "Run"), id=f"submit-{self._dom_key()}", classes="form-submit",
+                     variant="error" if command.risk == "dangerous" else "primary")
+        yield Static("", classes="form-error empty-note")
+
+    def values(self) -> Dict[str, Any]:
+        from textual.widgets import Select
+
+        command = self.ctx.command_for(self.run_id)
+        args: Dict[str, Any] = dict(self.slot.props.get("fixed", {}))
+        for spec in command.args if command else []:
+            nodes = self.query(f"#form-{self._dom_key()}-{spec.name}")
+            if not nodes:
+                continue
+            node = nodes.first()
+            value = node.value if not isinstance(node, Select) else (None if node.value == Select.BLANK else node.value)
+            if isinstance(value, str):
+                value = value.strip()
+            if value not in (None, ""):
+                args[spec.name] = value
+        return args
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if not (event.button.id or "").startswith("submit-"):
+            return
+        event.stop()
+        args = self.values()
+        missing = [a.name for a in self.ctx.command_for(self.run_id).args if a.required and a.name not in args]
+        error = self.query_one(".form-error", Static)
+        if missing:
+            error.update("Required: " + ", ".join(self.ctx.field_label(m, self.slot) for m in missing))
+            return
+        error.update("")
+        self.post_message(ActionRequested(self.run_id, args))
+
+
 COMPONENTS = {
     cls.__name__: cls
     for cls in (NoticeBanner, StatusStrip, KPICell, SeverityChips, SettingsPanel, RecordTable,
-                FindingList, DefinitionCatalog, RecordInspector)
+                FindingList, DefinitionCatalog, RecordInspector, ActionForm)
 }

@@ -27,6 +27,12 @@ trigger = "on_action"
 refreshes = ["fw"]
 args = { path = "{row.path}" }
 
+[[runs]]
+id = "add"
+command = "firewall.app"
+trigger = "on_action"
+refreshes = ["fw"]
+
 [[slots]]
 region = "notice"
 order = 1
@@ -78,3 +84,15 @@ skip = ["add"]          # 'add' takes a new path, not the selected row (ActionFo
 danger = ["remove", "block"]
 fields = ["name", "status", "path"]
 hide_when = { block = "status == 'BLOCK'", unblock = "status == 'ALLOW'" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["add"]
+[slots.props]
+title = "Add an application"
+fields = ["path"]
+fixed = { operation = "add" }
+submit = "Add rule"
+placeholders = { path = "/Applications/Example.app" }

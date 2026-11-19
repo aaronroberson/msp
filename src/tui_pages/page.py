@@ -8,7 +8,7 @@ runs (e.g. ``scan quick``) execute and then re-run their ``refreshes``.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import jmespath
 from textual.app import ComposeResult
@@ -53,6 +53,9 @@ class PageView(VerticalScroll):
         self.scheduler = RunScheduler(page, commands, executor)
         self.slots: Dict[str, SlotComponent] = {}
         self.pending: set = set()
+        # Set by the shell to execute actions (confirm → run → refreshes).
+        # Without one, actions are previewed only.
+        self.action_handler: Optional[Callable[["PageView", str, CommandSpec, Dict[str, Any]], None]] = None
 
     # -- layout --------------------------------------------------------
 
@@ -127,13 +130,21 @@ class PageView(VerticalScroll):
         line = "msp " + " ".join(self.scheduler.command(run_id).argv)
         self.post_message(RunStarted(self.page.page.id, run_id, line))
 
-    def _deliver(self, result: RunResult) -> None:
-        self.pending.discard(result.run_id)
+    def _render_run(self, result: RunResult) -> None:
         for slot in self.page.slots:
             if slot.run != result.run_id:
                 continue
             widget = self.slots[f"{slot.region}#{slot.order}"]
             widget.set_data(None if result.failure else self._project(slot, result), result.failure)
+
+    def rerender(self) -> None:
+        """Redraw every slot from cached results (e.g. undo a cancelled toggle)."""
+        for result in self.scheduler.results.values():
+            self._render_run(result)
+
+    def _deliver(self, result: RunResult) -> None:
+        self.pending.discard(result.run_id)
+        self._render_run(result)
         self._show_progress()
         self._show_source()
         self.post_message(RunFinished(self.page.page.id, result))
@@ -196,6 +207,9 @@ class PageView(VerticalScroll):
         command = self.ctx.command_for(message.run_id)
         if command is None:
             return
+        if self.action_handler is not None:
+            self.action_handler(self, message.run_id, command, message.args)
+            return
         line = preview_command(command, message.args)
         badge = " · needs administrator password" if command.needs_root else ""
         preview = self.query_one("#action-preview", Static)
@@ -245,5 +259,7 @@ PAGE_CSS = """
 .inspector-body { color: #C9D1D9; margin: 1 0; }
 .row-actions { height: 3; }
 .row-actions Button { margin-right: 1; min-width: 10; }
+.form-submit { margin-top: 1; }
+.slot Input, .slot Select { margin-top: 1; }
 .preview { color: #58A6FF; background: #161B22; height: auto; padding: 0 1; }
 """
