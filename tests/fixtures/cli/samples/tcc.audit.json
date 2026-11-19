@@ -1,0 +1,20 @@
+{
+  "id": "tcc.audit",
+  "derived_from": "src/tcc.py:283 (audit findings.append)",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": {
+    "findings": [
+      {
+        "risk": "HIGH",
+        "service": "kTCCServiceAccessibility",
+        "service_name": "Accessibility",
+        "client": "com.example.app",
+        "client_name": "Example",
+        "source": "system",
+        "reason": "Can control other apps and read screen contents",
+        "last_modified": "2026-11-01T10:00:00"
+      }
+    ],
+    "errors": []
+  }
+}

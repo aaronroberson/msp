@@ -1,0 +1,13 @@
+{
+  "id": "net.arp",
+  "derived_from": "src/network.py:392 (arp devices.append)",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": [
+    {
+      "ip": "192.0.2.1",
+      "mac": "00:00:00:00:00:00",
+      "interface": "en0",
+      "status": "reachable"
+    }
+  ]
+}

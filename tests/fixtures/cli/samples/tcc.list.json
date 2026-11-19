@@ -1,0 +1,26 @@
+{
+  "id": "tcc.list",
+  "derived_from": "src/tcc.py:209 TCCEntry via _print_entries",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": {
+    "permissions": [
+      {
+        "source": "user",
+        "db_path": "/Users/user/Library/Application Support/com.apple.TCC/TCC.db",
+        "service": "kTCCServiceCamera",
+        "service_name": "Camera",
+        "client": "us.zoom.xos",
+        "client_name": "zoom.us",
+        "client_type": "bundle",
+        "client_type_value": 0,
+        "auth_value": 2,
+        "auth_status": "allowed",
+        "allowed": true,
+        "prompt_count": 1,
+        "last_modified": "2026-11-01T10:00:00",
+        "csreq": null
+      }
+    ],
+    "errors": []
+  }
+}
