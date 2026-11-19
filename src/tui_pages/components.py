@@ -141,6 +141,7 @@ class SlotComponent(Vertical):
         self.loaded = False
         self.failure: Optional[str] = None
         self.busy = False
+        self.idle_text: Optional[str] = None   # set for runs that only execute when asked
         if slot.props.get("span") == 2:
             self.add_class("span-2")
 
@@ -174,7 +175,7 @@ class SlotComponent(Vertical):
         if self.failure:
             return Static(f"Unavailable: {self.failure}", classes="empty-note")
         if not self.loaded:
-            return Static("Loading…", classes="empty-note")
+            return Static(self.idle_text or "Loading…", classes="empty-note")
         return None
 
     def _dom_key(self) -> str:
@@ -463,10 +464,15 @@ class RecordInspector(SlotComponent):
     def __init__(self, slot: SlotSpec, ctx: PageContext, **kw: Any) -> None:
         super().__init__(slot, ctx, **kw)
         self.row: Dict[str, Any] = {}
-        self.loaded = True
+        self.loaded = slot.run is None   # a follower is ready; a run-bound inspector waits for its run
 
-    def _buttons(self) -> List[Tuple[str, str, Dict[str, Any], bool]]:
-        """(label, run_id, extra args, danger) for every row action."""
+    def set_data(self, data: Any, failure: Optional[str] = None) -> None:
+        """Run-bound inspector (e.g. ``net inspect`` on select): show the run's record."""
+        self.row = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else {})
+        super().set_data(data, failure)
+
+    def _buttons(self) -> List[Tuple[str, str, str, Dict[str, Any], bool]]:
+        """(key, label, run_id, extra args, danger) for every row action."""
         props = self.slot.props
         choice_name = props.get("choice")
         danger = set(props.get("danger", []))
@@ -479,15 +485,20 @@ class RecordInspector(SlotComponent):
             if spec and spec.choices:
                 for choice in spec.choices:
                     if choice not in props.get("skip", []):
-                        buttons.append((choice, run_id, {choice_name: choice}, choice in danger or command.risk == "dangerous"))
+                        buttons.append((choice, choice.capitalize(), run_id, {choice_name: choice},
+                                        choice in danger or command.risk == "dangerous"))
             else:
-                buttons.append((props.get("labels", {}).get(run_id, command.id.split(".")[-1]), run_id, {}, command.risk == "dangerous"))
+                label = props.get("labels", {}).get(run_id, command.id.split(".")[-1].replace("-", " ").capitalize())
+                buttons.append((run_id, label, run_id, {}, command.risk == "dangerous"))
         return buttons
 
     def compose(self) -> ComposeResult:
-        yield Label(self.title or "SELECTED", classes="eyebrow")
+        yield from self.heading() if (self.title or self.busy) else [Label("SELECTED", classes="eyebrow")]
         fields = self.slot.props.get("fields")
-        if not self.row:
+        if self.slot.run and self.failure:
+            yield Static(self.slot.props.get("empty", "Select a row.") if self.failure.startswith("needs ") else f"Unavailable: {self.failure}",
+                         classes="inspector-body")
+        elif not self.row:
             yield Static(self.slot.props.get("empty", "Select a row."), classes="inspector-body")
         else:
             keys = fields or [k for k, v in self.row.items() if not isinstance(v, (dict, list))]
@@ -497,10 +508,10 @@ class RecordInspector(SlotComponent):
         if buttons:
             hide_when = self.slot.props.get("hide_when", {})
             with Horizontal(classes="row-actions"):
-                for index, (label, run_id, extra, danger) in enumerate(buttons):
-                    test = hide_when.get(label)
+                for index, (key, label, run_id, extra, danger) in enumerate(buttons):
+                    test = hide_when.get(key)
                     hidden = bool(self.row) and bool(test) and bool(jmespath.search(test, self.row))
-                    button = Button(label.capitalize(), id=f"act-{run_id}-{label}", name=str(index),
+                    button = Button(label, id=f"act-{run_id}-{key}", name=str(index),
                                     variant="error" if danger else "default", disabled=not self.row)
                     button.display = not hidden
                     yield button
@@ -513,7 +524,7 @@ class RecordInspector(SlotComponent):
         if not event.button.id or not event.button.id.startswith("act-") or not self.row:
             return
         event.stop()
-        label, run_id, extra, _ = self._buttons()[int(event.button.name or 0)]
+        _key, _label, run_id, extra, _danger = self._buttons()[int(event.button.name or 0)]
         run = self.ctx.runs[run_id]
         args = {**fill_args(run.args, {"row": self.row}), **extra}
         self.post_message(ActionRequested(run_id, args))
@@ -587,8 +598,58 @@ class ActionForm(SlotComponent):
         self.post_message(ActionRequested(self.run_id, args))
 
 
+def _report_lines(ctx: PageContext, slot: SlotSpec, value: Any, depth: int = 0) -> List[str]:
+    """Readable key/value lines for a record: nested records indent, lists summarise."""
+    lines: List[str] = []
+    pad = "  " * depth
+    for key, item in (value or {}).items():
+        label = ctx.field_label(key, slot)
+        if isinstance(item, dict):
+            lines.append(f"{pad}{label}")
+            lines += _report_lines(ctx, slot, item, depth + 1)
+        elif isinstance(item, list):
+            if item and all(not isinstance(x, (dict, list)) for x in item):
+                lines.append(f"{pad}{label:<22} {', '.join(str(x) for x in item)}")
+            else:
+                lines.append(f"{pad}{label:<22} {len(item)} item{'s' if len(item) != 1 else ''}")
+        else:
+            lines.append(f"{pad}{label:<22} {_cell(ctx, item, 200)}")
+    return lines
+
+
+class ReportView(SlotComponent):
+    """A document (``{format, text}``), a result (``{ok, message}``) or one record
+    as readable key/value lines. props: title, max_height."""
+
+    def compose(self) -> ComposeResult:
+        from textual.containers import VerticalScroll as Scroll
+        from textual.widgets import Markdown
+
+        yield from self.heading()
+        placeholder = self.placeholder()
+        if placeholder:
+            yield placeholder
+            return
+        data = self.data
+        with Scroll(classes="report-body") as body:
+            body.styles.max_height = int(self.slot.props.get("max_height", 30))
+            if isinstance(data, dict) and "text" in data and "format" in data:
+                if data.get("format") == "markdown":
+                    yield Markdown(str(data.get("text") or ""))
+                else:
+                    yield Static(Text(str(data.get("text") or "").rstrip() or "(no output)"), classes="report-text")
+            elif isinstance(data, dict) and set(data) >= {"ok", "message"}:
+                yield Static(("✓ " if data.get("ok") else "✗ ") + str(data.get("message") or ""), classes="report-text")
+            elif isinstance(data, dict):
+                yield Static(Text("\n".join(_report_lines(self.ctx, self.slot, data)) or "(empty record)"), classes="report-text")
+            elif isinstance(data, list):
+                yield Static(Text("\n".join(str(x) for x in data) or "(no output)"), classes="report-text")
+            else:
+                yield Static(Text(str(data)), classes="report-text")
+
+
 COMPONENTS = {
     cls.__name__: cls
     for cls in (NoticeBanner, StatusStrip, KPICell, SeverityChips, SettingsPanel, RecordTable,
-                FindingList, DefinitionCatalog, RecordInspector, ActionForm)
+                FindingList, DefinitionCatalog, RecordInspector, ActionForm, ReportView)
 }

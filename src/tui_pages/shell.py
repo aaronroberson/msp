@@ -21,13 +21,13 @@ PAGE_ALIASES: Dict[str, str] = {
     "dashboard": "overview.dashboard",
     "privacy": "privacy.settings",
     "firewall": "security.firewall",
+    "listening": "monitoring.network",
 }
 
 # (nav key, concern, title, order) for screens not yet expressed as manifest pages.
 LEGACY_ENTRIES = (
     ("runner", "overview", "Command runner", 9),
     ("findings", "security", "Findings", 3),
-    ("listening", "monitoring", "Network", 1),
     ("startup", "system", "Startup", 1),
     ("tcc", "privacy", "Permissions (TCC)", 2),
     ("snapshots", "forensics", "Snapshots", 1),

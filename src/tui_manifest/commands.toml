@@ -208,7 +208,7 @@ encoding = "lines"
 risk = "read"
 active_network = true
 args = [
-  { name = "host", kind = "text", option = "--host" },
+  { name = "host", kind = "text", option = "--host", required = true },
 ]
 
 [[command]]

@@ -123,6 +123,7 @@ class RunScheduler:
         self.runs: Dict[str, RunSpec] = {run.id: run for run in page.runs}
         self.results: Dict[str, RunResult] = {}
         self.executions: List[str] = []   # every run id actually executed, in order
+        self.last_args: Dict[str, Dict[str, Any]] = {}   # args a run last executed with (forms, selections)
 
     # -- planning ------------------------------------------------------
 
@@ -143,6 +144,11 @@ class RunScheduler:
         for run in wanted:
             grouped.setdefault(level[run.id], []).append(run.id)
         return [grouped[k] for k in sorted(grouped)]
+
+    def outbound(self, run_id: str) -> bool:
+        """Sends network traffic, sends data to an AI provider, or needs a terminal."""
+        command = self.command(run_id)
+        return bool(command.active_network or command.llm or command.interactive)
 
     def triggered(self, trigger: str) -> List[str]:
         """Read runs with this trigger, e.g. ``on_open`` or ``on_view:audit``."""
@@ -190,7 +196,14 @@ class RunScheduler:
 
             def one(run_id: str) -> RunResult:
                 run = self.runs[run_id]
-                return self.executor(run_id, self.command(run_id), {**run.args, **((args or {}).get(run_id, {}))})
+                given = (args or {}).get(run_id)
+                if given is not None:
+                    self.last_args[run_id] = given
+                values = {**run.args, **self.last_args.get(run_id, {})}
+                unfilled = [k for k, v in values.items() if isinstance(v, str) and v.startswith("{") and v.endswith("}")]
+                if unfilled:  # e.g. an on_select run before any row was selected
+                    return RunResult(run_id, self.command(run_id), failure=f"needs {', '.join(unfilled)}")
+                return self.executor(run_id, self.command(run_id), values)
 
             with ThreadPoolExecutor(max_workers=max(1, len(todo))) as pool:
                 for result in pool.map(one, todo):
