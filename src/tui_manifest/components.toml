@@ -47,3 +47,7 @@ accepts = ["run"]
 
 [component.NoticeBanner]
 accepts = ["errors", "result"]
+
+# Input-only: collects arguments for an action run (slot.actions[0]); binds no run output.
+[component.ActionForm]
+accepts = []

@@ -5,11 +5,14 @@ Data files live next to this module:
   commands.seed.json   generated inventory (scripts/seed_manifest.py)
   components.toml      what each component accepts
   pages/*.toml         pages: ordered runs + slots binding run output to components
+  templates.toml       page recipes: layout + allowed regions
+  labels.toml          display text for concerns, fields and values
 
 Checks (plan §9, Phase 0):
   check_drift      every seeded CLI action <-> exactly one CommandSpec
   check_contracts  every fixture validates against its command's `emits`
   check_bindings   every slot projects to a shape its component accepts
+  check_pages      known template, allowed regions, valid page links
   coverage         per action: curated pages or fallback-only; contract status
 """
 from __future__ import annotations
@@ -158,7 +161,7 @@ class PageSpec(_Strict):
                 if ref not in known:
                     raise ValueError(f"{self.page.id}: run {run.id!r} references unknown run {ref!r}")
         for slot in self.slots:
-            for ref in [slot.run] + slot.actions + slot.row_actions:
+            for ref in [slot.run] + slot.actions + slot.row_actions + _prop_runs(slot.props):
                 if ref and ref not in known:
                     raise ValueError(f"{self.page.id}: slot references unknown run {ref!r}")
         _check_acyclic(self.page.id, {run.id: run.depends_on for run in self.runs})
@@ -166,6 +169,11 @@ class PageSpec(_Strict):
         if positions != sorted(positions):
             raise ValueError(f"{self.page.id}: slots must be listed in composition order (region, order)")
         return self
+
+
+def _prop_runs(props: Dict[str, Any]) -> List[str]:
+    """Run ids referenced from slot props, e.g. ``on = { run = "enable", ... }``."""
+    return [v["run"] for v in props.values() if isinstance(v, dict) and isinstance(v.get("run"), str)]
 
 
 def _check_acyclic(page_id: str, edges: Dict[str, List[str]]) -> None:
@@ -183,6 +191,12 @@ def _check_acyclic(page_id: str, edges: Dict[str, List[str]]) -> None:
 
     for node in edges:
         visit(node, ())
+
+
+class TemplateSpec(_Strict):
+    name: str
+    layout: Literal["split", "grid"]
+    regions: List[Region]
 
 
 # --------------------------------------------------------------------- loaders
@@ -204,6 +218,42 @@ def load_components(path: Path = HERE / "components.toml") -> Dict[str, Componen
 def load_pages(directory: Path = HERE / "pages") -> Dict[str, PageSpec]:
     pages = [PageSpec.model_validate(tomllib.loads(p.read_text())) for p in sorted(directory.glob("*.toml"))]
     return {p.page.id: p for p in pages}
+
+
+def load_templates(path: Path = HERE / "templates.toml") -> Dict[str, TemplateSpec]:
+    raw = tomllib.loads(path.read_text())["template"]
+    return {name: TemplateSpec(name=name, **spec) for name, spec in raw.items()}
+
+
+def load_labels(path: Path = HERE / "labels.toml") -> Dict[str, Dict[str, str]]:
+    raw = tomllib.loads(path.read_text())
+    return {section: dict(raw.get(section, {})) for section in ("concerns", "fields", "values")}
+
+
+def check_pages(
+    pages: Dict[str, PageSpec],
+    templates: Dict[str, TemplateSpec],
+    labels: Dict[str, Dict[str, str]],
+    extra_links: Tuple[str, ...] = (),
+) -> List[str]:
+    """Pages use a known template and concern, only its regions, and link to real pages."""
+    problems = []
+    targets = set(pages) | set(extra_links)
+    for page in pages.values():
+        pid = page.page.id
+        template = templates.get(page.page.template)
+        if template is None:
+            problems.append(f"{pid}: unknown template {page.page.template!r}")
+            continue
+        if page.page.concern not in labels["concerns"]:
+            problems.append(f"{pid}: unknown concern {page.page.concern!r}")
+        for slot in page.slots:
+            if slot.region not in template.regions:
+                problems.append(f"{pid}: {template.name} template has no {slot.region} region")
+            link = slot.props.get("link")
+            if link and link not in targets:
+                problems.append(f"{pid} {slot.region}#{slot.order}: link to unknown page {link!r}")
+    return problems
 
 
 def load_seed(path: Path = HERE / "commands.seed.json") -> Dict[str, Any]:

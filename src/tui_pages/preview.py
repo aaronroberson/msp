@@ -1,49 +1,43 @@
-"""Preview a manifest page in the terminal.
+"""Preview one manifest page on its own (outside the full shell).
 
     .venv/bin/python -m src.tui_pages.preview security.firewall [--replay]
 
-``--replay`` renders the committed sanitized fixtures instead of running the
-CLI. Actions are previewed only; nothing that changes the system runs.
+Run it in a real terminal. ``--replay`` renders the committed sanitized
+fixtures instead of running the CLI. Mutating actions are previewed only.
 """
 from __future__ import annotations
 
 import argparse
 import sys
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from textual.app import App, ComposeResult
 from textual.widgets import Footer
 
-from src.tui_manifest import load_commands, load_pages
-from src.tui_pages import PAGE_CSS, PageView, RunResult, execute
+from src.tui_manifest import load_commands, load_labels, load_pages, load_templates
+from src.tui_pages.page import PAGE_CSS, PageView
+from src.tui_pages.runtime import Executor, executor_for
 
 
 class PagePreviewApp(App[None]):
-    CSS = PAGE_CSS
+    CSS = "Screen { background: #0D1117; color: #C9D1D9; }\n" + PAGE_CSS
     BINDINGS = [("q", "quit", "Quit"), ("r", "refresh", "Refresh")]
 
-    def __init__(self, page_id: str, replay: bool) -> None:
+    def __init__(self, page_id: str, replay: bool = False, executor: Optional[Executor] = None) -> None:
         super().__init__()
         self.page = load_pages()[page_id]
         self.commands = load_commands()
-        self.replay = replay
+        self.templates = load_templates()
+        self.labels = load_labels()
+        self.executor = executor or executor_for(replay)
         self.title = f"msp · {self.page.page.title}"
 
-    def _run_on_open(self) -> Dict[str, RunResult]:
-        results: Dict[str, RunResult] = {}
-        for run in sorted(self.page.runs, key=lambda r: r.order):
-            command = self.commands[run.command]
-            if run.trigger == "on_open" and command.risk == "read":
-                results[run.id] = execute(run.id, command, replay=self.replay)  # each run executes once
-        return results
-
     def compose(self) -> ComposeResult:
-        yield PageView(self.page, self.commands, self._run_on_open())
+        yield PageView(self.page, self.commands, self.templates[self.page.page.template], self.labels, self.executor)
         yield Footer()
 
     def action_refresh(self) -> None:
-        self.query_one(PageView).remove()
-        self.mount(PageView(self.page, self.commands, self._run_on_open()), before=self.query_one(Footer))
+        self.query_one(PageView).refresh_page()
 
 
 def main(argv: Optional[List[str]] = None) -> int:

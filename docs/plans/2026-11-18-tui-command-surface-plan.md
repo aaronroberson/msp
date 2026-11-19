@@ -1,6 +1,6 @@
 # Plan: TUI as the graphical shell for every `msp` command
 
-**Date:** 2026-11-18 · **Status:** Phase 0 complete (2026-11-18, branch `feat/tui-phase0-contracts`); Phase 1 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
+**Date:** 2026-11-18 · **Status:** Phase 0 complete (merged); Phase 1 complete (2026-11-18, branch `feat/tui-phase1-shell`); Phase 2 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
 
 ## 0. Objective and user decisions
 
@@ -376,8 +376,39 @@ All decisions needed before Phase 0 are resolved (2026-11-18):
 - **A1 → sudo askpass** (D13).
 - **Fallback pages → approved, excluded from coverage** (D14).
 
+## 11. Phase 1 build plan (approved 2026-11-18)
+
+The Firewall prototype was approved for the whole suite. Phase 1 turns it into the shell.
+
+**Integration: one app, not two.** The sidebar replaces the top nav inside `MspTUI` (`msp tui`). The runner rail and command bar stay. The sidebar lists manifest pages by concern (D4 order) and page `order`. Legacy screens that have no page yet stay listed under their concern until Phase 2 replaces them. `switch_view_id` and the number keys keep working, so existing tests and muscle memory survive. `python -m src.tui_pages.preview <page>` stays as the single-page harness.
+
+**Modules** (`src/tui_pages/`):
+
+| Module | Responsibility |
+|---|---|
+| `runtime.py` | `execute` (live / replay), `preview_command`, `RunScheduler`: plans waves from `order`/`wave`/`depends_on`; triggers `on_open`, `on_view:<tab>`, `on_select:<slot>`, `on_action`, `manual`; caches each run's result for the page visit (one execution per run); `refreshes` re-runs after an action. The plan is pure Python and tested without Textual. Execution runs in thread workers so the UI never blocks |
+| `components.py` | PageHeader + ViewTabs, NoticeBanner (errors facet + run progress), StatusStrip, KPICell, SeverityChips, SettingsPanel, RecordTable, FindingList, DefinitionCatalog, RecordInspector |
+| `page.py` | `PageView`: lays out slots by template and region, re-renders only the slots of a run that finished, wires `follows`, posts actions |
+| `shell.py` | `Sidebar` built from `load_pages()` plus legacy entries |
+
+**Content stays in the manifest, not in code.** Field and value labels move to `src/tui_manifest/labels.toml`. Per-slot titles, columns, `limit`, `count_by`, `link` and `hide_when` move to slot `props`. The firewall-specific constants in the prototype (`LABELS`, `HIDE_WHEN`, the "APPLICATION RULES" title) go away.
+
+**Templates** (`src/tui_manifest/templates.toml`): `dashboard` (main is a card grid), `control-panel`, `explorer`, `review` (main and aside, 2:1). Each declares its layout and the regions it allows. Pages must name a known template, and slots must use allowed regions (checked at load time).
+
+**Pages:**
+
+| Page | Runs | Notes |
+|---|---|---|
+| `overview.dashboard` | `status` ‖ `net list` ‖ `net established` ‖ `startup managed` ‖ `doctor` (on_open) · `scan quick` (manual, refreshes `doctor`) | Recent findings come from the latest *persisted* scan via `doctor` (projected to findings with JMESPath), so opening the page no longer starts a 30 s+ scan. Each card links to its page |
+| `privacy.settings` | `status` ‖ `list` ‖ `services list` (on_open) · `enable` / `disable` (on_action, refresh `list`, `status`) | Firewall rules summary + "Manage rules ›" link to Security ▸ Firewall (parity with today's Privacy tab) |
+| `security.firewall` | as prototyped | unchanged behaviour, labels now from the manifest |
+
+**Actions remain preview-only in Phase 1.** They show the exact command. Running them with confirm and askpass is Phase 3. Manual *read* runs (`scan quick`) do execute, because they change nothing.
+
+**Exit checks:** the existing TUI tests stay green, updated only where a legacy screen became a page, with the same behaviour asserted. Headless SVG screenshots of the three pages are saved under `docs/audits/assets/`. A scheduler test proves a run feeding several slots executes once and that `refreshes` re-runs exactly the named runs.
+
 ## Status and handoffs
 
-- Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there).
+- Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there). Latest: Phase 1 complete (2026-11-18); actions execute in the shell with confirmation (deviation recorded there).
 - Phase 0 taxonomy validation: `docs/audits/2026-11-18-envelope-taxonomy-validation.md`.
 - Generated coverage: `src/tui_manifest/COVERAGE.md` (`scripts/coverage_report.py`).

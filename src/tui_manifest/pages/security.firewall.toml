@@ -25,6 +25,13 @@ id = "rule"
 command = "firewall.app"
 trigger = "on_action"
 refreshes = ["fw"]
+args = { path = "{row.path}" }
+
+[[runs]]
+id = "add"
+command = "firewall.app"
+trigger = "on_action"
+refreshes = ["fw"]
 
 [[slots]]
 region = "notice"
@@ -37,16 +44,21 @@ component = "NoticeBanner"
 region = "strip"
 order = 1
 run = "fw"
-select = "{enabled: enabled, stealth_mode: stealth_mode, block_all: block_all}"
+select = "{firewall: enabled, stealth_mode: stealth_mode, block_all: block_all}"
 component = "StatusStrip"
 
 [[slots]]
 region = "workspace.main"
 order = 1
 run = "fw"
-select = "{stealth_mode: stealth_mode, block_all: block_all, allows_signed: allows_signed, allows_signed_app: allows_signed_app}"
+select = "{enabled: enabled, stealth_mode: stealth_mode, block_all: block_all, allows_signed: allows_signed, allows_signed_app: allows_signed_app}"
 component = "SettingsPanel"
 actions = ["toggle"]
+[slots.props]
+title = "Settings"
+labels = { enabled = "Firewall enabled" }
+on = { run = "toggle", args = { option = "{key}", value = "{state}" } }
+off = { run = "toggle", args = { option = "{key}", value = "{state}" } }
 
 [[slots]]
 region = "workspace.main"
@@ -54,7 +66,11 @@ order = 2
 run = "fw"
 select = "apps"
 component = "RecordTable"
-props = { columns = ["name", "status"] }
+[slots.props]
+title = "Application rules"
+columns = ["name", "status"]
+sort_by = ["status", "name"]
+count_by = "status"
 
 [[slots]]
 region = "workspace.aside"
@@ -62,3 +78,21 @@ order = 1
 follows = "workspace.main#2"
 component = "RecordInspector"
 row_actions = ["rule"]
+[slots.props]
+choice = "operation"
+skip = ["add"]          # 'add' takes a new path, not the selected row (ActionForm, Phase 3)
+danger = ["remove", "block"]
+fields = ["name", "status", "path"]
+hide_when = { block = "status == 'BLOCK'", unblock = "status == 'ALLOW'" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["add"]
+[slots.props]
+title = "Add an application"
+fields = ["path"]
+fixed = { operation = "add" }
+submit = "Add rule"
+placeholders = { path = "/Applications/Example.app" }

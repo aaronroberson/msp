@@ -11,8 +11,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.tui_manifest import (
-    FIXTURES, REPO, PageSpec, check_bindings, check_contracts, check_drift, coverage,
-    load_commands, load_components, load_pages, load_seed,
+    FIXTURES, REPO, PageSpec, check_bindings, check_contracts, check_drift, check_pages, coverage,
+    load_commands, load_components, load_labels, load_pages, load_seed, load_templates,
 )
 
 
@@ -111,6 +111,31 @@ def test_bindings_reject_mismatches(pages, commands, components, mutate, expecte
 def test_pages_enforce_order_references_and_acyclic_runs(pages, mutate):
     page = _firewall_page(pages)
     mutate(page)
+    with pytest.raises(ValidationError):
+        PageSpec.model_validate(page)
+
+
+def test_pages_use_known_templates_regions_and_links(pages):
+    from src.tui_v2 import VIEWS
+    assert check_pages(pages, load_templates(), load_labels(), tuple(v.id for v in VIEWS)) == []
+
+
+@pytest.mark.parametrize("mutate, expected", [
+    (lambda p: p["page"].update(template="nope"), "unknown template"),
+    (lambda p: p["page"].update(template="dashboard"), "has no workspace.aside region"),
+    (lambda p: p["page"].update(concern="misc"), "unknown concern"),
+    (lambda p: p["slots"][3]["props"].update(link="nowhere"), "link to unknown page"),
+])
+def test_page_checks_reject_bad_templates_regions_and_links(pages, mutate, expected):
+    page = _firewall_page(pages)
+    mutate(page)
+    problems = check_pages({"p": PageSpec.model_validate(page)}, load_templates(), load_labels())
+    assert any(expected in problem for problem in problems), problems
+
+
+def test_prop_actions_must_reference_page_runs(pages):
+    page = _firewall_page(pages)
+    page["slots"][2]["props"]["on"]["run"] = "ghost"
     with pytest.raises(ValidationError):
         PageSpec.model_validate(page)
 
