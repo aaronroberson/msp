@@ -1,0 +1,44 @@
+{
+  "id": "snapshot.list",
+  "argv": [
+    "msp",
+    "--json",
+    "snapshot",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.07,
+  "json": [
+    {
+      "name": "20261110_202203",
+      "path": "/Users/user/.msp/snapshots/20261110_202203.json",
+      "timestamp": "2026-11-10T20:22:03.801714",
+      "hostname": "example-host",
+      "settings": {
+        "firewall": true,
+        "firewall_stealth": true,
+        "gatekeeper": true,
+        "filevault": true,
+        "captive_portal": false,
+        "bluetooth": false
+      }
+    },
+    {
+      "name": "test2",
+      "path": "/Users/user/.msp/snapshots/test2.json",
+      "timestamp": "2026-05-13T00:26:41.861168",
+      "hostname": "example-host",
+      "settings": {
+        "firewall": true,
+        "firewall_stealth": true,
+        "gatekeeper": true,
+        "filevault": true,
+        "captive_portal": false,
+        "bluetooth": false
+      }
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -4,12 +4,12 @@
 import json
 import os
 import plistlib
-import shlex
+import shutil
 import subprocess
 import sys
 from datetime import datetime
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, cast
+from typing import Any, Dict, List, Optional, Union, cast
 from pathlib import Path
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command, Item
@@ -54,8 +54,16 @@ class StartupManager:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: Union[str, List[str]], sudo: bool = False, stderr: bool = True) -> tuple[bool, str]:
+        """Run a command. Pass an argv list for anything containing paths or names:
+        lists run with shell=False, so untrusted values can never become shell syntax.
+        ``stderr=False`` drops stderr (the list-form equivalent of ``2>/dev/null``).
+        """
         try:
+            if isinstance(cmd, (list, tuple)):
+                argv = (["sudo"] if sudo else []) + [str(part) for part in cmd]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+                return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
             if sudo:
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
@@ -69,7 +77,7 @@ class StartupManager:
 
     def _read_plist_label(self, plist_path: str) -> Optional[str]:
         try:
-            success, output = self._run_cmd(f"defaults read '{plist_path}' Label 2>/dev/null")
+            success, output = self._run_cmd(["defaults", "read", plist_path, "Label"], stderr=False)
             if success and output.strip():
                 return output.strip()
         except Exception:
@@ -84,8 +92,7 @@ class StartupManager:
             return []
 
     def _command_exists(self, command: str) -> bool:
-        success, _ = self._run_cmd(f"command -v {shlex.quote(command)} >/dev/null 2>&1")
-        return success
+        return shutil.which(command) is not None
 
     def _file_record(self, path: str, item_type: str, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Build a compact, JSON-safe file inventory record."""
@@ -471,7 +478,7 @@ class StartupManager:
             "return rows as text",
             "end tell",
         ])
-        success, output = self._run_cmd(f"osascript -e {shlex.quote(script)} 2>/dev/null")
+        success, output = self._run_cmd(["osascript", "-e", script], stderr=False)
         items = []
         if not success or not output.strip():
             return items
@@ -848,14 +855,14 @@ class StartupManager:
         """Disable a startup item."""
         user_domain = f"gui/{os.getuid()}"
 
-        self._run_cmd(f"launchctl disable {user_domain}/{shlex.quote(label)} 2>/dev/null")
+        self._run_cmd(["launchctl", "disable", f"{user_domain}/{label}"], stderr=False)
 
-        success, _ = self._run_cmd(f"launchctl bootout {user_domain}/{shlex.quote(label)} 2>/dev/null")
+        success, _ = self._run_cmd(["launchctl", "bootout", f"{user_domain}/{label}"], stderr=False)
         if success:
             print(f"Disabled: {label}")
             return True
 
-        success, _ = self._run_cmd(f"launchctl bootout system/{shlex.quote(label)} 2>/dev/null", sudo=True)
+        success, _ = self._run_cmd(["launchctl", "bootout", f"system/{label}"], sudo=True, stderr=False)
         if success:
             print(f"Disabled (system): {label}")
             return True
@@ -870,8 +877,8 @@ class StartupManager:
         if not agent_path.is_file():
             print(f"Current-user LaunchAgent not found: {label}")
             return False
-        self._run_cmd(f"launchctl enable {user_domain}/{shlex.quote(label)}")
-        success, _ = self._run_cmd(f"launchctl bootstrap {user_domain} {shlex.quote(str(agent_path))}")
+        self._run_cmd(["launchctl", "enable", f"{user_domain}/{label}"])
+        success, _ = self._run_cmd(["launchctl", "bootstrap", user_domain, str(agent_path)])
         if success:
             print(f"Enabled: {label}")
             return True
@@ -1087,12 +1094,12 @@ class StartupManager:
         """Pause/stop a running daemon."""
         user_domain = f"gui/{os.getuid()}"
 
-        success, _ = self._run_cmd(f"launchctl bootout {user_domain}/{label} 2>/dev/null")
+        success, _ = self._run_cmd(["launchctl", "bootout", f"{user_domain}/{label}"], stderr=False)
         if success:
             print(f"Paused: {label}")
             return True
 
-        success, _ = self._run_cmd(f"sudo launchctl bootout system/{label} 2>/dev/null", sudo=True)
+        success, _ = self._run_cmd(["launchctl", "bootout", f"system/{label}"], sudo=True, stderr=False)
         if success:
             print(f"Paused (system): {label}")
             return True
@@ -1110,7 +1117,7 @@ class StartupManager:
                     if f.endswith('.plist'):
                         full_path = os.path.join(path, f)
                         try:
-                            success, output = self._run_cmd(f"defaults read '{full_path}' Label 2>/dev/null")
+                            success, output = self._run_cmd(["defaults", "read", full_path, "Label"], stderr=False)
                             if success and output.strip() == label:
                                 plist_path = full_path
                                 break
@@ -1126,10 +1133,10 @@ class StartupManager:
         is_daemon = plist_path.startswith("/Library/LaunchDaemons") or plist_path.startswith("/System/Library/LaunchDaemons")
 
         if is_daemon:
-            success, _ = self._run_cmd(f"sudo launchctl bootstrap system/{plist_path} 2>/dev/null", sudo=True)
+            success, _ = self._run_cmd(["launchctl", "bootstrap", "system", plist_path], sudo=True, stderr=False)
         else:
             user_domain = f"gui/{os.getuid()}"
-            success, _ = self._run_cmd(f"launchctl bootstrap {user_domain} {plist_path} 2>/dev/null")
+            success, _ = self._run_cmd(["launchctl", "bootstrap", user_domain, plist_path], stderr=False)
 
         if success:
             print(f"Started: {label}")
@@ -1216,7 +1223,7 @@ class StartupManager:
                     break
 
             if item.pid and item.pid > 0:
-                success, output = self._run_cmd(f"codesign -dvvv '{item.path}' 2>/dev/null")
+                success, output = self._run_cmd(["codesign", "-dvvv", item.path])
                 if success and "not signed" in output.lower():
                     if risk_level == "OK":
                         risk_level = "REVIEW"

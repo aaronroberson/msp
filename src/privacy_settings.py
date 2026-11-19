@@ -488,6 +488,8 @@ class PrivacySettingsManager:
         success, output = self.run_command("launchctl list")
         if success:
             for line in output.strip().split('\n'):
+                if line.startswith("PID") and "Label" in line:
+                    continue  # launchctl's column header, not a service
                 if line and "com.apple" not in line:
                     parts = line.split()
                     if len(parts) >= 3:

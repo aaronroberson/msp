@@ -1,0 +1,280 @@
+{
+  "id": "doctor",
+  "argv": [
+    "msp",
+    "--json",
+    "doctor"
+  ],
+  "returncode": 0,
+  "duration_s": 0.24,
+  "json": {
+    "ok": false,
+    "dependencies": [
+      {
+        "name": "apfel",
+        "status": "installed",
+        "required": false,
+        "description": "Apple Intelligence from the command line (fallback)",
+        "install_cmd": "brew install apfel"
+      },
+      {
+        "name": "exiftool",
+        "status": "installed",
+        "required": false,
+        "description": "Read and write meta information in files (image/video forensics)",
+        "install_cmd": "brew install exiftool"
+      },
+      {
+        "name": "fswatch",
+        "status": "installed",
+        "required": true,
+        "description": "File system watcher for real-time monitoring",
+        "install_cmd": "brew install fswatch"
+      },
+      {
+        "name": "knockknock",
+        "status": "missing",
+        "required": false,
+        "description": "Enumerate persistently installed software",
+        "install_cmd": "brew install --cask knockknock"
+      },
+      {
+        "name": "nmap",
+        "status": "installed",
+        "required": false,
+        "description": "Network scanner for discovering devices and open ports",
+        "install_cmd": "brew install nmap"
+      },
+      {
+        "name": "ollama",
+        "status": "installed",
+        "required": true,
+        "description": "Local LLM inference server (privacy-first AI)",
+        "install_cmd": "brew install ollama"
+      },
+      {
+        "name": "openvino",
+        "status": "missing",
+        "required": false,
+        "description": "Intel OpenVINO toolkit for AI acceleration (supports USB NPU devices)",
+        "install_cmd": "pip install openvino"
+      },
+      {
+        "name": "processmonitor",
+        "status": "missing",
+        "required": false,
+        "description": "Monitor process creations via Endpoint Security",
+        "install_cmd": "brew install --cask processmonitor"
+      }
+    ],
+    "missing_required": [],
+    "missing_optional": [
+      "knockknock",
+      "openvino",
+      "processmonitor",
+      "somo",
+      "wireshark"
+    ],
+    "scan": {
+      "timestamp": "2026-11-18T15:42:18",
+      "path": "/Users/user/.msp/scans/latest.json",
+      "checks": [
+        {
+          "domain": "shell",
+          "name": "Zsh startup time",
+          "status": "high",
+          "title": "Startup: 1481ms (target <150ms)",
+          "detail": "Interactive zsh takes 1481ms. Fixable zsh issues (if any) are listed below; 'msp doctor fix' applies them.",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Zsh startup time",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "shell",
+          "name": "NVM loading",
+          "status": "ok",
+          "title": "NVM loading",
+          "detail": "nvm not sourced eagerly in ~/.zshrc",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "NVM loading",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "shell",
+          "name": "Zsh history",
+          "status": "ok",
+          "title": "Zsh history",
+          "detail": "9,210 lines, text format OK",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Zsh history",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "shell",
+          "name": "Shell config",
+          "status": "ok",
+          "title": "Shell config",
+          "detail": "no duplicate PATH entries in ~/.zshrc",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Shell config",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "shell",
+          "name": "Zsh autosuggestions",
+          "status": "ok",
+          "title": "Zsh autosuggestions",
+          "detail": "zsh-autosuggestions async or absent",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Zsh autosuggestions",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "shell",
+          "name": "Homebrew shellenv",
+          "status": "ok",
+          "title": "Homebrew shellenv",
+          "detail": "brew shellenv guarded or absent",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Homebrew shellenv",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "system",
+          "name": "Disk space",
+          "status": "ok",
+          "title": "Disk space",
+          "detail": "12% used, 101GB free",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Disk space",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": false,
+          "incomplete_reason": "",
+          "verified": null,
+          "schema_version": "2.0"
+        },
+        {
+          "domain": "system",
+          "name": "Memory",
+          "status": "n/a",
+          "title": "Memory",
+          "detail": "could not measure \u2014 skipped",
+          "fixable": false,
+          "fix_cmd": "",
+          "control_id": "Memory",
+          "evidence_refs": [],
+          "provenance": {
+            "collector": "tune",
+            "args": [
+              "msp-scanner",
+              "--json",
+              "quick"
+            ],
+            "timestamp": "2026-11-18T15:42:18"
+          },
+          "incomplete": true,
+          "incomplete_reason": "could not measure \u2014 skipped",
+          "verified": null,
+          "schema_version": "2.0"
+        }
+      ]
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,0 +1,40 @@
+{
+  "id": "sharing.status",
+  "argv": [
+    "msp",
+    "--json",
+    "sharing",
+    "status"
+  ],
+  "returncode": 0,
+  "duration_s": 0.08,
+  "json": {
+    "sharing_enabled": false,
+    "share_points": [
+      {
+        "name": "Example User\u2019s Public Folder",
+        "path": "/Users/user/Public",
+        "protocols": {
+          "smb": {
+            "name": "Example User\u2019s Public Folder",
+            "shared": "1",
+            "guest access": "1",
+            "read-only": "0",
+            "sealed": "0"
+          }
+        },
+        "shared": "1",
+        "guest_access": "1",
+        "read-only": "0"
+      }
+    ],
+    "services": {
+      "smbd": false,
+      "afpd": false,
+      "ftpd": false
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

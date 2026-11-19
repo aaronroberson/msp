@@ -1,0 +1,56 @@
+{
+  "id": "startup.agents",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "agents"
+  ],
+  "returncode": 0,
+  "duration_s": 0.47,
+  "json": [
+    {
+      "name": "ai.hermes.gateway",
+      "label": "ai.hermes.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist"
+    },
+    {
+      "name": "ai.memory-index.service",
+      "label": "ai.memory-index.service",
+      "path": "/Users/user/Library/LaunchAgents/ai.memory-index.service.plist"
+    },
+    {
+      "name": "ai.perplexity.xpc",
+      "label": "ai.perplexity.xpc",
+      "path": "/Users/user/Library/LaunchAgents/ai.perplexity.xpc.plist"
+    },
+    {
+      "name": "ai.sleev.gateway",
+      "label": "ai.sleev.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.sleev.gateway.plist"
+    },
+    {
+      "name": "co.baseten.switch.door",
+      "label": "co.baseten.switch.door",
+      "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.door.plist"
+    },
+    {
+      "name": "co.baseten.switch.router",
+      "label": "co.baseten.switch.router",
+      "path": "/Users/user/Library/LaunchAgents/co.baseten.switch.router.plist"
+    },
+    {
+      "name": "com.adobe.AdobeCreativeCloud",
+      "label": "com.adobe.AdobeCreativeCloud",
+      "path": "/Library/LaunchAgents/com.adobe.AdobeCreativeCloud.plist"
+    },
+    {
+      "name": "com.adobe.AdobeDesktopService",
+      "label": "com.adobe.AdobeDesktopService",
+      "path": "/Library/LaunchAgents/com.adobe.AdobeDesktopService.plist"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

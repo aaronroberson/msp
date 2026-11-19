@@ -1,0 +1,32 @@
+{
+  "id": "tcc.audit",
+  "argv": [
+    "msp",
+    "--json",
+    "tcc",
+    "audit"
+  ],
+  "returncode": 0,
+  "duration_s": 0.07,
+  "json": {
+    "findings": [],
+    "errors": [
+      {
+        "source": "user",
+        "db_path": "/Users/user/Library/Application Support/com.apple.TCC/TCC.db",
+        "type": "not_found",
+        "message": "TCC database not found"
+      },
+      {
+        "source": "system",
+        "db_path": "/Library/Application Support/com.apple.TCC/TCC.db",
+        "type": "permission_denied",
+        "message": "unable to open database file",
+        "suggestion": "Try running with sudo for the system TCC database."
+      }
+    ]
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

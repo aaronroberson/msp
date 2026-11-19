@@ -1,3 +1,8 @@
 rich>=13.0.0
 argcomplete>=3.0.0
 textual>=0.80.0
+pydantic>=2.7
+jmespath>=1.0
+textual-fspicker>=0.6
+jc>=1.25
+tomli>=2.0; python_version < '3.11'

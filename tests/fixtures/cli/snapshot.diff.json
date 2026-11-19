@@ -1,0 +1,71 @@
+{
+  "id": "snapshot.diff",
+  "argv": [
+    "msp",
+    "--json",
+    "snapshot",
+    "diff",
+    "20261110_202203"
+  ],
+  "returncode": 0,
+  "duration_s": 1.47,
+  "json": [
+    {
+      "setting": "sharing.status.share_points",
+      "section": "sharing",
+      "snapshot_value": {
+        "count": 1,
+        "removed": [
+          {
+            "guest_access": "1",
+            "name": "Example User\u2019s Public Folder",
+            "path": "/Users/user/Public",
+            "read-only": "0",
+            "sealed": "0",
+            "shared": "1",
+            "smb": "{"
+          }
+        ]
+      },
+      "current_value": {
+        "count": 1,
+        "added": [
+          {
+            "guest_access": "1",
+            "name": "Example User\u2019s Public Folder",
+            "path": "/Users/user/Public",
+            "protocols": {
+              "smb": {
+                "guest access": "1",
+                "name": "Example User\u2019s Public Folder",
+                "read-only": "0",
+                "sealed": "0",
+                "shared": "1"
+              }
+            },
+            "read-only": "0",
+            "shared": "1"
+          }
+        ]
+      },
+      "status": "changed"
+    },
+    {
+      "setting": "sharing.status.sharing_enabled",
+      "section": "sharing",
+      "snapshot_value": true,
+      "current_value": false,
+      "status": "changed"
+    },
+    {
+      "setting": "tcc.messages.stderr",
+      "section": "tcc",
+      "snapshot_value": "Warning: user TCC database: unable to open database file\nWarning: system TCC database: unable to open database file Try running with sudo for the system TCC database.",
+      "current_value": "Warning: user TCC database: TCC database not found\nWarning: system TCC database: unable to open database file Try running with sudo for the system TCC database.",
+      "status": "changed"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

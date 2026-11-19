@@ -1,0 +1,26 @@
+{
+  "id": "startup.summary",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "summary"
+  ],
+  "returncode": 0,
+  "duration_s": 2.34,
+  "json": [
+    {
+      "item": "application.com.apple.configurator.ui.340713986.340713992",
+      "risk": "HIGH",
+      "reasons": [
+        "Contains 'rat'"
+      ],
+      "pid": 5343,
+      "status": "0",
+      "path": ""
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

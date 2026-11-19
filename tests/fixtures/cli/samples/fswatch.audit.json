@@ -1,0 +1,12 @@
+{
+  "id": "fswatch.audit",
+  "derived_from": "src/fswatch.py:446 (audit suspicious.append)",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": [
+    {
+      "path": "/Library/LaunchAgents/com.example.agent.plist",
+      "directory": "/Library/LaunchAgents",
+      "age_days": "<7"
+    }
+  ]
+}

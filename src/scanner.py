@@ -7,7 +7,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
 
 from src.command import (
@@ -159,8 +159,16 @@ class SecurityScanner:
         self.verbose = verbose
         self.findings: List[Finding] = []
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: Union[str, List[str]], sudo: bool = False, stderr: bool = True) -> tuple[bool, str]:
+        """Run a command. Pass an argv list for anything containing paths or names:
+        lists run with shell=False, so untrusted values can never become shell syntax.
+        ``stderr=False`` drops stderr (the list-form equivalent of ``2>/dev/null``).
+        """
         try:
+            if isinstance(cmd, (list, tuple)):
+                argv = (["sudo"] if sudo else []) + [str(part) for part in cmd]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+                return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
             if sudo:
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
@@ -173,7 +181,7 @@ class SecurityScanner:
             return False, str(e)
 
     def _is_apple_signed(self, path: str) -> bool:
-        success, output = self._run_cmd(f"codesign -dvvv '{path}' 2>/dev/null")
+        success, output = self._run_cmd(["codesign", "-dvvv", path])
         if success and "Apple" in output:
             return True
         return False
@@ -287,7 +295,7 @@ class SecurityScanner:
                 for f in os.listdir(d):
                     if f.endswith('.plist'):
                         path = os.path.join(d, f)
-                        success, output = self._run_cmd(f"codesign -dvvv '{path}' 2>/dev/null")
+                        success, output = self._run_cmd(["codesign", "-dvvv", path])
                         if success and "not signed" in output.lower():
                             self.findings.append(Finding(
                                 severity="high",
@@ -403,7 +411,7 @@ class SecurityScanner:
                     pid = parts[1]
                     comm = parts[10] if len(parts) > 10 else ""
                     if comm and os.path.exists(comm):
-                        sig_success, sig_out = self._run_cmd(f"codesign -dvvv '{comm}' 2>/dev/null")
+                        sig_success, sig_out = self._run_cmd(["codesign", "-dvvv", comm])
                         if sig_success and "not signed" in sig_out.lower():
                             self.findings.append(Finding(
                                 severity="medium",
@@ -417,7 +425,7 @@ class SecurityScanner:
         directories = ["/Library/LaunchAgents", "/Library/LaunchDaemons", "/tmp"]
         for d in directories:
             if os.path.exists(d):
-                success, output = self._run_cmd(f"find '{d}' -type f -mtime -1 2>/dev/null")
+                success, output = self._run_cmd(["find", d, "-type", "f", "-mtime", "-1"], stderr=False)
                 if success and output.strip():
                     files = [f for f in output.strip().split('\n') if f]
                     if files:
@@ -526,30 +534,33 @@ class SecurityScanner:
                                 ))
                                 break
 
-    def verify_app(self, app_path: str) -> bool:
-        """Verify an app with Gatekeeper."""
+    def verify_app(self, app_path: str, json_output: bool = False) -> Dict[str, Any]:
+        """Assess an app with Gatekeeper (spctl). Returns {path, verified, assessment}."""
         if not os.path.exists(app_path):
             app_path = f"/Applications/{app_path}.app" if not app_path.endswith(".app") else app_path
 
+        success, output = self._run_cmd(["spctl", "--assess", "--type", "exec", "--verbose=2", app_path])
+        verified = bool(success and ("accepted" in output.lower() or "pass" in output.lower()))
+        result = {"path": app_path, "verified": verified, "assessment": output.strip()}
+        if json_output:
+            print(json.dumps(result, indent=2))
+            return result
         print(f"Verifying: {app_path}")
-        success, output = self._run_cmd(f"spctl --assess --type exec --verbose=2 '{app_path}' 2>&1")
-        
-        if success and ("accepted" in output.lower() or "pass" in output.lower()):
+        if verified:
             print("✓ App is verified and allowed to run")
-            return True
         else:
             print("✗ App verification failed or was rejected")
             if output:
                 print(f"Output: {output}")
-            return False
+        return result
 
     def signature_info(self, app_path: str, json_output: bool = False) -> Dict[str, str]:
         """Get code signature information for an app."""
         if not os.path.exists(app_path):
             app_path = f"/Applications/{app_path}.app" if not app_path.endswith(".app") else app_path
 
-        print(f"Checking signature: {app_path}")
-        success, output = self._run_cmd(f"codesign -dvvv '{app_path}' 2>&1")
+        print(f"Checking signature: {app_path}", file=sys.stderr if json_output else sys.stdout)
+        success, output = self._run_cmd(["codesign", "-dvvv", app_path])
 
         info = {"path": app_path, "valid": False, "signed": False, "details": ""}
 
@@ -756,7 +767,8 @@ def main():
         if not args.path:
             print("Error: path required")
             sys.exit(1)
-        scanner.verify_app(args.path)
+        result = scanner.verify_app(args.path, json_output=args.json)
+        sys.exit(0 if result["verified"] else 1)
     elif args.action == "signature":
         if not args.path:
             print("Error: path required")

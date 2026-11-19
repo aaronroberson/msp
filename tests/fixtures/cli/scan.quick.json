@@ -1,0 +1,60 @@
+{
+  "id": "scan.quick",
+  "argv": [
+    "msp",
+    "--json",
+    "scan",
+    "quick"
+  ],
+  "returncode": 0,
+  "duration_s": 37.59,
+  "json": [
+    {
+      "title": "Updates Available",
+      "category": "System",
+      "severity": "high",
+      "status": null,
+      "description": "System updates are available but not installed",
+      "recommendation": "Run 'softwareupdate --install ALL' to update",
+      "control_id": null,
+      "check_id": "",
+      "fixable": false,
+      "fix_cmd": "",
+      "incomplete": false,
+      "incomplete_reason": "",
+      "verified": null,
+      "evidence_refs": [],
+      "evidence": {},
+      "references": [],
+      "provenance": {},
+      "data": {},
+      "schema_version": "2.0",
+      "item": "Updates Available"
+    },
+    {
+      "title": "Many connections: 107",
+      "category": "Network",
+      "severity": "low",
+      "status": null,
+      "description": "System has 107 established connections",
+      "recommendation": "Review if this is expected",
+      "control_id": null,
+      "check_id": "",
+      "fixable": false,
+      "fix_cmd": "",
+      "incomplete": false,
+      "incomplete_reason": "",
+      "verified": null,
+      "evidence_refs": [],
+      "evidence": {},
+      "references": [],
+      "provenance": {},
+      "data": {},
+      "schema_version": "2.0",
+      "item": "Many connections: 107"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": true,
+  "stderr": ""
+}

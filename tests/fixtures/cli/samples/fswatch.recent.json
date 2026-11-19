@@ -1,0 +1,13 @@
+{
+  "id": "fswatch.recent",
+  "derived_from": "src/fswatch.py:277 (recent events.append)",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": [
+    {
+      "timestamp": "12:00:01",
+      "call": "open",
+      "process": "Finder",
+      "path": "/Users/user/Documents/a.txt"
+    }
+  ]
+}

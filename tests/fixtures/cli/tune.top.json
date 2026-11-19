@@ -1,0 +1,19 @@
+{
+  "id": "tune.top",
+  "argv": [
+    "msp",
+    "--json",
+    "tune",
+    "top"
+  ],
+  "returncode": 0,
+  "duration_s": 0.18,
+  "json": {
+    "command": "echo '=== TOP CPU ==='; ps axo pcpu,pmem,comm -r | head -12; echo '=== TOP MEM ==='; ps axo pmem,comm -m | head -12; echo '=== PRESSURE ==='; memory_pressure -Q 2>/dev/null; echo '=== LOAD ==='; uptime",
+    "returncode": 0,
+    "output": "=== TOP CPU ===\n %CPU %MEM COMM\n 98.4  0.3 /System/Library/CoreServices/Software Update.app/Contents/Resources/softwareupdated\n 60.0  0.2 /usr/libexec/duetexpertd\n 35.8  2.6 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper\n 35.2  0.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer\n 21.6  0.2 /Users/user/macos-privacy-cli/.venv/bin/python\n 18.0  0.2 /Users/user/macos-privacy-cli/.venv/bin/python\n 14.4  0.2 .venv/bin/python\n  9.1  0.1 /usr/libexec/syspolicyd\n  9.1  1.2 /Applications/iTerm.app/Contents/MacOS/iTerm2\n  6.1  0.1 /opt/homebrew/Library/Homebrew/vendor/portable-ruby/current/bin/ruby\n  6.0  0.1 /usr/libexec/trustd\n=== TOP MEM ===\n%MEM COMM\n 2.6 /Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper\n 2.0 claude\n 1.3 /Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta\n 1.2 /Applications/iTerm.app/Contents/MacOS/iTerm2\n 1.2 /Applications/Littlebird.app/Contents/Frameworks/Littlebird Helper (Renderer).app/Contents/MacOS/Littlebird Helper (Renderer)\n 0.9 /Applications/Google Chrome Beta.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/159.0.8154.6/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)\n 0.9 /Applications/Google Chrome Beta.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/159.0.8154.6/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)\n 0.8 /Applications/Google Chrome Beta.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/159.0.8154.6/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)\n 0.8 /Applications/Google Chrome Beta.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/159.0.8154.6/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)\n 0.8 /Applications/Claude.app/Contents/MacOS/Claude\n 0.8 /Applications/Google Chrome Beta.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/159.0.8154.6/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)\n=== PRESSURE ===\nThe system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 40%\n=== LOAD ===\n15:46  up 10:20, 9 users, load averages: 3.25 2.59 3.13\n"
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": "Note: 'msp tune' is merging into 'msp doctor' \u2014 prefer 'msp doctor' for health and 'msp doctor fix' for auto-fixes. This alias still works.\n"
+}

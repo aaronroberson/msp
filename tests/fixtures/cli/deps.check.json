@@ -1,0 +1,19 @@
+{
+  "id": "deps.check",
+  "argv": [
+    "msp",
+    "--json",
+    "deps",
+    "check",
+    "jq"
+  ],
+  "returncode": 1,
+  "duration_s": 0.07,
+  "json": {
+    "package": "jq",
+    "status": "unknown"
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

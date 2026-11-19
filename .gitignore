@@ -44,3 +44,5 @@ $APFEL_GLOBAL_HISTORY
 
 # Archived internal design docs
 .docs_archive/
+# Raw CLI captures contain host-identifying data; only sanitized fixtures are committed
+tests/fixtures/cli/live/

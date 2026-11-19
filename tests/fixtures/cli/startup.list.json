@@ -1,0 +1,80 @@
+{
+  "id": "startup.list",
+  "argv": [
+    "msp",
+    "--json",
+    "startup",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.24,
+  "json": [
+    {
+      "name": "1password-launcher",
+      "label": "com.1password.1password-launcher",
+      "path": "",
+      "type": "launchd",
+      "status": "0",
+      "pid": null
+    },
+    {
+      "name": "ai.hermes.gateway",
+      "label": "ai.hermes.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.hermes.gateway.plist",
+      "type": "agent",
+      "status": "unknown",
+      "pid": null
+    },
+    {
+      "name": "ai.memory-index.service",
+      "label": "ai.memory-index.service",
+      "path": "/Users/user/Library/LaunchAgents/ai.memory-index.service.plist",
+      "type": "agent",
+      "status": "unknown",
+      "pid": null
+    },
+    {
+      "name": "ai.perplexity.xpc",
+      "label": "ai.perplexity.xpc",
+      "path": "/Users/user/Library/LaunchAgents/ai.perplexity.xpc.plist",
+      "type": "agent",
+      "status": "unknown",
+      "pid": null
+    },
+    {
+      "name": "ai.playad.desktop",
+      "label": "application.ai.playad.desktop.338550243.338550253",
+      "path": "",
+      "type": "launchd",
+      "status": "0",
+      "pid": 2319
+    },
+    {
+      "name": "ai.sleev.gateway",
+      "label": "ai.sleev.gateway",
+      "path": "/Users/user/Library/LaunchAgents/ai.sleev.gateway.plist",
+      "type": "agent",
+      "status": "unknown",
+      "pid": null
+    },
+    {
+      "name": "browser-helper",
+      "label": "2BUA8C4S2C.com.1password.browser-helper",
+      "path": "",
+      "type": "launchd",
+      "status": "0",
+      "pid": 976
+    },
+    {
+      "name": "chat-helper",
+      "label": "com.openai.chat-helper",
+      "path": "",
+      "type": "launchd",
+      "status": "0",
+      "pid": 2291
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

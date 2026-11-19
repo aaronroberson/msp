@@ -1,0 +1,56 @@
+{
+  "id": "privacy.services_list",
+  "argv": [
+    "msp",
+    "--json",
+    "services",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": [
+    {
+      "pid": "976",
+      "status": "0",
+      "name": "2BUA8C4S2C.com.1password.browser-helper"
+    },
+    {
+      "pid": "2319",
+      "status": "0",
+      "name": "application.ai.playad.desktop.338550243.338550253"
+    },
+    {
+      "pid": "729",
+      "status": "0",
+      "name": "application.chat.atomic.app.339102218.339102227"
+    },
+    {
+      "pid": "721",
+      "status": "0",
+      "name": "application.com.1password.1password.339757993.339758125"
+    },
+    {
+      "pid": "2321",
+      "status": "0",
+      "name": "application.com.anthropic.claudefordesktop.336852319.336852325"
+    },
+    {
+      "pid": "2326",
+      "status": "0",
+      "name": "application.com.figma.agent.5872392.336747304"
+    },
+    {
+      "pid": "2315",
+      "status": "0",
+      "name": "application.com.filesmagicai.app.336351458.336351958"
+    },
+    {
+      "pid": "2330",
+      "status": "0",
+      "name": "application.com.futureprooflabsai.lemon.338002664.338003370"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

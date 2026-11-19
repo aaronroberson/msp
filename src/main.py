@@ -80,6 +80,8 @@ NO_ACTION_MODULES = {"facts", "llm", "report", "ai"}
 
 CLI_MENU_COMMANDS = {"cli", "console", "menu"}
 
+ASK_PROVIDERS = ("openai", "groq", "deepseek", "openrouter", "together", "ollama", "apfel", "openvino", "custom")
+
 # Short command names that map to (module, subcommand) for privacy_settings
 COMMAND_ALIASES = {
     "status": ("privacy_settings", "status"),
@@ -219,6 +221,22 @@ def _args_after_command(command: str) -> list[str]:
     return []
 
 
+# Flags only main.py understands; never forwarded to a module parser.
+_MAIN_ONLY_FLAGS = {"--redact-ips", "--install-completion", "-V", "--version"}
+
+
+def _module_args(command: str) -> list[str]:
+    """Arguments for a module, verbatim and in their original order.
+
+    ``parse_known_args`` splits unknown options from their values when the
+    command has no positional before the first option (``interrogate --output
+    f.json`` became ``f.json --output``) and swallows module options that share
+    a name with a global one (``reason --provider local``). Forward the raw
+    tokens after the command instead.
+    """
+    return [token for token in _args_after_command(command) if token not in _MAIN_ONLY_FLAGS]
+
+
 def _flag_value(raw_args: list[str], flag: str) -> Optional[str]:
     if flag in raw_args:
         index = raw_args.index(flag)
@@ -229,9 +247,12 @@ def _flag_value(raw_args: list[str], flag: str) -> Optional[str]:
 
 def main():
     positionals = [token for token in sys.argv[1:] if not token.startswith("-")]
-    if positionals and positionals[0].lower() in COMMAND_MODULES and any(
-        arg in ("-h", "--help") for arg in sys.argv[1:]
-    ):
+    wants_help = any(arg in ("-h", "--help") for arg in sys.argv[1:])
+    if wants_help and positionals and positionals[0].lower() == "shell":
+        from src.shell_audit_cli import main as shell_audit_main
+        shell_audit_main(argv=["--help"])
+        return
+    if wants_help and positionals and positionals[0].lower() in COMMAND_MODULES:
         run_command(COMMAND_MODULES[positionals[0].lower()], "", ["--help"], None)
         return
 
@@ -304,7 +325,9 @@ Examples:
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("-V", "--version", action="store_true", help="Show version")
     parser.add_argument("--sort", choices=["name", "label", "pid", "type", "path", "status", "port", "process", "protocol", "local", "remote", "total", "in", "out", "timestamp", "call", "age", "directory", "warning", "severity", "category", "item", "host", "source", "destination", "state"], help="Sort by: name, label, pid, type, path, status, port, process, protocol, local, remote, total, in, out, timestamp, call, age, directory, warning, severity, category, item, host, source, destination, state")
-    parser.add_argument("--provider", choices=["openai", "groq", "deepseek", "openrouter", "together", "ollama", "apfel", "openvino", "custom"], help="LLM provider for ask command")
+    # Validated in the `ask` handler, not here: module commands such as
+    # `reason --provider local` define their own --provider with other choices.
+    parser.add_argument("--provider", help="LLM provider for ask command: " + ", ".join(ASK_PROVIDERS))
     parser.add_argument("--model", help="LLM model name (default: gpt-4o-mini)")
     parser.add_argument("--openvino-device", help="OpenVINO device (AUTO, CPU, GPU, NPU, USB)")
     parser.add_argument("--install-completion", action="store_true", help="Install shell completion for bash/zsh")
@@ -519,6 +542,8 @@ Examples:
 
     # Handle ask command specially - pass quoted prompt directly
     if command == "ask":
+        if args.provider and args.provider not in ASK_PROVIDERS:
+            parser.error(f"argument --provider: invalid choice: {args.provider!r} (choose from {', '.join(ASK_PROVIDERS)})")
         from src.ai import AIAnalyzer
         from src.network import NetworkMonitor
 
@@ -636,6 +661,8 @@ Examples:
         return
 
     command_map = COMMAND_MODULES
+    # Module-dispatched commands get their arguments verbatim (see _module_args).
+    args.args = _module_args(command)
 
     # Handle short command aliases (e.g., "msp status" → privacy_settings status)
     if command in COMMAND_ALIASES:

@@ -1,0 +1,22 @@
+{
+  "id": "net.hosts",
+  "argv": [
+    "msp",
+    "--json",
+    "net",
+    "hosts"
+  ],
+  "returncode": 0,
+  "duration_s": 21.86,
+  "json": [
+    {
+      "ip": "10.0.0.*",
+      "originIp": "192.0.2.1",
+      "ports": [],
+      "status": "alive"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

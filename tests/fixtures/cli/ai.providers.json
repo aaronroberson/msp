@@ -1,0 +1,91 @@
+{
+  "id": "ai.providers",
+  "argv": [
+    "msp",
+    "--json",
+    "ai",
+    "providers"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": {
+    "default_provider": null,
+    "providers": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "type": "openai_compatible",
+        "model": "gpt-4o-mini",
+        "configured": false,
+        "key_source": "env",
+        "default": false
+      },
+      {
+        "id": "groq",
+        "name": "Groq",
+        "type": "openai_compatible",
+        "model": "llama-3.3-70b-versatile",
+        "configured": false,
+        "key_source": "env",
+        "default": false
+      },
+      {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "type": "openai_compatible",
+        "model": "deepseek-chat",
+        "configured": false,
+        "key_source": "env",
+        "default": false
+      },
+      {
+        "id": "openrouter",
+        "name": "OpenRouter",
+        "type": "openai_compatible",
+        "model": "anthropic/claude-3.5-sonnet",
+        "configured": false,
+        "key_source": "env",
+        "default": false
+      },
+      {
+        "id": "together",
+        "name": "Together AI",
+        "type": "openai_compatible",
+        "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "configured": false,
+        "key_source": null,
+        "default": false
+      },
+      {
+        "id": "ollama",
+        "name": "Ollama (Local)",
+        "type": "ollama",
+        "model": "qwen2.5-coder:1.5b",
+        "configured": false,
+        "key_source": null,
+        "default": false
+      },
+      {
+        "id": "apfel",
+        "name": "Apple Intelligence (apfel)",
+        "type": "apfel",
+        "model": "apple-intelligence",
+        "configured": false,
+        "key_source": null,
+        "default": false
+      },
+      {
+        "id": "openvino",
+        "name": "OpenVINO (Intel Hardware)",
+        "type": "openvino",
+        "model": "qwen2.5-coder-1.5b-openvino",
+        "configured": false,
+        "key_source": null,
+        "default": false
+      }
+    ]
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

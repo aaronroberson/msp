@@ -1,0 +1,48 @@
+{
+  "id": "chain.list",
+  "argv": [
+    "msp",
+    "--json",
+    "chain",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.07,
+  "json": {
+    "suspicious": {
+      "description": "Detect suspicious activity",
+      "steps": [
+        "net established",
+        "startup audit",
+        "scan suspicious"
+      ],
+      "interval": null,
+      "default": true
+    },
+    "daily": {
+      "description": "Daily security overview",
+      "steps": [
+        "net list",
+        "net established",
+        "startup list",
+        "traffic summary"
+      ],
+      "interval": null,
+      "default": true
+    },
+    "audit": {
+      "description": "Comprehensive security audit",
+      "steps": [
+        "scan deep",
+        "startup audit",
+        "fswatch audit",
+        "ai suggest"
+      ],
+      "interval": null,
+      "default": true
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

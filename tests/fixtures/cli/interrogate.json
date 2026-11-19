@@ -1,0 +1,1735 @@
+{
+  "id": "interrogate",
+  "argv": [
+    "msp",
+    "--json",
+    "interrogate",
+    "--output",
+    "/var/folders/z3/s3tm6rdx1kzdddzgh_2d6dpm0000gn/T/msp-fixture-work/facts.json"
+  ],
+  "returncode": 0,
+  "duration_s": 12.14,
+  "json": {
+    "errors": [
+      {
+        "collector": "TCCManager",
+        "message": "{'source': 'user', 'db_path': '/Users/<redacted>/Library/Application Support/com.apple.TCC/TCC.db', 'type': 'not_found', 'message': 'TCC database not found'}",
+        "section": "tcc"
+      },
+      {
+        "collector": "TCCManager",
+        "message": "{'source': 'system', 'db_path': '/Library/Application Support/com.apple.TCC/TCC.db', 'type': 'permission_denied', 'message': 'unable to open database file', 'suggestion': 'Try running with sudo for the system TCC database.'}",
+        "section": "tcc"
+      }
+    ],
+    "filevault": {
+      "enabled": true,
+      "encrypted": true
+    },
+    "firewall": {
+      "allows_signed": false,
+      "block_all": false,
+      "enabled": true,
+      "exceptions": [
+        {
+          "name": "DeviceHub",
+          "status": "ALLOW"
+        },
+        {
+          "name": "Messages",
+          "status": "BLOCK"
+        },
+        {
+          "name": "Studio by Spotify Labs.app",
+          "status": "BLOCK"
+        },
+        {
+          "name": "AddressBookSourceSync",
+          "status": "BLOCK"
+        },
+        {
+          "name": "Claude",
+          "status": "BLOCK"
+        },
+        {
+          "name": "InstaVision",
+          "status": "BLOCK"
+        },
+        {
+          "name": "Google Chrome.app",
+          "status": "BLOCK"
+        },
+        {
+          "name": "node",
+          "status": "BLOCK"
+        }
+      ],
+      "stealth": true,
+      "stealth_mode": true
+    },
+    "gatekeeper": {
+      "enabled": true
+    },
+    "metadata": {
+      "collected_at": "2026-11-18T23:50:13.815234+00:00",
+      "hostname": "<redacted>",
+      "machine": "arm64",
+      "platform": "macOS-27.2.1-arm64-arm-64bit",
+      "python": "3.12.8",
+      "redacted": true,
+      "release": "27.2.0",
+      "schema": "msp.facts.v1",
+      "sections": [
+        "privacy_settings",
+        "network",
+        "startup",
+        "sharing",
+        "security",
+        "tcc",
+        "shell"
+      ],
+      "system": "Darwin",
+      "user": "<redacted>"
+    },
+    "network": {
+      "connections": [
+        {
+          "local": "<ip>:56052",
+          "pid": 6423,
+          "process": "2.1.327",
+          "protocol": "TCP",
+          "remote": "<ip>:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "<ip>:55741",
+          "pid": 6423,
+          "process": "2.1.327",
+          "protocol": "TCP",
+          "remote": "<ip>:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "127.0.0.1:49159",
+          "pid": 729,
+          "process": "Atomic-Ch",
+          "protocol": "TCP",
+          "remote": "127.0.0.1:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "127.0.0.1:49156",
+          "pid": 1037,
+          "process": "atomic-ch",
+          "protocol": "TCP",
+          "remote": "127.0.0.1:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "<ip>:55509",
+          "pid": 2321,
+          "process": "Claude",
+          "protocol": "TCP",
+          "remote": "<ip>:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "<ip>:62062",
+          "pid": 2386,
+          "process": "Claude",
+          "protocol": "TCP",
+          "remote": "<ip>:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "<ip>:55612",
+          "pid": 2386,
+          "process": "Claude",
+          "protocol": "TCP",
+          "remote": "<ip>:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        },
+        {
+          "local": "<ip>:55539",
+          "pid": 2386,
+          "process": "Claude",
+          "protocol": "TCP",
+          "remote": "<ip>:***",
+          "state": "ESTABLISHED",
+          "user": "<redacted>"
+        }
+      ],
+      "exposed_services": [
+        {
+          "host": "*",
+          "local": "*:5000",
+          "pid": 738,
+          "port": 5000,
+          "process": "ControlCe",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5000",
+          "pid": 738,
+          "port": 5000,
+          "process": "ControlCe",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5432",
+          "pid": 2356,
+          "port": 5432,
+          "process": "OrbStack",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5432",
+          "pid": 2356,
+          "port": 5432,
+          "process": "OrbStack",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:7000",
+          "pid": 738,
+          "port": 7000,
+          "process": "ControlCe",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:7000",
+          "pid": 738,
+          "port": 7000,
+          "process": "ControlCe",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:11434",
+          "pid": 2336,
+          "port": 11434,
+          "process": "ollama",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:54321",
+          "pid": 2356,
+          "port": 54321,
+          "process": "OrbStack",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        }
+      ],
+      "listeners": [
+        {
+          "host": "127.0.0.1",
+          "local": "127.0.0.1:1337",
+          "pid": 1037,
+          "port": 1337,
+          "process": "atomic-ch",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "127.0.0.1",
+          "local": "127.0.0.1:3001",
+          "pid": 2356,
+          "port": 3001,
+          "process": "OrbStack",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "127.0.0.1",
+          "local": "127.0.0.1:3030",
+          "pid": 2279,
+          "port": 3030,
+          "process": "screenpip",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "127.0.0.1",
+          "local": "127.0.0.1:3192",
+          "pid": 1732,
+          "port": 3192,
+          "process": "mlx-serve",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5000",
+          "pid": 738,
+          "port": 5000,
+          "process": "ControlCe",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5000",
+          "pid": 738,
+          "port": 5000,
+          "process": "ControlCe",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5432",
+          "pid": 2356,
+          "port": 5432,
+          "process": "OrbStack",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        },
+        {
+          "host": "*",
+          "local": "*:5432",
+          "pid": 2356,
+          "port": 5432,
+          "process": "OrbStack",
+          "protocol": "TCP",
+          "state": "LISTEN",
+          "user": "<redacted>"
+        }
+      ],
+      "services": {
+        "afp": {
+          "enabled": false
+        },
+        "atomic-ch": {
+          "enabled": true,
+          "pid": 729,
+          "port": "49156",
+          "process": "Atomic-Ch",
+          "remote": "<ip>",
+          "risk": "LOW",
+          "type": "established"
+        },
+        "codebase-": {
+          "enabled": true,
+          "pid": 30531,
+          "port": "9749",
+          "process": "codebase-",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "controlce": {
+          "enabled": true,
+          "pid": 738,
+          "port": "7000",
+          "process": "ControlCe",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "figma_age": {
+          "enabled": true,
+          "pid": 2326,
+          "port": "44950",
+          "process": "figma_age",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "ftp": {
+          "enabled": false
+        },
+        "google": {
+          "enabled": true,
+          "pid": 718,
+          "port": "9222",
+          "process": "Google",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "https": {
+          "enabled": true,
+          "pid": 6423,
+          "port": "443",
+          "process": "2.1.327",
+          "remote": "<ip>",
+          "risk": "LOW",
+          "type": "established"
+        },
+        "identitys": {
+          "enabled": true,
+          "pid": 696,
+          "port": "1024",
+          "process": "identitys",
+          "remote": "<ip>",
+          "risk": "LOW",
+          "type": "established"
+        },
+        "mlx-serve": {
+          "enabled": true,
+          "pid": 1732,
+          "port": "3192",
+          "process": "mlx-serve",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "ollama": {
+          "enabled": true,
+          "pid": 2336,
+          "port": "11434",
+          "process": "ollama",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "orbstack": {
+          "enabled": true,
+          "pid": 2356,
+          "port": "32222",
+          "process": "OrbStack",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "postgres": {
+          "enabled": true,
+          "pid": 2334,
+          "port": "5436",
+          "process": "postgres",
+          "risk": "HIGH",
+          "type": "listening"
+        },
+        "rapportd": {
+          "enabled": true,
+          "pid": 664,
+          "port": "55516",
+          "process": "rapportd",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "screenpip": {
+          "enabled": true,
+          "pid": 2279,
+          "port": "3030",
+          "process": "screenpip",
+          "risk": "REVIEW",
+          "type": "listening"
+        },
+        "smb": {
+          "enabled": false
+        }
+      }
+    },
+    "security_settings": {
+      "password_after_sleep": true,
+      "password_delay": 5,
+      "screen_lock_minutes": 5
+    },
+    "sharing": {
+      "enabled": false,
+      "guest_enabled_services": [
+        "Example User\u2019s Public Folder"
+      ],
+      "services": {
+        "afpd": false,
+        "ftpd": false,
+        "smbd": false
+      },
+      "share_points": [
+        {
+          "guest_access": "1",
+          "name": "Example User\u2019s Public Folder",
+          "path": "/Users/<redacted>/Public",
+          "protocols": {
+            "smb": {
+              "guest access": "1",
+              "name": "Example User\u2019s Public Folder",
+              "read-only": "0",
+              "sealed": "0",
+              "shared": "1"
+            }
+          },
+          "read-only": "0",
+          "shared": "1"
+        }
+      ]
+    },
+    "shell": {
+      "history_healthy": null,
+      "history_lines": null,
+      "startup_ms": 1624.0
+    },
+    "startup": {
+      "items": [
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": true,
+          "label": "ai.hermes.gateway",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1786282574,
+          "name": "ai.hermes.gateway",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.hermes.gateway.plist",
+          "program": null,
+          "program_arguments": [
+            "/Users/<redacted>/.hermes/hermes-agent/venv/bin/python",
+            "-m",
+            "hermes_cli.main",
+            "gateway",
+            "run",
+            "--replace"
+          ],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 2993,
+          "sockets": [],
+          "standard_error_path": "/Users/<redacted>/.hermes/logs/gateway.error.log",
+          "standard_out_path": "/Users/<redacted>/.hermes/logs/gateway.log",
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": "/Users/<redacted>/.hermes"
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": true,
+          "label": "ai.memory-index.service",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1785560131,
+          "name": "ai.memory-index.service",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.memory-index.service.plist",
+          "program": null,
+          "program_arguments": [
+            "/bin/zsh",
+            "-c",
+            "/Users/<redacted>/.agents/daemon/memory-index-daemon.sh run"
+          ],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 1027,
+          "sockets": [],
+          "standard_error_path": "/Users/<redacted>/.agents/daemon/logs/launchd.err.log",
+          "standard_out_path": "/Users/<redacted>/.agents/daemon/logs/launchd.out.log",
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": "/Users/<redacted>"
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": {
+            "Crashed": true,
+            "SuccessfulExit": false
+          },
+          "label": "ai.perplexity.xpc",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [
+            "ai.perplexity.xpc"
+          ],
+          "mode": "0o644",
+          "modified": 1775355275,
+          "name": "ai.perplexity.xpc",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.perplexity.xpc.plist",
+          "program": "/Users/<redacted>/Library/Application Support/Perplexity/PerplexityXPC.xpc/Contents/MacOS/PerplexityXPC",
+          "program_arguments": [],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 760,
+          "sockets": [],
+          "standard_error_path": null,
+          "standard_out_path": null,
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": null
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": {
+            "SuccessfulExit": false
+          },
+          "label": "ai.sleev.gateway",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1794534182,
+          "name": "ai.sleev.gateway",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.sleev.gateway.plist",
+          "program": null,
+          "program_arguments": [
+            "/Users/<redacted>/.local/share/sleev/gateway/1.8.1/sleeve-gateway",
+            "--config",
+            "/Users/<redacted>/.config/sleev/gateway.json",
+            "--db-path",
+            "/Users/<redacted>/.local/share/sleev/sleeve.sqlite",
+            "--log",
+            "--debug-log-dir",
+            "/Users/<redacted>/.local/state/sleev/debug-logs"
+          ],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 2187,
+          "sockets": [],
+          "standard_error_path": "/Users/<redacted>/.local/state/sleev/debug-logs/server/gateway.err.log",
+          "standard_out_path": "/Users/<redacted>/.local/state/sleev/debug-logs/server/gateway.out.log",
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": null
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": true,
+          "label": "co.baseten.switch.door",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1791995855,
+          "name": "co.baseten.switch.door",
+          "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.door.plist",
+          "program": null,
+          "program_arguments": [
+            "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+            "door"
+          ],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 2148,
+          "sockets": [],
+          "standard_error_path": "/Users/<redacted>/.config/baseten-switch/logs/door.log",
+          "standard_out_path": "/Users/<redacted>/.config/baseten-switch/logs/door.log",
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": null
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": true,
+          "label": "co.baseten.switch.router",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1791995855,
+          "name": "co.baseten.switch.router",
+          "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.router.plist",
+          "program": null,
+          "program_arguments": [
+            "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+            "gateway",
+            "start",
+            "--foreground"
+          ],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 2214,
+          "sockets": [],
+          "standard_error_path": "/Users/<redacted>/.config/baseten-switch/logs/router.log",
+          "standard_out_path": "/Users/<redacted>/.config/baseten-switch/logs/router.log",
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": null
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": null,
+          "label": "com.adobe.ccxprocess",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1793151365,
+          "name": "com.adobe.ccxprocess",
+          "path": "/Users/<redacted>/Library/LaunchAgents/com.adobe.ccxprocess.plist",
+          "program": null,
+          "program_arguments": [
+            "/Applications/Utilities/Adobe Creative Cloud Experience/CCXProcess/CCXProcess.app/Contents/MacOS/CCXProcess",
+            "--openAtBoot"
+          ],
+          "queue_directories": [],
+          "run_at_load": null,
+          "section": "launch_plists",
+          "size": 639,
+          "sockets": [],
+          "standard_error_path": null,
+          "standard_out_path": null,
+          "start_calendar_interval": {
+            "Hour": 17,
+            "Minute": 6
+          },
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": null
+        },
+        {
+          "disabled": null,
+          "executable": false,
+          "exists": true,
+          "gid": 20,
+          "keep_alive": true,
+          "label": "com.backplanes.daemon",
+          "location": "/Users/<redacted>/Library/LaunchAgents",
+          "mach_services": [],
+          "mode": "0o644",
+          "modified": 1781834886,
+          "name": "com.backplanes.daemon",
+          "path": "/Users/<redacted>/Library/LaunchAgents/com.backplanes.daemon.plist",
+          "program": null,
+          "program_arguments": [
+            "/Users/<redacted>/.backplanes/bin/backplanes",
+            "daemon",
+            "run"
+          ],
+          "queue_directories": [],
+          "run_at_load": true,
+          "section": "launch_plists",
+          "size": 735,
+          "sockets": [],
+          "standard_error_path": "/Users/<redacted>/.local/share/backplanes/daemon/daemon.log",
+          "standard_out_path": "/Users/<redacted>/.local/share/backplanes/daemon/daemon.log",
+          "start_calendar_interval": null,
+          "start_interval": null,
+          "type": "launch_agent",
+          "uid": 501,
+          "watch_paths": [],
+          "working_directory": null
+        }
+      ],
+      "suspicious_items": [
+        {
+          "item": "application.com.apple.configurator.ui.340713986.340713992",
+          "path": "",
+          "pid": 5343,
+          "reasons": [
+            "Contains 'rat'"
+          ],
+          "risk": "HIGH",
+          "status": "0"
+        },
+        {
+          "item": "ai.hermes.gateway",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.hermes.gateway.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive",
+            "Launch plist command includes network/script execution tooling"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        },
+        {
+          "item": "ai.memory-index.service",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.memory-index.service.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        },
+        {
+          "item": "ai.perplexity.xpc",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.perplexity.xpc.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        },
+        {
+          "item": "ai.sleev.gateway",
+          "path": "/Users/<redacted>/Library/LaunchAgents/ai.sleev.gateway.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        },
+        {
+          "item": "co.baseten.switch.door",
+          "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.door.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        },
+        {
+          "item": "co.baseten.switch.router",
+          "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.router.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        },
+        {
+          "item": "com.backplanes.daemon",
+          "path": "/Users/<redacted>/Library/LaunchAgents/com.backplanes.daemon.plist",
+          "reasons": [
+            "Runs at load and is configured to stay alive"
+          ],
+          "risk": "REVIEW",
+          "section": "launch_plists"
+        }
+      ],
+      "unsigned_items": []
+    },
+    "tcc": {
+      "allowed": {},
+      "denied": {},
+      "errors": [
+        {
+          "db_path": "/Users/<redacted>/Library/Application Support/com.apple.TCC/TCC.db",
+          "message": "TCC database not found",
+          "source": "user",
+          "type": "not_found"
+        },
+        {
+          "db_path": "/Library/Application Support/com.apple.TCC/TCC.db",
+          "message": "unable to open database file",
+          "source": "system",
+          "suggestion": "Try running with sudo for the system TCC database.",
+          "type": "permission_denied"
+        }
+      ],
+      "high_risk_grants": []
+    }
+  },
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": "",
+  "artifact": {
+    "path": "facts.json",
+    "json": {
+      "errors": [
+        {
+          "collector": "TCCManager",
+          "message": "{'source': 'user', 'db_path': '/Users/<redacted>/Library/Application Support/com.apple.TCC/TCC.db', 'type': 'not_found', 'message': 'TCC database not found'}",
+          "section": "tcc"
+        },
+        {
+          "collector": "TCCManager",
+          "message": "{'source': 'system', 'db_path': '/Library/Application Support/com.apple.TCC/TCC.db', 'type': 'permission_denied', 'message': 'unable to open database file', 'suggestion': 'Try running with sudo for the system TCC database.'}",
+          "section": "tcc"
+        }
+      ],
+      "filevault": {
+        "enabled": true,
+        "encrypted": true
+      },
+      "firewall": {
+        "allows_signed": false,
+        "block_all": false,
+        "enabled": true,
+        "exceptions": [
+          {
+            "name": "DeviceHub",
+            "status": "ALLOW"
+          },
+          {
+            "name": "Messages",
+            "status": "BLOCK"
+          },
+          {
+            "name": "Studio by Spotify Labs.app",
+            "status": "BLOCK"
+          },
+          {
+            "name": "AddressBookSourceSync",
+            "status": "BLOCK"
+          },
+          {
+            "name": "Claude",
+            "status": "BLOCK"
+          },
+          {
+            "name": "InstaVision",
+            "status": "BLOCK"
+          },
+          {
+            "name": "Google Chrome.app",
+            "status": "BLOCK"
+          },
+          {
+            "name": "node",
+            "status": "BLOCK"
+          }
+        ],
+        "stealth": true,
+        "stealth_mode": true
+      },
+      "gatekeeper": {
+        "enabled": true
+      },
+      "metadata": {
+        "collected_at": "2026-11-18T23:50:13.815234+00:00",
+        "hostname": "<redacted>",
+        "machine": "arm64",
+        "platform": "macOS-27.2.1-arm64-arm-64bit",
+        "python": "3.12.8",
+        "redacted": true,
+        "release": "27.2.0",
+        "schema": "msp.facts.v1",
+        "sections": [
+          "privacy_settings",
+          "network",
+          "startup",
+          "sharing",
+          "security",
+          "tcc",
+          "shell"
+        ],
+        "system": "Darwin",
+        "user": "<redacted>"
+      },
+      "network": {
+        "connections": [
+          {
+            "local": "<ip>:56052",
+            "pid": 6423,
+            "process": "2.1.327",
+            "protocol": "TCP",
+            "remote": "<ip>:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "<ip>:55741",
+            "pid": 6423,
+            "process": "2.1.327",
+            "protocol": "TCP",
+            "remote": "<ip>:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "127.0.0.1:49159",
+            "pid": 729,
+            "process": "Atomic-Ch",
+            "protocol": "TCP",
+            "remote": "127.0.0.1:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "127.0.0.1:49156",
+            "pid": 1037,
+            "process": "atomic-ch",
+            "protocol": "TCP",
+            "remote": "127.0.0.1:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "<ip>:55509",
+            "pid": 2321,
+            "process": "Claude",
+            "protocol": "TCP",
+            "remote": "<ip>:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "<ip>:62062",
+            "pid": 2386,
+            "process": "Claude",
+            "protocol": "TCP",
+            "remote": "<ip>:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "<ip>:55612",
+            "pid": 2386,
+            "process": "Claude",
+            "protocol": "TCP",
+            "remote": "<ip>:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          },
+          {
+            "local": "<ip>:55539",
+            "pid": 2386,
+            "process": "Claude",
+            "protocol": "TCP",
+            "remote": "<ip>:***",
+            "state": "ESTABLISHED",
+            "user": "<redacted>"
+          }
+        ],
+        "exposed_services": [
+          {
+            "host": "*",
+            "local": "*:5000",
+            "pid": 738,
+            "port": 5000,
+            "process": "ControlCe",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5000",
+            "pid": 738,
+            "port": 5000,
+            "process": "ControlCe",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5432",
+            "pid": 2356,
+            "port": 5432,
+            "process": "OrbStack",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5432",
+            "pid": 2356,
+            "port": 5432,
+            "process": "OrbStack",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:7000",
+            "pid": 738,
+            "port": 7000,
+            "process": "ControlCe",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:7000",
+            "pid": 738,
+            "port": 7000,
+            "process": "ControlCe",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:11434",
+            "pid": 2336,
+            "port": 11434,
+            "process": "ollama",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:54321",
+            "pid": 2356,
+            "port": 54321,
+            "process": "OrbStack",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          }
+        ],
+        "listeners": [
+          {
+            "host": "127.0.0.1",
+            "local": "127.0.0.1:1337",
+            "pid": 1037,
+            "port": 1337,
+            "process": "atomic-ch",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "127.0.0.1",
+            "local": "127.0.0.1:3001",
+            "pid": 2356,
+            "port": 3001,
+            "process": "OrbStack",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "127.0.0.1",
+            "local": "127.0.0.1:3030",
+            "pid": 2279,
+            "port": 3030,
+            "process": "screenpip",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "127.0.0.1",
+            "local": "127.0.0.1:3192",
+            "pid": 1732,
+            "port": 3192,
+            "process": "mlx-serve",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5000",
+            "pid": 738,
+            "port": 5000,
+            "process": "ControlCe",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5000",
+            "pid": 738,
+            "port": 5000,
+            "process": "ControlCe",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5432",
+            "pid": 2356,
+            "port": 5432,
+            "process": "OrbStack",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          },
+          {
+            "host": "*",
+            "local": "*:5432",
+            "pid": 2356,
+            "port": 5432,
+            "process": "OrbStack",
+            "protocol": "TCP",
+            "state": "LISTEN",
+            "user": "<redacted>"
+          }
+        ],
+        "services": {
+          "afp": {
+            "enabled": false
+          },
+          "atomic-ch": {
+            "enabled": true,
+            "pid": 729,
+            "port": "49156",
+            "process": "Atomic-Ch",
+            "remote": "<ip>",
+            "risk": "LOW",
+            "type": "established"
+          },
+          "codebase-": {
+            "enabled": true,
+            "pid": 30531,
+            "port": "9749",
+            "process": "codebase-",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "controlce": {
+            "enabled": true,
+            "pid": 738,
+            "port": "7000",
+            "process": "ControlCe",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "figma_age": {
+            "enabled": true,
+            "pid": 2326,
+            "port": "44950",
+            "process": "figma_age",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "ftp": {
+            "enabled": false
+          },
+          "google": {
+            "enabled": true,
+            "pid": 718,
+            "port": "9222",
+            "process": "Google",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "https": {
+            "enabled": true,
+            "pid": 6423,
+            "port": "443",
+            "process": "2.1.327",
+            "remote": "<ip>",
+            "risk": "LOW",
+            "type": "established"
+          },
+          "identitys": {
+            "enabled": true,
+            "pid": 696,
+            "port": "1024",
+            "process": "identitys",
+            "remote": "<ip>",
+            "risk": "LOW",
+            "type": "established"
+          },
+          "mlx-serve": {
+            "enabled": true,
+            "pid": 1732,
+            "port": "3192",
+            "process": "mlx-serve",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "ollama": {
+            "enabled": true,
+            "pid": 2336,
+            "port": "11434",
+            "process": "ollama",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "orbstack": {
+            "enabled": true,
+            "pid": 2356,
+            "port": "32222",
+            "process": "OrbStack",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "postgres": {
+            "enabled": true,
+            "pid": 2334,
+            "port": "5436",
+            "process": "postgres",
+            "risk": "HIGH",
+            "type": "listening"
+          },
+          "rapportd": {
+            "enabled": true,
+            "pid": 664,
+            "port": "55516",
+            "process": "rapportd",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "screenpip": {
+            "enabled": true,
+            "pid": 2279,
+            "port": "3030",
+            "process": "screenpip",
+            "risk": "REVIEW",
+            "type": "listening"
+          },
+          "smb": {
+            "enabled": false
+          }
+        }
+      },
+      "security_settings": {
+        "password_after_sleep": true,
+        "password_delay": 5,
+        "screen_lock_minutes": 5
+      },
+      "sharing": {
+        "enabled": false,
+        "guest_enabled_services": [
+          "Example User\u2019s Public Folder"
+        ],
+        "services": {
+          "afpd": false,
+          "ftpd": false,
+          "smbd": false
+        },
+        "share_points": [
+          {
+            "guest_access": "1",
+            "name": "Example User\u2019s Public Folder",
+            "path": "/Users/<redacted>/Public",
+            "protocols": {
+              "smb": {
+                "guest access": "1",
+                "name": "Example User\u2019s Public Folder",
+                "read-only": "0",
+                "sealed": "0",
+                "shared": "1"
+              }
+            },
+            "read-only": "0",
+            "shared": "1"
+          }
+        ]
+      },
+      "shell": {
+        "history_healthy": null,
+        "history_lines": null,
+        "startup_ms": 1624.0
+      },
+      "startup": {
+        "items": [
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": true,
+            "label": "ai.hermes.gateway",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1786282574,
+            "name": "ai.hermes.gateway",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.hermes.gateway.plist",
+            "program": null,
+            "program_arguments": [
+              "/Users/<redacted>/.hermes/hermes-agent/venv/bin/python",
+              "-m",
+              "hermes_cli.main",
+              "gateway",
+              "run",
+              "--replace"
+            ],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 2993,
+            "sockets": [],
+            "standard_error_path": "/Users/<redacted>/.hermes/logs/gateway.error.log",
+            "standard_out_path": "/Users/<redacted>/.hermes/logs/gateway.log",
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": "/Users/<redacted>/.hermes"
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": true,
+            "label": "ai.memory-index.service",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1785560131,
+            "name": "ai.memory-index.service",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.memory-index.service.plist",
+            "program": null,
+            "program_arguments": [
+              "/bin/zsh",
+              "-c",
+              "/Users/<redacted>/.agents/daemon/memory-index-daemon.sh run"
+            ],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 1027,
+            "sockets": [],
+            "standard_error_path": "/Users/<redacted>/.agents/daemon/logs/launchd.err.log",
+            "standard_out_path": "/Users/<redacted>/.agents/daemon/logs/launchd.out.log",
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": "/Users/<redacted>"
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": {
+              "Crashed": true,
+              "SuccessfulExit": false
+            },
+            "label": "ai.perplexity.xpc",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [
+              "ai.perplexity.xpc"
+            ],
+            "mode": "0o644",
+            "modified": 1775355275,
+            "name": "ai.perplexity.xpc",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.perplexity.xpc.plist",
+            "program": "/Users/<redacted>/Library/Application Support/Perplexity/PerplexityXPC.xpc/Contents/MacOS/PerplexityXPC",
+            "program_arguments": [],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 760,
+            "sockets": [],
+            "standard_error_path": null,
+            "standard_out_path": null,
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": null
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": {
+              "SuccessfulExit": false
+            },
+            "label": "ai.sleev.gateway",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1794534182,
+            "name": "ai.sleev.gateway",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.sleev.gateway.plist",
+            "program": null,
+            "program_arguments": [
+              "/Users/<redacted>/.local/share/sleev/gateway/1.8.1/sleeve-gateway",
+              "--config",
+              "/Users/<redacted>/.config/sleev/gateway.json",
+              "--db-path",
+              "/Users/<redacted>/.local/share/sleev/sleeve.sqlite",
+              "--log",
+              "--debug-log-dir",
+              "/Users/<redacted>/.local/state/sleev/debug-logs"
+            ],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 2187,
+            "sockets": [],
+            "standard_error_path": "/Users/<redacted>/.local/state/sleev/debug-logs/server/gateway.err.log",
+            "standard_out_path": "/Users/<redacted>/.local/state/sleev/debug-logs/server/gateway.out.log",
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": null
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": true,
+            "label": "co.baseten.switch.door",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1791995855,
+            "name": "co.baseten.switch.door",
+            "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.door.plist",
+            "program": null,
+            "program_arguments": [
+              "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+              "door"
+            ],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 2148,
+            "sockets": [],
+            "standard_error_path": "/Users/<redacted>/.config/baseten-switch/logs/door.log",
+            "standard_out_path": "/Users/<redacted>/.config/baseten-switch/logs/door.log",
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": null
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": true,
+            "label": "co.baseten.switch.router",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1791995855,
+            "name": "co.baseten.switch.router",
+            "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.router.plist",
+            "program": null,
+            "program_arguments": [
+              "/opt/homebrew/opt/baseten-switch/bin/baseten-switch",
+              "gateway",
+              "start",
+              "--foreground"
+            ],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 2214,
+            "sockets": [],
+            "standard_error_path": "/Users/<redacted>/.config/baseten-switch/logs/router.log",
+            "standard_out_path": "/Users/<redacted>/.config/baseten-switch/logs/router.log",
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": null
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": null,
+            "label": "com.adobe.ccxprocess",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1793151365,
+            "name": "com.adobe.ccxprocess",
+            "path": "/Users/<redacted>/Library/LaunchAgents/com.adobe.ccxprocess.plist",
+            "program": null,
+            "program_arguments": [
+              "/Applications/Utilities/Adobe Creative Cloud Experience/CCXProcess/CCXProcess.app/Contents/MacOS/CCXProcess",
+              "--openAtBoot"
+            ],
+            "queue_directories": [],
+            "run_at_load": null,
+            "section": "launch_plists",
+            "size": 639,
+            "sockets": [],
+            "standard_error_path": null,
+            "standard_out_path": null,
+            "start_calendar_interval": {
+              "Hour": 17,
+              "Minute": 6
+            },
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": null
+          },
+          {
+            "disabled": null,
+            "executable": false,
+            "exists": true,
+            "gid": 20,
+            "keep_alive": true,
+            "label": "com.backplanes.daemon",
+            "location": "/Users/<redacted>/Library/LaunchAgents",
+            "mach_services": [],
+            "mode": "0o644",
+            "modified": 1781834886,
+            "name": "com.backplanes.daemon",
+            "path": "/Users/<redacted>/Library/LaunchAgents/com.backplanes.daemon.plist",
+            "program": null,
+            "program_arguments": [
+              "/Users/<redacted>/.backplanes/bin/backplanes",
+              "daemon",
+              "run"
+            ],
+            "queue_directories": [],
+            "run_at_load": true,
+            "section": "launch_plists",
+            "size": 735,
+            "sockets": [],
+            "standard_error_path": "/Users/<redacted>/.local/share/backplanes/daemon/daemon.log",
+            "standard_out_path": "/Users/<redacted>/.local/share/backplanes/daemon/daemon.log",
+            "start_calendar_interval": null,
+            "start_interval": null,
+            "type": "launch_agent",
+            "uid": 501,
+            "watch_paths": [],
+            "working_directory": null
+          }
+        ],
+        "suspicious_items": [
+          {
+            "item": "application.com.apple.configurator.ui.340713986.340713992",
+            "path": "",
+            "pid": 5343,
+            "reasons": [
+              "Contains 'rat'"
+            ],
+            "risk": "HIGH",
+            "status": "0"
+          },
+          {
+            "item": "ai.hermes.gateway",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.hermes.gateway.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive",
+              "Launch plist command includes network/script execution tooling"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          },
+          {
+            "item": "ai.memory-index.service",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.memory-index.service.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          },
+          {
+            "item": "ai.perplexity.xpc",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.perplexity.xpc.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          },
+          {
+            "item": "ai.sleev.gateway",
+            "path": "/Users/<redacted>/Library/LaunchAgents/ai.sleev.gateway.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          },
+          {
+            "item": "co.baseten.switch.door",
+            "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.door.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          },
+          {
+            "item": "co.baseten.switch.router",
+            "path": "/Users/<redacted>/Library/LaunchAgents/co.baseten.switch.router.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          },
+          {
+            "item": "com.backplanes.daemon",
+            "path": "/Users/<redacted>/Library/LaunchAgents/com.backplanes.daemon.plist",
+            "reasons": [
+              "Runs at load and is configured to stay alive"
+            ],
+            "risk": "REVIEW",
+            "section": "launch_plists"
+          }
+        ],
+        "unsigned_items": []
+      },
+      "tcc": {
+        "allowed": {},
+        "denied": {},
+        "errors": [
+          {
+            "db_path": "/Users/<redacted>/Library/Application Support/com.apple.TCC/TCC.db",
+            "message": "TCC database not found",
+            "source": "user",
+            "type": "not_found"
+          },
+          {
+            "db_path": "/Library/Application Support/com.apple.TCC/TCC.db",
+            "message": "unable to open database file",
+            "source": "system",
+            "suggestion": "Try running with sudo for the system TCC database.",
+            "type": "permission_denied"
+          }
+        ],
+        "high_risk_grants": []
+      }
+    },
+    "text": null
+  }
+}

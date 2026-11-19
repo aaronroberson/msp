@@ -1,0 +1,49 @@
+# What each component can render (plan §3.3). Bindings are checked against this.
+#
+#   accepts   shape kinds the projected value may have:
+#             collection | findings | definitions | diff | run | stream   (lists of records)
+#             item | booleans (item whose values are all booleans) | scalar
+#             document | result | errors (facet)
+#   requires  record fields every row must carry (list kinds) or the item must carry
+#
+# A findings list also satisfies `collection`; `booleans` also satisfies `item`.
+
+[component.StatusStrip]
+accepts = ["booleans", "scalar"]
+
+[component.KPICell]
+accepts = ["scalar"]
+
+[component.SeverityChips]
+accepts = ["findings"]
+
+[component.SettingsPanel]
+accepts = ["item", "collection"]
+
+[component.RecordTable]
+accepts = ["collection", "findings", "definitions", "diff", "item"]
+
+[component.FindingList]
+accepts = ["findings"]
+requires = ["id", "title", "severity"]
+
+[component.DefinitionCatalog]
+accepts = ["definitions", "collection"]
+
+[component.RecordInspector]
+accepts = ["item", "collection", "findings", "definitions", "diff"]
+
+[component.ReportView]
+accepts = ["document", "item", "result"]
+
+[component.DiffView]
+accepts = ["diff"]
+
+[component.LiveStream]
+accepts = ["stream", "document"]
+
+[component.PipelineStepper]
+accepts = ["run"]
+
+[component.NoticeBanner]
+accepts = ["errors", "result"]

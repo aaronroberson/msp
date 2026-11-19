@@ -1,0 +1,15 @@
+{
+  "id": "net.arp",
+  "argv": [
+    "msp",
+    "--json",
+    "net",
+    "arp"
+  ],
+  "returncode": 0,
+  "duration_s": 0.09,
+  "json": [],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,6 +1,6 @@
 # Plan: TUI as the graphical shell for every `msp` command
 
-**Date:** 2026-11-18 · **Status:** approved design; prerequisite CLI fixes done (§8); all decisions resolved (§10); Phase 0 ready to start · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
+**Date:** 2026-11-18 · **Status:** Phase 0 complete (2026-11-18, branch `feat/tui-phase0-contracts`); Phase 1 next · **Implements:** master plan T-21 (`2026-11-17-macos-privacy-cli-architecture-plan.md`) · **Extends:** `2026-11-04-tui-v2-plan.md`
 
 ## 0. Objective and user decisions
 
@@ -27,7 +27,7 @@ Decisions from the user on 2026-11-18:
 
 ## 1. Current state (measured 2026-11-18)
 
-The CLI has 22 command groups and about 130 actions. TUI v2 has dedicated screens for about 10 views (dashboard, findings, network listening/established, startup managed, TCC list, privacy, firewall, snapshots, workflows, AI). Groups with **no** TUI surface: fswatch, traffic, sharing, security, chain, doctor/deps, tune, forensics, and the analysis pipeline (interrogate, audit, reason, remediate, report).
+The CLI has 22 module-backed command groups plus 4 dispatched by `main.py` (shell, config, ask, doctor): **26 groups, 135 actions** per the seeder (`scripts/seed_manifest.py`). TUI v2 has dedicated screens for about 10 views (dashboard, findings, network listening/established, startup managed, TCC list, privacy, firewall, snapshots, workflows, AI). Groups with **no** TUI surface: fswatch, traffic, sharing, security, chain, doctor/deps, tune, forensics, and the analysis pipeline (interrogate, audit, reason, remediate, report).
 
 ### 1.1 Output probe of read-only actions
 
@@ -83,6 +83,10 @@ This mirrors a headless CMS with four separate layers. **Commands emit data enti
 | `argv` | list[str] | template, e.g. `["tcc","revoke","{service}","{client}"]` |
 | `args` | list[ArgSpec] | per-action arguments (fills the gap in §1.2) |
 | `emits` | EntityRef | `Envelope[Record]` (§3.2), e.g. `Collection[Socket]`, `Item[FirewallState]`, `Findings[StartupItem]`, `Stream[FsEvent]`, `Result` |
+| `encoding` / `data_key` | enum / str | how the envelope arrives on the wire: `list` · `keyed` (name → record) · `wrapped` (`{data_key: [...], facets}`) · `scalar-list`. Adapters normalize before validation (P0.2) |
+| `channel` | enum | `stdout` or `artifact:<arg>` for commands whose output is the file they write (`interrogate --output`, `remediate plan --output`, `report --output`) |
+| `success_codes` | list[int] | default `[0]`; e.g. `audit` `[0, 1]` (1 = findings present), `deps check` `[0, 1]` (1 = not installed) |
+| `severity_map` | dict | Findings only: maps the command's own severity vocabulary/field (`risk: HIGH/REVIEW/LOW`, `severity: ERROR/WARNING/NOTICE`) onto the canonical scale; converges with master-plan T-02 |
 | `risk` | enum | `read` · `confirm` · `dangerous` (feeds `ConfirmScreen`, and later T-10 approval tokens) |
 | `needs_root` | bool | routes through askpass (§6) |
 | `timeout_s` / `long_running` | int / bool | slow actions show progress; long-running ones get Start/Stop |
@@ -117,6 +121,8 @@ Each command's output is an entity typed as **`Envelope<Record>`**:
 - **Composites:** `status` and `interrogate` are `Item<Composite>` whose fields are other domains' records (`firewall: FirewallState`, `sharing: SharingState`, …). A slot's `select` reaches into a field and gets that record with its own type.
 - **Wrappers:** `tune top` is `Item<CommandOutput>` (raw text) until it gets structured fields.
 - **Facets** belong to every envelope: `errors` / `access_errors` (permissions) and `meta` (timestamp, scope, source). They bind separately, usually to the notice region.
+
+**Validated against real output (P0.2, `docs/audits/2026-11-18-envelope-taxonomy-validation.md`):** all captured outputs fit the 9 envelopes. Refinements: encoding is separate from envelope (four wire encodings, normalized by adapters); Findings carry a canonical `severity` (critical/high/medium/low/info) mapped from four observed vocabularies; Items routinely embed collections, reached by projection; success codes are per command.
 
 **Record inheritance where it is real:** records share base fields through ordinary subclassing, e.g. `Socket` and `Connection` extend `NetEndpoint` (process, pid, user, local); `LaunchAgent`/`LaunchDaemon`/`LoginItem` narrow `StartupItem` by `type`. This is the part of the vehicle → car intuition that holds.
 
@@ -287,7 +293,7 @@ Sidebar sections follow the user's concern order (D4), with Overview first. With
 | **System control** | Startup & persistence (explorer) | 1 `startup managed` / `login-items` / `agents` / `daemons` / `cron` / `running` / `disabled` / `inventory` / `search` (on_view; search uses `{form.query}`) · 2 `startup enable` / `disable` / `pause` / `start` / `login-remove` / `agent-remove` / `agent-enable` / `agent-disable` (on_action, refresh 1) · 3 `startup login-add` / `agent-add` (on_action, form) | 1 counts by type → KPI cells @ strip · 1 → RecordTable @ main · selected → RecordInspector + ActionBar(2) @ aside · 3 → ActionForm @ aside |
 | | Startup audit (review) | 1 `startup audit` ‖ `summary` · 1b `comprehensive-audit` (manual) · 2 `startup disable` (on_action, refresh 1) | 1 severity → SeverityChips @ strip · 1 → FindingList @ main · selected → RecordInspector + ActionBar(2) @ aside |
 | **Privacy** | Privacy settings (control-panel) | 1 `status` ‖ `list` · 2 `enable` / `disable` (on_action, refresh 1) · 3 `services` (on_open) | status booleans → StatusStrip @ strip · `list` → SettingsPanel (state toggles → 2) @ main · `services` → RecordTable @ aside |
-| | Presets (catalog) | 1 `preset list` · 2 `preset apply` / `restore` / `delete` (on_action, refresh 1 + Privacy settings) | 1 → DefinitionCatalog @ main · selected.settings → RecordTable (preview) @ aside · 2 → ActionBar @ aside |
+| | Presets (catalog) | 1 `preset list` · 2 `preset apply` / `delete` (on_action, refresh 1 + Privacy settings) · 3 `preset save` (on_action, form: name + current settings) | 1 → DefinitionCatalog @ main · selected.settings → RecordTable (preview) @ aside · 2 → ActionBar @ aside · 3 → ActionForm @ aside |
 | | TCC permissions (explorer) | 1 `tcc list` ‖ `tcc audit` (on_view) · 2 `tcc show` (on_select) · 3 `tcc revoke` / `reset` / `grant` (on_action, refresh 1) · 4 `tcc backup` / `restore` (on_action) | 1.errors → NoticeBanner (Full Disk Access) @ notice · `list`.permissions → RecordTable @ main · `audit`.findings → FindingList @ main (Audit tab) · 2 → RecordInspector @ aside · 3 → ActionBar + ActionForm(grant) @ aside · 4 → ActionButtons @ header |
 | | Sharing (control-panel) | 1 `sharing status` · 2 `sharing enable` / `disable` / `disable-guest` / `stop-all` (on_action, refresh 1) | 1.sharing_enabled + services → StatusStrip @ strip · 1.share_points → RecordTable @ main · selected → RecordInspector + ActionBar(2) @ aside |
 | **Forensics** | Volume forensics (compare) | 1 `forensics scan` (on_action, volume picker) · 2 `forensics correlate` · 3 `forensics spotlight` · 4 `forensics inspect` (on_select) · 5 `forensics clean` (dangerous) | picker → ActionForm @ header · 1 counts → KPI cells @ strip · 1 → FindingList @ main · 2 → DiffView @ main (Correlate tab) · 3 → RecordTable @ main (Spotlight tab) · 4 → RecordInspector @ aside · 5 → ActionBar @ aside |
@@ -299,7 +305,7 @@ Sidebar sections follow the user's concern order (D4), with Overview first. With
 | | AI (control-panel + console) | 1 `ai providers` ‖ `ai devices` · 2 `ai configure` (on_action, form) · 3 `ai ask` / `explain` / `suggest` / `analyze` (on_action, prompt) · 4 `ai compare` (on_action) · 5 `ai watch` (manual) | 1.default + local_only → StatusStrip @ strip · 1.providers → DefinitionCatalog @ main · 2 → ActionForm @ aside · 3 → ReportView @ main (Ask tab) · 4 → DiffView @ main (Compare tab) · 5 → LiveStream @ dock |
 | **Repair & recovery** | Health (console) | 1 `doctor` (on_open) ‖ `deps status` · 2 `deps install` / `install-all` / `fix`, `doctor fix` (on_action, confirm, refresh 1) | 1.ok → StatusStrip @ strip · doctor.scan.checks → FindingList @ main · deps → RecordTable @ aside · 2 → ActionBar @ aside |
 | | Performance (review) | 1 `tune check` (manual) · 2 `tune fix` (on_action, confirm, refresh 1) | 1 severity → SeverityChips @ strip · 1 → FindingList @ main · 2 → ActionBar @ aside |
-| | Restore points (explorer) | 1 `snapshot list` ‖ `preset list` (TCC backups once listed by the CLI) · 2 `snapshot restore` / `preset restore` / `tcc restore` (on_action) | 1 merged → RecordTable @ main · selected → RecordInspector + ActionBar(2) @ aside |
+| | Restore points (explorer) | 1 `snapshot list` ‖ `preset list` (TCC backups once listed by the CLI) · 2 `snapshot restore` / `preset apply` / `tcc restore` (on_action) | 1 merged → RecordTable @ main · selected → RecordInspector + ActionBar(2) @ aside |
 
 Note how outputs are reused: `snapshot list` renders as a RecordTable on Snapshots and as part of a merged RecordTable on Restore points; `firewall status` renders as StatusStrip + SettingsPanel + RecordTable on one page and as StatePills on the Dashboard; `status` feeds the Dashboard strip and the Privacy settings strip.
 
@@ -373,3 +379,5 @@ All decisions needed before Phase 0 are resolved (2026-11-18):
 ## Status and handoffs
 
 - Audit/status log: `docs/audits/2026-11-08-tui-v2.md` (append dated sections there).
+- Phase 0 taxonomy validation: `docs/audits/2026-11-18-envelope-taxonomy-validation.md`.
+- Generated coverage: `src/tui_manifest/COVERAGE.md` (`scripts/coverage_report.py`).

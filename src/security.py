@@ -5,7 +5,7 @@ import json
 import subprocess
 import os
 import sys
-from typing import Dict, Any
+from typing import Any, Dict, List, Union
 
 from src.command import interactive_menu as cmd_menu, interactive_select, setup_completion, suggest_command
 from src.command import pause_for_enter
@@ -25,8 +25,13 @@ class SecuritySettings:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-    def _run_cmd(self, cmd: str, sudo: bool = False) -> tuple[bool, str]:
+    def _run_cmd(self, cmd: Union[str, List[str]], sudo: bool = False, stderr: bool = True) -> tuple[bool, str]:
+        """Pass an argv list for anything containing values: lists run with shell=False."""
         try:
+            if isinstance(cmd, (list, tuple)):
+                argv = (["sudo"] if sudo else []) + [str(part) for part in cmd]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+                return result.returncode == 0, result.stdout + (result.stderr if stderr else "")
             if sudo:
                 cmd = f"sudo {cmd}"
             result = subprocess.run(
@@ -99,14 +104,14 @@ class SecuritySettings:
 
     def set_screen_lock(self, minutes: int = 5) -> bool:
         """Set screen to lock after X minutes."""
-        self._run_cmd(f"defaults -currentHost write com.apple.screensaver idleTime {minutes * 60}")
+        self._run_cmd(["defaults", "-currentHost", "write", "com.apple.screensaver", "idleTime", str(minutes * 60)])
         success, _ = self._run_cmd("killall Screensaver 2>/dev/null || true")
         return True
 
     def enable_password_after_sleep(self, delay: int = 0) -> bool:
         """Require password after sleep/screen saver."""
-        self._run_cmd(f"defaults -currentHost write com.apple.screensaver askForPassword -int 1")
-        self._run_cmd(f"defaults -currentHost write com.apple.screensaver askForPasswordDelay -int {delay}")
+        self._run_cmd(["defaults", "-currentHost", "write", "com.apple.screensaver", "askForPassword", "-int", "1"])
+        self._run_cmd(["defaults", "-currentHost", "write", "com.apple.screensaver", "askForPasswordDelay", "-int", str(delay)])
         return True
 
     def disable_password_after_sleep(self) -> bool:
@@ -116,7 +121,7 @@ class SecuritySettings:
 
     def set_display_sleep(self, minutes: int, power: bool = True) -> bool:
         """Set display sleep time in minutes."""
-        success, _ = self._run_cmd(f"pmset -a displaysleep {minutes}")
+        success, _ = self._run_cmd(["pmset", "-a", "displaysleep", str(minutes)])
         return success
 
     def get_firewall_connection_info(self) -> dict:

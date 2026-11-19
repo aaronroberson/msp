@@ -1,0 +1,10 @@
+{
+  "id": "startup.cron",
+  "derived_from": "src/startup.py:438 (cron jobs.append)",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": [
+    {
+      "entry": "0 * * * * /usr/local/bin/example"
+    }
+  ]
+}

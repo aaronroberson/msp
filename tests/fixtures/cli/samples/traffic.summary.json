@@ -1,0 +1,13 @@
+{
+  "id": "traffic.summary",
+  "derived_from": "src/traffic.py:86 (summary processes.append)",
+  "note": "Hand-authored: the live capture was empty.",
+  "json": [
+    {
+      "process": "Safari",
+      "bytes_in": 1024,
+      "bytes_out": 256,
+      "total": 1280
+    }
+  ]
+}

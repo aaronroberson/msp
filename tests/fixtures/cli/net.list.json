@@ -1,0 +1,80 @@
+{
+  "id": "net.list",
+  "argv": [
+    "msp",
+    "--json",
+    "net",
+    "list"
+  ],
+  "returncode": 0,
+  "duration_s": 0.14,
+  "json": [
+    {
+      "process": "atomic-ch",
+      "pid": 1037,
+      "user": "user",
+      "local": "127.0.0.1:1337",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "OrbStack",
+      "pid": 2356,
+      "user": "user",
+      "local": "127.0.0.1:3001",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "screenpip",
+      "pid": 2279,
+      "user": "user",
+      "local": "127.0.0.1:3030",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "mlx-serve",
+      "pid": 1732,
+      "user": "user",
+      "local": "127.0.0.1:3192",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "ControlCe",
+      "pid": 738,
+      "user": "user",
+      "local": "*:5000",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "ControlCe",
+      "pid": 738,
+      "user": "user",
+      "local": "*:5000",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "OrbStack",
+      "pid": 2356,
+      "user": "user",
+      "local": "*:5432",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    },
+    {
+      "process": "OrbStack",
+      "pid": 2356,
+      "user": "user",
+      "local": "*:5432",
+      "state": "LISTEN",
+      "protocol": "TCP"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

@@ -1,0 +1,37 @@
+{
+  "id": "tune.check",
+  "argv": [
+    "msp",
+    "--json",
+    "tune",
+    "check"
+  ],
+  "returncode": 0,
+  "duration_s": 28.91,
+  "json": [
+    {
+      "domain": "zsh",
+      "severity": "high",
+      "title": "Startup: 1815ms (target <150ms)",
+      "description": "Interactive zsh takes 1815ms. Fixable zsh issues (if any) are listed below; 'msp doctor fix' applies them.",
+      "fixable": false
+    },
+    {
+      "domain": "docker",
+      "severity": "low",
+      "title": "Docker: 3.9GB reclaimable",
+      "description": "Run 'docker system prune' to clean up.",
+      "fixable": false
+    },
+    {
+      "domain": "system",
+      "severity": "low",
+      "title": "User caches: ~52G",
+      "description": "Cache directory at ~/Library/Caches. Contents are safe to remove.",
+      "fixable": false
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": "Note: 'msp tune' is merging into 'msp doctor' \u2014 prefer 'msp doctor' for health and 'msp doctor fix' for auto-fixes. This alias still works.\n"
+}

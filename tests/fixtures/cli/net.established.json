@@ -1,0 +1,72 @@
+{
+  "id": "net.established",
+  "argv": [
+    "msp",
+    "--json",
+    "net",
+    "established"
+  ],
+  "returncode": 0,
+  "duration_s": 0.13,
+  "json": [
+    {
+      "process": "2.1.327",
+      "pid": "6423",
+      "user": "user",
+      "local": "[2001:db8::1]:56052",
+      "remote": "[2600:***"
+    },
+    {
+      "process": "2.1.327",
+      "pid": "6423",
+      "user": "user",
+      "local": "192.0.2.1:55741",
+      "remote": "192.0.2.1:***"
+    },
+    {
+      "process": "Atomic-Ch",
+      "pid": "729",
+      "user": "user",
+      "local": "127.0.0.1:49159",
+      "remote": "127.0.0.1:***"
+    },
+    {
+      "process": "atomic-ch",
+      "pid": "1037",
+      "user": "user",
+      "local": "127.0.0.1:49156",
+      "remote": "127.0.0.1:***"
+    },
+    {
+      "process": "Claude",
+      "pid": "2321",
+      "user": "user",
+      "local": "192.0.2.1:55509",
+      "remote": "192.0.2.1:***"
+    },
+    {
+      "process": "Claude",
+      "pid": "2386",
+      "user": "user",
+      "local": "[2001:db8::1]:62062",
+      "remote": "[2607:***"
+    },
+    {
+      "process": "Claude",
+      "pid": "2386",
+      "user": "user",
+      "local": "[2001:db8::1]:55612",
+      "remote": "[2607:***"
+    },
+    {
+      "process": "Claude",
+      "pid": "2386",
+      "user": "user",
+      "local": "[2001:db8::1]:55539",
+      "remote": "[2607:***"
+    }
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}

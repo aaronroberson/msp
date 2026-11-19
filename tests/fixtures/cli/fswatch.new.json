@@ -1,0 +1,24 @@
+{
+  "id": "fswatch.new",
+  "argv": [
+    "msp",
+    "--json",
+    "fswatch",
+    "new"
+  ],
+  "returncode": 0,
+  "duration_s": 19.45,
+  "json": [
+    "/Applications/Apple Configurator.app/Contents/_MASReceipt/receipt",
+    "/Applications/FreeLLMAPI.app/Wrapper/BundleMetadata.plist",
+    "/Applications/FreeLLMAPI.app/Wrapper/FreeLLMAPI.app/Assets.car",
+    "/Applications/FreeLLMAPI.app/Wrapper/FreeLLMAPI.app/EXConstants.bundle/app.config",
+    "/Applications/FreeLLMAPI.app/Wrapper/FreeLLMAPI.app/ExpoMediaLibrary_privacy.bundle/Info.plist",
+    "/Applications/FreeLLMAPI.app/Wrapper/FreeLLMAPI.app/Frameworks/ExpoImageManipulator.framework/ExpoImageManipulator",
+    "/Applications/FreeLLMAPI.app/Wrapper/FreeLLMAPI.app/Frameworks/ExpoImageManipulator.framework/Info.plist",
+    "/Applications/FreeLLMAPI.app/Wrapper/FreeLLMAPI.app/Frameworks/ExpoImageManipulator.framework/_CodeSignature/CodeResources"
+  ],
+  "text": null,
+  "stdout_has_preamble": false,
+  "stderr": ""
+}
