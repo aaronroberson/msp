@@ -89,7 +89,7 @@ component = "RecordTable"
 title = "Top listening sockets"
 columns = ["protocol", "local", "process", "pid"]
 limit = 6
-link = "listening"
+link = "monitoring.network"
 link_label = "View network"
 
 [[slots]]

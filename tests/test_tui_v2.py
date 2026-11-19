@@ -234,3 +234,40 @@ def test_palette_lists_sidebar_screens_and_opens_the_firewall_add_form():
             assert isinstance(app.focused, Input) and app.focused.id == "form-workspace-aside-2-path"
 
     asyncio.run(exercise())
+
+
+def test_shell_confirms_outbound_reads_then_runs_them_inside_the_page():
+    from textual.widgets import DataTable
+
+    from src.tui_pages.runtime import run_replay
+
+    calls = []
+
+    def executor(run_id, command, args):
+        calls.append((run_id, dict(args)))
+        return run_replay(run_id, command, args)
+
+    async def exercise():
+        app = MspTUI(executor=executor)
+        async with app.run_test(size=(170, 50)) as pilot:
+            app.switch_view_id("listening")
+            await pilot.pause(0.3)
+            await app.workers.wait_for_complete()
+            page = app.query_one("#page-monitoring-network")
+            page.query_one("#form-workspace-aside-3-host").value = "example.com"
+            page.query_one("#submit-workspace-aside-3", Button).press()
+            await pilot.pause(0.1)
+            assert "sends network traffic" in str(app.screen.query_one("#confirm-description").render())
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert "lookup" not in [c[0] for c in calls]
+            page.query_one("#submit-workspace-aside-3", Button).press()
+            await pilot.pause(0.1)
+            await pilot.press("y")
+            await pilot.pause(0.3)
+            await app.workers.wait_for_complete()
+            assert ("lookup", {"host": "example.com"}) in calls
+            answers = page.query_one("#table-workspace-aside-4", DataTable)
+            assert answers.row_count == 2
+
+    asyncio.run(exercise())

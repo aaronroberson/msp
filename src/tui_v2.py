@@ -171,8 +171,6 @@ class ViewSpec:
 VIEWS: list[ViewSpec] = [
     ViewSpec("runner", "Commands"),
     ViewSpec("findings", "Findings", ("severity", "category", "item", "description"), "scan quick --json"),
-    ViewSpec("listening", "Listening sockets", ("process", "pid", "user", "protocol", "local", "state"), "net list --json"),
-    ViewSpec("established", "Established connections", ("process", "pid", "user", "local", "remote"), "net established --json"),
     ViewSpec("startup", "Startup", ("label", "type", "path", "status"), "startup managed --json"),
     ViewSpec("tcc", "Permissions", ("service", "client", "auth", "source", "last_modified"), "tcc list --json"),
     ViewSpec("snapshots", "Snapshots", ("name", "timestamp", "firewall", "gatekeeper", "filevault"), "snapshot list --json"),
@@ -999,6 +997,22 @@ class MspTUI(App[None]):
     def _page_action(self, view: PageView, run_id: str, command: CommandSpec, args: dict[str, Any]) -> None:
         """Confirm, run through the command rail, then re-run the action's ``refreshes``."""
         line = shlex.join(build_argv(command, args))
+        if command.risk == "read":
+            # outbound read: confirm, then run inside the page so its slots fill
+            reasons = []
+            if command.active_network:
+                reasons.append("This sends network traffic to other hosts (a scan or lookup).")
+            if command.llm:
+                reasons.append("This sends system data to the configured AI provider, which may be a cloud service.")
+            if command.needs_root:
+                reasons.append("macOS will ask for an administrator password.")
+            if command.long_running:
+                reasons.append("It can take a while.")
+            self.push_screen(
+                ConfirmScreen(line, " ".join(reasons) or "Run this command?"),
+                lambda ok: view.start([run_id], force=True, args={run_id: args}) if ok else None,
+            )
+            return
         targets = view.scheduler.refresh_targets(run_id)
         detail = "This changes system settings."
         if command.needs_root:
