@@ -7,12 +7,10 @@ from textual.widgets import Button
 
 from src.network import NetworkMonitor
 from src.startup import StartupManager
-from src.tui_v2 import CommandBroker, MspTUI, REPO_ROOT, RUNNABLES, VIEWS, _requires_confirmation
+from src.tui_v2 import CommandBroker, MspTUI, REPO_ROOT, RUNNABLES, _requires_confirmation
 
 
 def test_catalog_and_command_confirmations():
-    assert len({view.id for view in VIEWS}) == len(VIEWS)
-    assert all(view.columns and view.command for view in VIEWS if view.id != "runner")
     assert RUNNABLES
     assert _requires_confirmation(["net", "terminate", "--pid", "22"])
     assert _requires_confirmation(["firewall", "set", "enabled", "off"])
@@ -150,10 +148,16 @@ def test_app_exposes_firewall_and_startup_controls(monkeypatch):
             await pilot.pause()
             assert app._current_id == "firewall"
             app.switch_view_id("startup")
-            await pilot.pause()
-            assert app.query_one("#startup-login-add")
-            assert app.query_one("#startup-agent-add")
-            assert app.query_one("#startup-remove")
+            await pilot.pause(0.2)
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.2)
+            startup = app.query_one("#page-system-startup")
+            assert startup.query_one("#submit-workspace-aside-2", Button).label.plain == "Add Login Item"
+            assert startup.query_one("#submit-workspace-aside-3", Button).label.plain == "Add LaunchAgent"
+            # the managed list's first row is a current-user LaunchAgent: it can be disabled and removed
+            visible = {b.id for b in startup.query(Button) if b.display}
+            assert {"act-agent_disable-agent_disable", "act-agent_remove-agent_remove"} <= visible
+            assert "act-login_remove-login_remove" not in visible
 
     asyncio.run(exercise())
 
@@ -208,7 +212,7 @@ def test_page_actions_confirm_run_then_refresh(monkeypatch):
             await app.workers.wait_for_complete()
             await pilot.pause(0.3)
             await app.workers.wait_for_complete()
-            assert lines == ["firewall app add '/Applications/My App.app'"]
+            assert lines == ["firewall app add '/Applications/My App.app' --json"]
             assert executed == ["fw", "fw"]                # refreshed exactly its read
 
     asyncio.run(exercise())

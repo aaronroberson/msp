@@ -130,8 +130,9 @@ def test_pages_enforce_order_references_and_acyclic_runs(pages, mutate):
 
 
 def test_pages_use_known_templates_regions_and_links(pages):
-    from src.tui_v2 import VIEWS
-    assert check_pages(pages, load_templates(), load_labels(), tuple(v.id for v in VIEWS), load_commands()) == []
+    from src.tui_pages.shell import LEGACY_ENTRIES, PAGE_ALIASES
+    links = tuple(PAGE_ALIASES) + tuple(entry[0] for entry in LEGACY_ENTRIES)
+    assert check_pages(pages, load_templates(), load_labels(), links, load_commands()) == []
 
 
 @pytest.mark.parametrize("mutate, expected", [

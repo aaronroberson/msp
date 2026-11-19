@@ -1,0 +1,38 @@
+# Automation ▸ Workflows (template: catalog). Replaces the legacy Workflows screen,
+# which ran a full (LLM-assisted) dry run on open. Selecting a workflow lists its
+# steps; running workflows moves to the pipeline page (Phase 5).
+
+[page]
+id = "automation.workflows"
+concern = "automation"
+title = "Workflows"
+order = 1
+template = "catalog"
+
+[[runs]]
+id = "list"
+command = "workflow.list"
+
+[[runs]]
+id = "show"
+command = "workflow.show"
+trigger = "on_select:workspace.main#1"
+args = { workflow = "{row.id}" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "list"
+component = "DefinitionCatalog"
+props = { title = "Workflows", name = "title", description = "description" }
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+run = "show"
+component = "RecordTable"
+[slots.props]
+title = "Steps"
+columns = ["title", "concept", "command_hint"]
+labels = { title = "Step", concept = "Uses", command_hint = "Command" }
+empty = "Select a workflow to see its steps."

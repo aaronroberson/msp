@@ -22,17 +22,17 @@ PAGE_ALIASES: Dict[str, str] = {
     "privacy": "privacy.settings",
     "firewall": "security.firewall",
     "listening": "monitoring.network",
+    "startup": "system.startup",
+    "tcc": "privacy.tcc",
+    "findings": "security.scans",
+    "snapshots": "forensics.snapshots",
+    "workflows": "automation.workflows",
+    "ai": "automation.ai",
 }
 
 # (nav key, concern, title, order) for screens not yet expressed as manifest pages.
 LEGACY_ENTRIES = (
     ("runner", "overview", "Command runner", 9),
-    ("findings", "security", "Findings", 3),
-    ("startup", "system", "Startup", 1),
-    ("tcc", "privacy", "Permissions (TCC)", 2),
-    ("snapshots", "forensics", "Snapshots", 1),
-    ("workflows", "automation", "Workflows", 1),
-    ("ai", "automation", "AI", 2),
 )
 
 

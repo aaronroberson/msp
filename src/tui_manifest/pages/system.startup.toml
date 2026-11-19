@@ -1,0 +1,285 @@
+# System control ▸ Startup & persistence (template: explorer). Replaces the legacy Startup screen.
+# One tab per startup source; the inspector follows the selected row on any tab.
+# Row actions only appear where they apply: current-user LaunchAgents can be
+# disabled / enabled / removed; Login Items can be removed. Adding items uses forms.
+
+[page]
+id = "system.startup"
+concern = "system"
+title = "Startup & persistence"
+order = 1
+template = "explorer"
+
+[[tabs]]
+id = "managed"
+title = "Managed"
+
+[[tabs]]
+id = "login"
+title = "Login items"
+
+[[tabs]]
+id = "agents"
+title = "Agents"
+
+[[tabs]]
+id = "daemons"
+title = "Daemons"
+
+[[tabs]]
+id = "running"
+title = "Running"
+
+[[tabs]]
+id = "disabled"
+title = "Disabled"
+
+[[tabs]]
+id = "all"
+title = "All"
+
+[[tabs]]
+id = "cron"
+title = "Cron"
+
+[[tabs]]
+id = "search"
+title = "Search"
+
+[[runs]]
+id = "managed"
+command = "startup.managed"
+trigger = "on_view:managed"
+
+[[runs]]
+id = "login"
+command = "startup.login-items"
+trigger = "on_view:login"
+
+[[runs]]
+id = "agents"
+command = "startup.agents"
+trigger = "on_view:agents"
+
+[[runs]]
+id = "daemons"
+command = "startup.daemons"
+trigger = "on_view:daemons"
+
+[[runs]]
+id = "running"
+command = "startup.running"
+trigger = "on_view:running"
+
+[[runs]]
+id = "disabled"
+command = "startup.disabled"
+trigger = "on_view:disabled"
+
+[[runs]]
+id = "all"
+command = "startup.list"
+trigger = "on_view:all"
+
+[[runs]]
+id = "cron"
+command = "startup.cron"
+trigger = "on_view:cron"
+
+[[runs]]
+id = "search"
+command = "startup.search"
+trigger = "on_action"
+
+[[runs]]
+id = "agent_disable"
+command = "startup.agent-disable"
+trigger = "on_action"
+args = { label = "{row.label}" }
+refreshes = ["managed", "login", "agents", "daemons", "running", "disabled", "all"]
+
+[[runs]]
+id = "agent_enable"
+command = "startup.agent-enable"
+trigger = "on_action"
+args = { label = "{row.label}" }
+refreshes = ["managed", "login", "agents", "daemons", "running", "disabled", "all"]
+
+[[runs]]
+id = "agent_remove"
+command = "startup.agent-remove"
+trigger = "on_action"
+args = { label = "{row.label}" }
+refreshes = ["managed", "login", "agents", "daemons", "running", "disabled", "all"]
+
+[[runs]]
+id = "login_remove"
+command = "startup.login-remove"
+trigger = "on_action"
+args = { name = "{row.name}" }
+refreshes = ["managed", "login", "agents", "daemons", "running", "disabled", "all"]
+
+[[runs]]
+id = "login_add"
+command = "startup.login-add"
+trigger = "on_action"
+refreshes = ["managed", "login", "agents", "daemons", "running", "disabled", "all"]
+
+[[runs]]
+id = "agent_add"
+command = "startup.agent-add"
+trigger = "on_action"
+refreshes = ["managed", "login", "agents", "daemons", "running", "disabled", "all"]
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "managed"
+component = "RecordTable"
+[slots.props]
+title = "Managed"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "login"
+component = "RecordTable"
+[slots.props]
+title = "Login items"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 3
+run = "agents"
+component = "RecordTable"
+[slots.props]
+title = "Launch agents"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 4
+run = "daemons"
+component = "RecordTable"
+[slots.props]
+title = "Launch daemons"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 5
+run = "running"
+component = "RecordTable"
+[slots.props]
+title = "Running"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 6
+run = "disabled"
+component = "RecordTable"
+[slots.props]
+title = "Disabled"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 7
+run = "all"
+component = "RecordTable"
+[slots.props]
+title = "All"
+columns = ["label", "type", "status", "path"]
+sort_by = ["label"]
+count_by = "status"
+
+[[slots]]
+region = "workspace.main"
+order = 8
+run = "cron"
+component = "RecordTable"
+[slots.props]
+title = "Cron entries"
+columns = ["entry"]
+labels = { entry = "Entry" }
+empty = "No cron entries for this user."
+
+[[slots]]
+region = "workspace.main"
+order = 9
+component = "ActionForm"
+actions = ["search"]
+tab = "search"
+[slots.props]
+title = "Search startup items"
+submit = "Search"
+required = ["label"]
+placeholders = { label = "Label or name contains…" }
+
+[[slots]]
+region = "workspace.main"
+order = 10
+run = "search"
+component = "RecordTable"
+tab = "search"
+[slots.props]
+title = "Matches"
+columns = ["label", "type", "status", "path"]
+empty = "Search by label or name."
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main"
+component = "RecordInspector"
+row_actions = ["agent_disable", "agent_enable", "agent_remove", "login_remove"]
+[slots.props]
+title = "Selected item"
+empty = "Select an item to inspect it."
+fields = ["label", "name", "type", "status", "pid", "path"]
+labels = { agent_disable = "Disable", agent_enable = "Enable", agent_remove = "Remove", login_remove = "Remove login item" }
+# only current-user LaunchAgents and Login Items can be changed here
+[slots.props.hide_when]
+agent_disable = "!(type == 'agent' && contains(path, '/Library/LaunchAgents/') && starts_with(path, '/Users/')) || status == 'disabled'"
+agent_enable = "!(type == 'agent' && contains(path, '/Library/LaunchAgents/') && starts_with(path, '/Users/'))"
+agent_remove = "!(type == 'agent' && contains(path, '/Library/LaunchAgents/') && starts_with(path, '/Users/'))"
+login_remove = "type != 'login_item'"
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["login_add"]
+[slots.props]
+title = "Add a Login Item"
+fields = ["name", "path"]
+required = ["name", "path"]
+submit = "Add Login Item"
+placeholders = { name = "Name", path = "/Applications/Example.app" }
+
+[[slots]]
+region = "workspace.aside"
+order = 3
+component = "ActionForm"
+actions = ["agent_add"]
+[slots.props]
+title = "Add a LaunchAgent"
+fields = ["label", "path", "program_arg"]
+required = ["label", "path"]
+submit = "Add LaunchAgent"
+placeholders = { label = "com.example.agent", path = "/usr/local/bin/example", program_arg = "Arguments (space-separated)" }

@@ -1,0 +1,93 @@
+# Forensics ▸ Snapshots (template: explorer). Replaces the legacy Snapshots screen.
+# Selecting a snapshot compares it with the current settings; restore and
+# delete are row actions; capture takes an optional name.
+
+[page]
+id = "forensics.snapshots"
+concern = "forensics"
+title = "Snapshots"
+order = 1
+template = "explorer"
+
+[[runs]]
+id = "list"
+command = "snapshot.list"
+
+[[runs]]
+id = "diff"
+command = "snapshot.diff"
+trigger = "on_select:workspace.main#1"
+args = { name = "{row.name}" }
+
+[[runs]]
+id = "capture"
+command = "snapshot.capture"
+trigger = "on_action"
+refreshes = ["list"]
+
+[[runs]]
+id = "restore"
+command = "snapshot.restore"
+trigger = "on_action"
+args = { name = "{row.name}" }
+refreshes = ["list"]
+
+[[runs]]
+id = "delete"
+command = "snapshot.delete"
+trigger = "on_action"
+args = { name = "{row.name}" }
+refreshes = ["list"]
+
+[[slots]]
+region = "strip"
+order = 1
+run = "list"
+select = "length(@)"
+component = "KPICell"
+props = { title = "Snapshots" }
+
+[[slots]]
+region = "workspace.main"
+order = 1
+run = "list"
+select = "[].{name: name, timestamp: timestamp, firewall: settings.firewall, gatekeeper: settings.gatekeeper, filevault: settings.filevault, stealth: settings.firewall_stealth}"
+component = "RecordTable"
+[slots.props]
+title = "Saved snapshots"
+columns = ["name", "timestamp", "firewall", "gatekeeper", "filevault", "stealth"]
+labels = { timestamp = "Taken", stealth = "Stealth" }
+sort_by = ["-timestamp"]
+empty = "No snapshots yet. Capture one to compare settings later."
+
+[[slots]]
+region = "workspace.main"
+order = 2
+run = "diff"
+component = "RecordTable"
+[slots.props]
+title = "Changes since the selected snapshot"
+columns = ["section", "setting", "snapshot_value", "current_value"]
+labels = { section = "Area", snapshot_value = "Then", current_value = "Now" }
+empty = "Select a snapshot to compare it with the current settings."
+
+[[slots]]
+region = "workspace.aside"
+order = 1
+follows = "workspace.main#1"
+component = "RecordInspector"
+row_actions = ["restore", "delete"]
+[slots.props]
+title = "Snapshot"
+empty = "Select a snapshot."
+labels = { restore = "Restore…", delete = "Delete" }
+
+[[slots]]
+region = "workspace.aside"
+order = 2
+component = "ActionForm"
+actions = ["capture"]
+[slots.props]
+title = "Capture a snapshot"
+submit = "Capture"
+placeholders = { name = "Name (optional)" }
