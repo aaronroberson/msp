@@ -761,7 +761,9 @@ class TCCManager:
     def _print_entries(self, entries: List[TCCEntry], json_output: bool = False) -> None:
         if json_output:
             permissions = [asdict(entry) for entry in entries]
-            self._print_json({"permissions": permissions, "errors": self.errors} if self.errors else permissions)
+            # One shape regardless of state: granting Full Disk Access must not
+            # turn the object into a bare list under consumers' feet.
+            self._print_json({"permissions": permissions, "errors": self.errors})
             return
 
         if RICH_AVAILABLE and console:
