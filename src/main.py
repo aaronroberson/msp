@@ -247,9 +247,12 @@ def _flag_value(raw_args: list[str], flag: str) -> Optional[str]:
 
 def main():
     positionals = [token for token in sys.argv[1:] if not token.startswith("-")]
-    if positionals and positionals[0].lower() in COMMAND_MODULES and any(
-        arg in ("-h", "--help") for arg in sys.argv[1:]
-    ):
+    wants_help = any(arg in ("-h", "--help") for arg in sys.argv[1:])
+    if wants_help and positionals and positionals[0].lower() == "shell":
+        from src.shell_audit_cli import main as shell_audit_main
+        shell_audit_main(argv=["--help"])
+        return
+    if wants_help and positionals and positionals[0].lower() in COMMAND_MODULES:
         run_command(COMMAND_MODULES[positionals[0].lower()], "", ["--help"], None)
         return
 
