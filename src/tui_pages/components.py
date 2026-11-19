@@ -535,7 +535,9 @@ class ActionForm(SlotComponent):
 
     props: title, fields (arg names to ask for; default: all without a fixed
     value), fixed (arg values set by the page, e.g. ``operation = "add"``),
-    submit (button label), placeholders (per field).
+    submit (button label), placeholders (per field), unavailable (a reason
+    the action cannot run here; the form shows it instead of a button).
+    Choices become selects, flags checkboxes, everything else text inputs.
     """
 
     def __init__(self, slot: SlotSpec, ctx: PageContext, **kw: Any) -> None:
@@ -544,13 +546,16 @@ class ActionForm(SlotComponent):
         self.run_id = slot.actions[0] if slot.actions else ""
 
     def compose(self) -> ComposeResult:
-        from textual.widgets import Select
+        from textual.widgets import Checkbox, Select
 
         props = self.slot.props
         command = self.ctx.command_for(self.run_id)
         yield Label(self.title or "ACTION", classes="eyebrow")
         if command is None:
             yield Static("No action configured.", classes="empty-note")
+            return
+        if props.get("unavailable"):
+            yield Static(str(props["unavailable"]), classes="empty-note")
             return
         fixed = props.get("fixed", {})
         wanted = props.get("fields") or [a.name for a in command.args if a.name not in fixed]
@@ -561,6 +566,8 @@ class ActionForm(SlotComponent):
             field_id = f"form-{self._dom_key()}-{spec.name}"
             if spec.choices:
                 yield Select([(c, c) for c in spec.choices], id=field_id, prompt=self.ctx.field_label(spec.name, self.slot))
+            elif spec.kind == "flag":
+                yield Checkbox(self.ctx.field_label(spec.name, self.slot), id=field_id)
             else:
                 yield Input(placeholder=placeholders.get(spec.name, self.ctx.field_label(spec.name, self.slot)), id=field_id)
         yield Button(props.get("submit", "Run"), id=f"submit-{self._dom_key()}", classes="form-submit",
@@ -580,7 +587,7 @@ class ActionForm(SlotComponent):
             value = node.value if not isinstance(node, Select) else (None if node.value == Select.BLANK else node.value)
             if isinstance(value, str):
                 value = value.strip()
-            if value not in (None, ""):
+            if value not in (None, "", False):
                 args[spec.name] = value
         return args
 

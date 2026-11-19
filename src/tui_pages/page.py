@@ -83,7 +83,7 @@ class PageView(VerticalScroll):
         meta = self.page.page
         with Horizontal(classes="page-header"):
             yield Label(meta.title, classes="page-title")
-            yield Label(self.ctx.labels["concerns"].get(meta.concern, meta.concern).upper(), classes="page-meta", id="page-meta")
+            yield Label(self._meta_text(), classes="page-meta" + (" fallback-badge" if meta.fallback else ""), id="page-meta")
             for run_id in self.scheduler.manual_runs():
                 command = self.scheduler.command(run_id)
                 yield Button(self.page_props_label(run_id, command), id=f"run-{run_id}", classes="header-action")
@@ -220,9 +220,14 @@ class PageView(VerticalScroll):
 
     def _show_source(self) -> None:
         sources = sorted({r.source for r in self.scheduler.results.values() if not r.failure})
-        concern = self.ctx.labels["concerns"].get(self.page.page.concern, self.page.page.concern).upper()
-        suffix = " · replayed fixtures" if sources == ["replay"] else ""
-        self.query_one("#page-meta", Label).update(concern + suffix)
+        self.query_one("#page-meta", Label).update(self._meta_text(sources == ["replay"]))
+
+    def _meta_text(self, replayed: bool = False) -> str:
+        if self.page.page.fallback:
+            meta = "AUTO-GENERATED · NOT YET DESIGNED"
+        else:
+            meta = self.ctx.labels["concerns"].get(self.page.page.concern, self.page.page.concern).upper()
+        return meta + (" · replayed fixtures" if replayed else "")
 
     def refresh_page(self, include_long: bool = True) -> None:
         """Re-run what the page shows. A revisit passes ``include_long=False`` so
@@ -302,6 +307,7 @@ PAGE_CSS = """
 .page-title { text-style: bold; color: #F0F6FC; width: 1fr; }
 .page-meta { color: #8B949E; margin-right: 2; }
 .header-action { height: 3; margin-left: 1; }
+.fallback-badge { color: #D29922; text-style: bold; }
 .view-tabs { height: 3; margin-bottom: 1; }
 .view-tab { height: 3; min-width: 10; margin-right: 1; }
 .view-tab.-active { border: solid #58A6FF; color: #58A6FF; text-style: bold; }

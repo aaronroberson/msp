@@ -51,7 +51,7 @@ def nav_key(page_id: str) -> str:
 
 def nav_entries(pages: Dict[str, PageSpec], concerns: Dict[str, str]) -> List[NavEntry]:
     entries = [NavEntry(nav_key(p.page.id), p.page.concern, p.page.title, p.page.order, p.page.id)
-               for p in pages.values() if not p.page.fallback]
+               for p in pages.values()]
     entries += [NavEntry(*legacy) for legacy in LEGACY_ENTRIES]
     rank = {concern: i for i, concern in enumerate(concerns)}
     return sorted(entries, key=lambda e: (rank.get(e.concern, len(rank)), e.order, e.title))

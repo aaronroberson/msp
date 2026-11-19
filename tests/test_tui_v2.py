@@ -271,3 +271,72 @@ def test_shell_confirms_outbound_reads_then_runs_them_inside_the_page():
             assert answers.row_count == 2
 
     asyncio.run(exercise())
+
+
+def test_every_command_is_reachable_and_fallback_pages_render_every_output(monkeypatch):
+    """Generated pages (D14) list every command without a curated page; each
+    replayable read renders with its envelope's default component; mutations
+    confirm; and fallback pages never count as coverage."""
+    from src.tui_manifest import coverage, load_commands, load_pages
+    from src.tui_pages.fallback import fallback_pages
+    from src.tui_pages.page import PageView
+    from src.tui_pages.runtime import run_replay
+    import src.tui_v2 as tui_v2
+
+    commands, curated = load_commands(), load_pages()
+    generated = fallback_pages(commands, curated)
+    reachable = {run.command for page in [*curated.values(), *generated.values()] for run in page.runs}
+    assert reachable == set(commands)
+    assert all(r["status"] == "fallback-only" for r in coverage(commands, {**curated, **generated})
+               if not any(run.command == r["id"] for p in curated.values() for run in p.runs))
+
+    lines = []
+
+    class RecordingBroker:
+        def __init__(self, line):
+            lines.append(line)
+
+        def run(self):
+            yield ("[exit 0 · 0.0s]", True, 0, 0.0)
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(tui_v2, "CommandBroker", RecordingBroker)
+
+    async def exercise():
+        app = MspTUI(executor=run_replay)
+        async with app.run_test(size=(170, 50)) as pilot:
+            await pilot.pause(0.2)
+            assert app.query_one("#nav-fallback-deps").label == "deps"
+            failures = []
+            for page_id, spec in generated.items():
+                app.switch_view_id(page_id)
+                await pilot.pause(0.05)
+                page = app._panes[page_id]
+                assert isinstance(page, PageView) and "NOT YET DESIGNED" in str(page.query_one("#page-meta").render())
+                for run in spec.runs:
+                    command = commands[run.command]
+                    if command.risk != "read" or page.scheduler.outbound(run.id) or command.envelope_kind == "stream":
+                        continue
+                    page.request(run.id, {})
+                await app.workers.wait_for_complete()
+                await pilot.pause(0.05)
+                for slot in spec.slots:
+                    if slot.run:
+                        widget = page.slots[f"{slot.region}#{slot.order}"]
+                        result = page.scheduler.results.get(slot.run)
+                        if result and not result.failure and not widget.loaded:
+                            failures.append(f"{page_id} {slot.run}: did not render")
+            assert failures == []
+            # a mutation on a fallback page confirms before anything runs
+            app.switch_view_id("fallback.deps")
+            await pilot.pause(0.1)
+            page = app._panes["fallback.deps"]
+            page.request("deps_install", {"package": "jq"})
+            await pilot.pause(0.1)
+            assert "deps install jq" in str(app.screen.query_one("#confirm-command").render())
+            await pilot.press("escape")
+            assert lines == []
+
+    asyncio.run(exercise())

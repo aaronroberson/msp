@@ -48,6 +48,7 @@ from src.tui_manifest import CommandSpec, load_commands, load_labels, load_pages
 from src.tui_pages.page import PAGE_CSS, PageView, RunFinished, RunStarted
 from src.tui_pages.components import OpenPage
 from src.tui_pages.runtime import Executor, build_argv, executor_for
+from src.tui_pages.fallback import fallback_pages
 from src.tui_pages.shell import PAGE_ALIASES, SIDEBAR_CSS, Sidebar, nav_entries, nav_key
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -910,8 +911,9 @@ class MspTUI(App[None]):
 
     def __init__(self, executor: Optional[Executor] = None) -> None:
         super().__init__()
-        self.pages = load_pages()
         self.commands = load_commands()
+        curated = load_pages()
+        self.pages = {**curated, **fallback_pages(self.commands, curated)}
         self.templates = load_templates()
         self.labels = load_labels()
         self.nav = nav_entries(self.pages, self.labels["concerns"])
