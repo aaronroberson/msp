@@ -85,7 +85,7 @@ encoding = "exit"
 risk = "confirm"
 needs_root = true
 args = [
-  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "name", kind = "text" },
   { name = "dry_run", kind = "flag", option = "--dry-run" },
 ]
 
@@ -98,7 +98,7 @@ encoding = "exit"
 risk = "confirm"
 needs_root = false
 args = [
-  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "name", kind = "text" },
 ]
 
 [[command]]
@@ -120,7 +120,7 @@ encoding = "exit"
 risk = "confirm"
 needs_root = false
 args = [
-  { name = "name", kind = "choice", choices = ["basic", "drduh", "nist", "paranoid", "term7"] },
+  { name = "name", kind = "text" },
   { name = "settings", kind = "text", option = "--settings" },
   { name = "description", kind = "text", option = "--description" },
 ]

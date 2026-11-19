@@ -88,18 +88,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -134,18 +127,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -180,18 +166,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
@@ -226,18 +205,11 @@
           "shared_args": [
             {
               "name": "name",
-              "kind": "choice",
+              "kind": "text",
               "positional": true,
               "option": null,
               "required": false,
-              "help": "Preset name or ID",
-              "choices": [
-                "basic",
-                "drduh",
-                "nist",
-                "paranoid",
-                "term7"
-              ]
+              "help": "Preset name or ID (built-in or custom)"
             },
             {
               "name": "dry_run",
