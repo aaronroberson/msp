@@ -49,6 +49,7 @@ order = 1
 run = "status"
 select = "{firewall: firewall.enabled, gatekeeper: gatekeeper.enabled, filevault: filevault.enabled, bluetooth: bluetooth.enabled, sharing: sharing.sharing_enabled, password_required: security.password_required}"
 component = "StatusStrip"
+props = { columns = 3 }
 
 [[slots]]
 region = "workspace.main"

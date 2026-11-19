@@ -112,6 +112,7 @@ class PageView(VerticalScroll):
         self.start(self.scheduler.triggered("on_open"))
 
     def start(self, run_ids: List[str], *, force: bool = False) -> None:
+        run_ids = [r for r in run_ids if r not in self.pending]  # never duplicate an in-flight run
         if not run_ids:
             return
         self.pending.update(run_ids)
@@ -229,14 +230,17 @@ PAGE_CSS = """
 .progress { background: #161B22; color: #58A6FF; padding: 0 1; margin-bottom: 1; height: auto; }
 .strip-region { height: auto; margin-bottom: 1; }
 .strip-region > .slot { width: auto; margin-right: 1; }
+.strip-region > .slot.status-strip.wraps { width: 1fr; max-width: 100; }
 .strip { height: 3; width: auto; }
+.grid-strip { height: auto; width: 1fr; layout: grid; grid-gutter: 0 1; }
 .pill { border: solid #30363D; background: #161B22; width: auto; height: 3; padding: 0 1; margin-right: 1; }
+.grid-strip .pill { width: 1fr; margin-right: 0; }
 .pill-label { color: #8B949E; text-style: bold; margin-right: 2; }
 .state-on { color: #3FB950; text-style: bold; }
 .state-off { color: #F85149; text-style: bold; }
 .state-unknown { color: #8B949E; }
-.kpi { border: solid #30363D; background: #161B22; width: auto; min-width: 18; height: 4; padding: 0 1; margin-right: 1; }
 .kpi-value { color: #F0F6FC; text-style: bold; }
+.chips { height: 3; width: auto; }
 .chip { height: 3; min-width: 8; margin-right: 1; }
 .chip.-active { border: solid #58A6FF; color: #58A6FF; }
 .slot { height: auto; }

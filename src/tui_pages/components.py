@@ -197,8 +197,17 @@ class NoticeBanner(SlotComponent):
 class StatusStrip(SlotComponent):
     PANEL = False
 
+    def __init__(self, slot: SlotSpec, ctx: PageContext, **kw: Any) -> None:
+        super().__init__(slot, ctx, classes="status-strip", **kw)
+
     def compose(self) -> ComposeResult:
-        with Horizontal(classes="strip"):
+        # one row of content-sized pills; props.columns wraps them onto an even grid
+        columns = self.slot.props.get("columns")
+        strip = Horizontal(classes="strip grid-strip" if columns else "strip")
+        if columns:
+            self.add_class("wraps")
+            strip.styles.grid_size_columns = int(columns)
+        with strip:
             if not self.loaded or self.failure:
                 yield Label("…" if not self.failure else "status unavailable", classes="pill-label")
                 return
@@ -214,7 +223,7 @@ class KPICell(SlotComponent):
     PANEL = False
 
     def compose(self) -> ComposeResult:
-        with Vertical(classes="kpi"):
+        with Horizontal(classes="pill kpi"):
             yield Label(self.title or "", classes="pill-label")
             value = "…" if not self.loaded else "—" if self.failure or self.data is None else str(self.data)
             yield Label(value, classes="kpi-value")
@@ -228,7 +237,7 @@ class SeverityChips(SlotComponent):
         for row in self.data or []:
             level = str(row.get("severity", "info")).lower()
             counts[level] = counts.get(level, 0) + 1
-        with Horizontal(classes="strip chips"):
+        with Horizontal(classes="chips"):
             yield Button(f"All {sum(counts.values())}", name="", classes="chip -active")
             for level in SEVERITY_ORDER:
                 if counts.get(level):
